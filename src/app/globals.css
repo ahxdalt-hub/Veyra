@@ -1,0 +1,250 @@
+/* Standard Practice — Design System & Global Styles */
+@import "tailwindcss";
+
+/* ============================================================
+   01 · DESIGN TOKENS
+   Light-first, editorial, restrained. Warm paper + ink +
+   one deep moss accent. Hairline borders, restrained shadows,
+   no gradients, no glow.
+   ============================================================ */
+
+@theme {
+  /* — Foundation — */
+  --color-paper: #fbfaf8;
+  --color-surface: #ffffff;
+  --color-ink: #17150f;
+  --color-ink-2: #3e3a30;
+  --color-ink-3: #6b665a;
+  --color-ink-4: #a19a8c;
+  --color-line: #e6e2d9;
+  --color-line-strong: #d2ccc0;
+  --color-accent: #2f4f3a;
+  --color-accent-deep: #233c2c;
+  --color-accent-soft: #eef2ec;
+  --color-accent-ink: #1d3324;
+  --color-amber: #b8842a;
+  --color-amber-soft: #f7efe0;
+  --color-clay: #a3502e;
+  --color-clay-soft: #f6e8e2;
+
+  /* — Typography — */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "SF Mono", monospace;
+
+  /* — Motion — */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-soft: cubic-bezier(0.33, 1, 0.68, 1);
+
+  /* — Shadows (only what the system needs) — */
+  --shadow-xs: 0 1px 2px rgba(23, 21, 15, 0.05);
+  --shadow-sm: 0 1px 2px rgba(35, 32, 24, 0.06), 0 1px 3px rgba(35, 32, 24, 0.04);
+  --shadow-md: 0 2px 4px rgba(35, 32, 24, 0.05), 0 6px 16px rgba(35, 32, 24, 0.06);
+  --shadow-lg: 0 4px 8px rgba(35, 32, 24, 0.05), 0 12px 32px rgba(35, 32, 24, 0.1);
+
+  /* — Radii — */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.75rem;
+
+  /* — Breakpoint-aware containers — */
+  --container-6xl: 72rem;
+  --container-7xl: 80rem;
+}
+
+/* ============================================================
+   02 · BASE
+   ============================================================ */
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 6.5rem;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: var(--color-accent);
+    color: #ffffff;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* ============================================================
+   03 · COMPONENT UTILITIES
+   The reusable layer between tokens and components.
+   ============================================================ */
+
+@layer utilities {
+  /* Page container */
+  .container-page {
+    width: 100%;
+    margin-inline: auto;
+    max-width: 76rem;
+    padding-inline: 1.25rem;
+  }
+  @media (min-width: 640px) {
+    .container-page {
+      padding-inline: 2rem;
+    }
+  }
+  @media (min-width: 1024px) {
+    .container-page {
+      padding-inline: 2.5rem;
+    }
+  }
+
+  /* Narrow reading measure */
+  .container-tight {
+    width: 100%;
+    margin-inline: auto;
+    max-width: 42rem;
+    padding-inline: 1.25rem;
+  }
+  @media (min-width: 640px) {
+    .container-tight {
+      padding-inline: 2rem;
+    }
+  }
+
+  /* Typographic roles */
+  .text-display-hero {
+    font-family: var(--font-display);
+    font-size: clamp(2.625rem, 6.2vw, 4.25rem);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    font-weight: 500;
+  }
+
+  .text-display-1 {
+    font-family: var(--font-display);
+    font-size: clamp(1.875rem, 4.2vw, 2.75rem);
+    line-height: 1.1;
+    letter-spacing: -0.018em;
+    font-weight: 500;
+  }
+
+  .text-display-2 {
+    font-family: var(--font-display);
+    font-size: clamp(1.375rem, 2.6vw, 1.75rem);
+    line-height: 1.2;
+    letter-spacing: -0.012em;
+    font-weight: 500;
+  }
+
+  .text-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.7188rem;
+    line-height: 1.2;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-ink-3);
+    font-weight: 500;
+  }
+
+  .text-lead {
+    font-size: clamp(1.0625rem, 1.6vw, 1.1875rem);
+    line-height: 1.65;
+    color: var(--color-ink-2);
+  }
+
+  .em-serif {
+    font-style: italic;
+    font-family: var(--font-display);
+  }
+
+  .spec {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* Numerals align in prices & counts */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Hairline separators */
+  .rule {
+    border-color: var(--color-line);
+  }
+
+  /* Scrollers */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Spec-sheet look: faint drafting grid */
+  .bg-blueprint {
+    background-image: linear-gradient(
+        to right,
+        var(--color-line) 1px,
+        transparent 1px
+      ),
+      linear-gradient(to bottom, var(--color-line) 1px, transparent 1px);
+    background-size: 36px 36px;
+  }
+
+  .bg-blueprint-faint {
+    background-image: linear-gradient(
+        to right,
+        rgba(230, 226, 217, 0.45) 1px,
+        transparent 1px
+      ),
+      linear-gradient(to bottom, rgba(230, 226, 217, 0.45) 1px, transparent 1px);
+    background-size: 36px 36px;
+  }
+}
+
+
