@@ -1,7 +1,7 @@
 import { Reveal } from "@/components/motion/reveal";
 import { SectionHead } from "@/components/ui/section";
 import { FaqAccordion, type FaqItem } from "./faq-accordion";
-import { site } from "@/lib/site";
+import { REFUND_WINDOW_DAYS, site } from "@/lib/site";
 
 /**
  * FAQ — Section I. Copy doubles as the FAQPage JSON-LD source.
@@ -26,7 +26,7 @@ export const faqItems: FaqItem[] = [
   },
   {
     q: "Are refunds available?",
-    a: "Yes. If the system isn't right for you, contact us within 14 days of purchase and we'll refund it — no interrogation. The full policy is on our Refund Policy page.",
+    a: `Yes. If the system isn't right for you, contact us within ${REFUND_WINDOW_DAYS} days of purchase and we'll refund it — no interrogation. The full policy is on our Refund Policy page.`,
   },
   {
     q: "Is this a course or coaching?",

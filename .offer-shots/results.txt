@@ -1,0 +1,22 @@
+02-problem
+03-journey-preview
+04-system
+05-includes
+06-experience
+07-experience-2
+08-value
+09-founding
+10-faq
+sell-region:Stage 03 — SellSell with structureRun sa
+grow-region:Stage 06 — GrowGrow on reviewA standing 
+faq-open
+drawer:Your cartCClient Growth SystemLicensed software · one-time purchase$149$79/ seat11 / 5 seats1 of 5 seats · $79 per seatAdd 1 more seat → $77 / seat team pricing
+checkout
+reduced-motion-hidden:0
+19-mobile-problem
+20-mobile-system
+21-mobile-experience
+22-mobile-founding
+23-mobile-faq
+mobile-stage
+mobile-drawer

@@ -14,7 +14,7 @@ create table if not exists public.orders (
   product_slug        text not null,
   quantity            integer not null default 1 check (quantity >= 1),
   amount              integer not null check (amount > 0),  -- smallest currency unit (paise)
-  currency            text not null default 'INR',
+  currency            text not null default 'USD',
   status              text not null default 'pending'
                         check (status in ('pending','paid','failed','cancelled','refunded')),
   created_at          timestamptz not null default now(),

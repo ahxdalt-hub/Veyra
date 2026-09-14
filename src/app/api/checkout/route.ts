@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { resolvePurchasableProduct } from "@/lib/products";
+import { checkoutAmountMinor, MAX_SEATS, seatTier } from "@/lib/pricing";
 import { CURRENCY } from "@/lib/site";
 import {
   createRazorpayOrder,
   razorpayConfigured,
 } from "@/lib/razorpay";
 import { insertOrder } from "@/lib/orders";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { supabaseAuthConfigured } from "@/lib/supabase/config";
 
 /**
  * POST /api/checkout — create a payment order.
@@ -22,7 +25,6 @@ import { insertOrder } from "@/lib/orders";
  */
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const MAX_QTY = 5;
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -62,7 +64,6 @@ export async function POST(request: Request) {
   const resolved: {
     slug: string;
     name: string;
-    unitPriceRupees: number;
     qty: number;
   }[] = [];
 
@@ -79,11 +80,13 @@ export async function POST(request: Request) {
     if (typeof slug !== "string") {
       return NextResponse.json({ error: "Invalid cart item." }, { status: 422 });
     }
-    // Integer quantity, clamped to a sane range.
+    // Integer quantity, clamped to the seat range — quantity IS seats.
     const qty = Math.floor(Number(rawQty ?? 1));
-    if (!Number.isFinite(qty) || qty < 1 || qty > MAX_QTY) {
+    if (!Number.isFinite(qty) || qty < 1 || qty > MAX_SEATS) {
       return NextResponse.json(
-        { error: `Quantity must be between 1 and ${MAX_QTY}.` },
+        {
+          error: `Quantity must be between 1 and ${MAX_SEATS} seats.`,
+        },
         { status: 422 }
       );
     }
@@ -102,7 +105,6 @@ export async function POST(request: Request) {
     resolved.push({
       slug: product.slug,
       name: product.name,
-      unitPriceRupees: product.price,
       qty,
     });
   }
@@ -116,8 +118,25 @@ export async function POST(request: Request) {
     );
   }
 
+  // Duplicate lines of the same product are merged — the customer's
+  // intent is the combined seat count, and it must still fit 1–5 seats.
   const line = resolved[0];
-  const amountPaise = line.unitPriceRupees * 100 * line.qty;
+  const combinedQty = resolved.reduce((sum, r) => sum + r.qty, 0);
+  if (combinedQty > MAX_SEATS) {
+    return NextResponse.json(
+      {
+        error: `A single purchase supports 1–${MAX_SEATS} seats.`,
+      },
+      { status: 422 }
+    );
+  }
+  line.qty = combinedQty;
+
+  // Team pricing resolves here, server-side — the per-seat tier, the
+  // discount, and the payable amount are computed from the catalog's
+  // pricing configuration. A client-sent total is never read.
+  const tier = seatTier(line.qty);
+  const amountMinor = checkoutAmountMinor(line.qty); // cents
 
   // --- Guard: payments must be configured -------------------------------
   if (!razorpayConfigured()) {
@@ -133,9 +152,23 @@ export async function POST(request: Request) {
 
   // --- Create the Razorpay order, then record ours ----------------------
   const orderId = randomUUID();
+
+  // Signed-in customers get the order linked to their account directly;
+  // guests stay unlinked until they claim it with their verified email.
+  let userId: string | null = null;
+  if (supabaseAuthConfigured()) {
+    try {
+      const supabase = await createSupabaseServerClient();
+      const { data } = await supabase.auth.getUser();
+      userId = data.user?.id ?? null;
+    } catch {
+      userId = null;
+    }
+  }
+
   try {
     const rzpOrder = await createRazorpayOrder({
-      amountPaise,
+      amountMinor,
       currency: CURRENCY,
       receipt: orderId,
       notes: {
@@ -149,9 +182,10 @@ export async function POST(request: Request) {
       razorpay_order_id: rzpOrder.id,
       razorpay_payment_id: null,
       email,
+      user_id: userId,
       product_slug: line.slug,
       quantity: line.qty,
-      amount: amountPaise,
+      amount: amountMinor,
       currency: CURRENCY,
       status: "pending",
     });
@@ -164,6 +198,12 @@ export async function POST(request: Request) {
       keyId: process.env.RAZORPAY_KEY_ID,
       productName: line.name,
       quantity: line.qty,
+      // Server-resolved team pricing, for display only.
+      seats: tier.seats,
+      perSeat: tier.perSeat,
+      discountPercent: tier.discountPercent,
+      subtotal: tier.subtotal,
+      total: tier.total,
     });
   } catch (err) {
     console.error("[checkout] order creation failed:", err);

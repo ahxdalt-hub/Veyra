@@ -56,12 +56,19 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           ) : null}
         </div>
         {hint && !error ? (
-          <p id={hintId} className="mt-2 text-xs text-ink-3">
+          <p
+            id={hintId}
+            className="animate-rise mt-2 text-xs text-ink-3"
+          >
             {hint}
           </p>
         ) : null}
         {error ? (
-          <p id={errorId} role="alert" className="mt-2 text-xs text-clay">
+          <p
+            id={errorId}
+            role="alert"
+            className="animate-shake mt-2 text-xs text-clay"
+          >
             {error}
           </p>
         ) : null}

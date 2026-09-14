@@ -19,7 +19,7 @@ type ButtonVariant = "primary" | "accent" | "outline" | "ghost";
 type ButtonSize = "sm" | "md" | "lg";
 
 const base =
-  "group/btn relative inline-flex select-none items-center justify-center gap-2 rounded-sm font-medium tracking-[-0.01em] whitespace-nowrap transition-colors duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+  "group/btn relative inline-flex select-none items-center justify-center gap-2 rounded-sm font-medium tracking-[-0.01em] whitespace-nowrap transition-[color,background-color,border-color,transform,box-shadow] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-[0.985] disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
 const variants: Record<ButtonVariant, string> = {
   primary:
@@ -87,7 +87,7 @@ export function Button({
   }
 
   return (
-    <button className={classes} {...rest}>
+    <button className={classes} onClick={onClick} {...rest}>
       {children}
       {arrow ? <ButtonArrow /> : null}
     </button>

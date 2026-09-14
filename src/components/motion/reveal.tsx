@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
-import type { ReactNode } from "react";
+import { useSyncExternalStore, type ReactNode } from "react";
 
 /**
  * Reveal — section entrance animation.
@@ -9,9 +9,35 @@ import type { ReactNode } from "react";
  * One calm entrance per block: fade + 12px rise over 600ms with expo-out.
  * Runs once (whileInView). Fully disabled under prefers-reduced-motion —
  * content is visible immediately, exactly as it reads.
+ *
+ * Reduced-motion note: framer's useReducedMotion() initialises from the
+ * media query during the FIRST client render, so branching the JSX on it
+ * directly would diverge from the SSR output (motion + initial styles) and
+ * freeze React-19-hydrated content at opacity 0. useMotionPreference()
+ * gates the swap until after hydration — useSyncExternalStore returns the
+ * server snapshot (false) for the hydrating render, then flips, so SSR
+ * and hydration render identical motion markup and reduced-motion users
+ * get plain elements via a clean post-hydration remount.
  */
 
 const EASE = [0.16, 1, 0.3, 1] as const;
+
+const emptySubscribe = () => () => {};
+
+/**
+ * True only after hydration when the user prefers reduced motion.
+ * SSR and the hydrating render always return false, keeping server and
+ * client output identical; the post-hydration flip triggers a remount.
+ */
+export function useMotionPreference(): boolean {
+  const reduced = useReducedMotion();
+  const hydrated = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+  return hydrated && reduced === true;
+}
 
 export function Reveal({
   children,
@@ -24,7 +50,7 @@ export function Reveal({
   className?: string;
   as?: "div" | "section" | "li" | "span";
 }) {
-  const reduced = useReducedMotion();
+  const reduced = useMotionPreference();
 
   if (reduced) {
     const Tag = as;
@@ -60,7 +86,7 @@ export function Stagger({
   className?: string;
   step?: number;
 }) {
-  const reduced = useReducedMotion();
+  const reduced = useMotionPreference();
   if (reduced) return <div className={className}>{children}</div>;
 
   return (
@@ -84,7 +110,7 @@ export function StaggerItem({
   children: ReactNode;
   className?: string;
 }) {
-  const reduced = useReducedMotion();
+  const reduced = useMotionPreference();
   if (reduced) return <div className={className}>{children}</div>;
 
   return (

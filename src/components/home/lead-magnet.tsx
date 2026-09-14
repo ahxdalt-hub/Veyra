@@ -97,7 +97,7 @@ export function LeadMagnet() {
                   <p className="mt-2 text-sm text-ink-3">
                     One email with the PDF. That&rsquo;s the whole arrangement.
                   </p>
-                  <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate>
+                  <form onSubmit={onSubmit} className="mt-6 space-y-4">
                     <Input
                       type="email"
                       name="email"

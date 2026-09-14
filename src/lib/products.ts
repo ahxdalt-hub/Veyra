@@ -2,13 +2,20 @@
  * Veyra product catalog — typed data layer.
  *
  * Single source of truth driving the shop grid, product pages, search,
- * the homepage, the sitemap, and — critically — server-side price
- * resolution for checkout. The checkout API reads amounts from here,
- * never from client input.
+ * the homepage, the sitemap, and product identity across the app.
+ *
+ * Prices: `price` is the catalog's regular retail price, used for display
+ * and as the struck-through anchor while a founding-customer launch price
+ * is in effect. The amounts actually charged — founding price, per-seat
+ * team tiers, checkout totals — resolve through src/lib/pricing.ts, the
+ * single commercial authority. Never charge from this file.
  *
  * Only products with status "available" may be purchased. Coming-soon
  * products carry no price and no checkout path by construction.
  */
+
+import { REGULAR_PRICE } from "@/lib/pricing";
+import { REFUND_WINDOW_LABEL } from "@/lib/site";
 
 export type Phase = "build" | "acquire" | "sell" | "deliver" | "retain" | "grow";
 
@@ -31,9 +38,16 @@ export type Product = {
   slug: string;
   name: string;
   status: ProductStatus;
-  /** Whole rupees. `null` for coming-soon products — they cannot be priced
-   *  or purchased, so the type makes an accidental checkout impossible. */
+  /** Whole US dollars — the catalog's regular retail price, shown as the
+   *  struck-through anchor while a founding-customer launch price is in
+   *  effect. `null` for coming-soon products. The chargeable amount
+   *  (founding price, seat tiers, checkout totals) resolves through
+   *  src/lib/pricing.ts — never from this field. */
   price: number | null;
+  /** Current published version of the deliverable. The account library
+   *  and re-delivery flow reference this as the authoritative version —
+   *  update it here when a new revision ships. */
+  version: string | null;
   tagline: string;
   /** Meta description / short line. */
   shortDescription: string;
@@ -103,7 +117,12 @@ export const products: Product[] = [
     slug: "client-growth-system",
     name: "Client Growth System",
     status: "available",
-    price: 9999,
+    // Regular retail price — the struck-through anchor during the launch.
+    // What customers actually pay during launch is the founding price in
+    // src/lib/pricing.ts ($79, with per-seat team tiers), which checkout,
+    // cart, and receipts all resolve through.
+    price: REGULAR_PRICE,
+    version: "1.0",
     tagline: "The complete operating system for the client-growth journey.",
     shortDescription:
       "A structured system for the whole client-growth journey — build your foundation, acquire clients, sell, deliver, retain, and grow. One-time purchase, instant digital delivery.",
@@ -243,10 +262,10 @@ export const products: Product[] = [
     ],
     specs: [
       { label: "Delivery", value: "Instant digital delivery" },
-      { label: "Licence", value: "One business, unlimited internal use" },
+      { label: "Licence", value: "Per-seat — 1 to 5 licensed users" },
       { label: "Updates", value: "Included — every future revision" },
       { label: "Pricing", value: "One-time payment" },
-      { label: "Guarantee", value: "14-day refund window" },
+      { label: "Guarantee", value: REFUND_WINDOW_LABEL },
     ],
     featured: true,
   },
@@ -258,6 +277,7 @@ export const products: Product[] = [
     name: "Client Acquisition OS",
     status: "coming-soon",
     price: null,
+    version: null,
     tagline: "The acquisition engine, as a dedicated system.",
     shortDescription:
       "A dedicated operating system for client acquisition — pipelines, outreach cadences, and demand tracking. Coming soon.",
@@ -279,6 +299,7 @@ export const products: Product[] = [
     name: "Offer OS",
     status: "coming-soon",
     price: null,
+    version: null,
     tagline: "Design and stress-test what you sell.",
     shortDescription:
       "A system for designing offers — structure, pricing logic, and packaging decisions in one place. Coming soon.",
@@ -300,6 +321,7 @@ export const products: Product[] = [
     name: "Sales OS",
     status: "coming-soon",
     price: null,
+    version: null,
     tagline: "The selling system, end to end.",
     shortDescription:
       "A system for selling — from first call to signature, with a repeatable pipeline and proposal flow. Coming soon.",
@@ -321,6 +343,7 @@ export const products: Product[] = [
     name: "Client Operations OS",
     status: "coming-soon",
     price: null,
+    version: null,
     tagline: "The delivery side, on one rail.",
     shortDescription:
       "A system for client operations — onboarding, engagement tracking, and client communication on one rail. Coming soon.",
@@ -342,6 +365,7 @@ export const products: Product[] = [
     name: "Agency Growth OS",
     status: "coming-soon",
     price: null,
+    version: null,
     tagline: "Run agency growth as an operations problem.",
     shortDescription:
       "A system for agency owners — capacity, pipeline, and review cadences in one operating system. Coming soon.",

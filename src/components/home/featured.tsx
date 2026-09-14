@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { getFeaturedProduct } from "@/lib/products";
 import { formatPrice } from "@/lib/site";
+import { FOUNDING_PRICE } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/motion/reveal";
 import { FeaturedPreview } from "@/components/product/featured-preview";
@@ -13,6 +14,8 @@ import { CheckIcon } from "@/components/ui/icons";
  * Featured — Section C.
  * The flagship gets a full-bleed treatment: preview left, details right.
  * Who it's for, the outcome, price, CTA, and a view-details link.
+ * During launch pricing the founding price leads with the regular price
+ * struck through, matching the offer page and checkout.
  */
 
 export function Featured() {
@@ -112,9 +115,30 @@ export function Featured() {
             <Reveal delay={0.25}>
               <div className="mt-10 flex flex-col gap-5 border-t border-line pt-8 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="text-3xl font-medium tnum text-ink">
-                    {formatPrice(product.price)}
-                  </p>
+                  {product.price !== null && product.price > FOUNDING_PRICE ? (
+                    <p className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+                      <span className="text-3xl font-medium tnum text-ink">
+                        {formatPrice(FOUNDING_PRICE)}
+                      </span>
+                      <span
+                        aria-hidden="true"
+                        className="text-lg tnum text-ink-4 line-through"
+                      >
+                        {formatPrice(product.price)}
+                      </span>
+                      <span className="text-sm font-medium text-accent-ink">
+                        founding price
+                      </span>
+                      <span className="sr-only">
+                        Founding customer price {formatPrice(FOUNDING_PRICE)},
+                        regular price {formatPrice(product.price)}.
+                      </span>
+                    </p>
+                  ) : (
+                    <p className="text-3xl font-medium tnum text-ink">
+                      {formatPrice(product.price)}
+                    </p>
+                  )}
                   <p className="mt-1 text-xs text-ink-3">
                     One-time payment · Instant digital delivery · Updates
                     included

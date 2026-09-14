@@ -1,4 +1,4 @@
--- Standard Practice — Phase 1 schema
+-- Veyra — Phase 1 schema
 -- Leads captured by the audit lead magnet (/api/subscribe).
 --
 -- To use: create a Supabase project, run this in the SQL editor,

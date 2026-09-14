@@ -50,6 +50,30 @@
   --radius-lg: 0.625rem;
   --radius-xl: 0.75rem;
 
+  /* — Veyra Admin Command Center (Stage 05) —
+     The private system gets its own world: deep warm neutrals (the
+     storefront's ink, inverted), hairline borders, one bronze accent
+     brightened for dark-surface contrast. No neon, no glow. */
+  --color-cc-bg: #14120d;
+  --color-cc-panel: #1a1812;
+  --color-cc-panel-2: #211e16;
+  --color-cc-panel-3: #292519;
+  --color-cc-line: #2b271f;
+  --color-cc-line-strong: #3d382c;
+  --color-cc-text: #ece7da;
+  --color-cc-text-2: #b3ab98;
+  --color-cc-text-3: #7f7869;
+  --color-cc-text-4: #575235;
+  --color-cc-accent: #c9973f;
+  --color-cc-accent-deep: #a3762c;
+  --color-cc-accent-soft: #2a2314;
+  --color-cc-good: #8db08d;
+  --color-cc-good-soft: #1d2418;
+  --color-cc-bad: #d08b6c;
+  --color-cc-bad-soft: #2b2019;
+  --color-cc-info: #9aabbc;
+  --color-cc-info-soft: #1e2229;
+
   /* — Breakpoint-aware containers — */
   --container-6xl: 72rem;
   --container-7xl: 80rem;
@@ -137,6 +161,25 @@
   }
   @media (min-width: 1024px) {
     .container-page {
+      padding-inline: 2.5rem;
+    }
+  }
+
+  /* Wide container — the signed-in account area gets a broader canvas
+     than the storefront so its dashboard grids can breathe. */
+  .container-wide {
+    width: 100%;
+    margin-inline: auto;
+    max-width: 88rem;
+    padding-inline: 1.25rem;
+  }
+  @media (min-width: 640px) {
+    .container-wide {
+      padding-inline: 2rem;
+    }
+  }
+  @media (min-width: 1024px) {
+    .container-wide {
       padding-inline: 2.5rem;
     }
   }
@@ -245,6 +288,126 @@
       ),
       linear-gradient(to bottom, rgba(230, 226, 217, 0.45) 1px, transparent 1px);
     background-size: 36px 36px;
+  }
+
+  /* — Motion —
+     Quiet entrance reveals and skeleton shimmer for the account area.
+     Short distances (8px), soft easing; the global prefers-reduced-motion
+     rule in @layer base collapses both to instant. */
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-rise {
+    animation: rise 0.5s var(--ease-out-expo) both;
+  }
+
+  /* Staggered children: wrap a list and it fades in, top first. */
+  .stagger-rise > * {
+    animation: rise 0.5s var(--ease-out-expo) both;
+  }
+  .stagger-rise > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger-rise > *:nth-child(2) { animation-delay: 60ms; }
+  .stagger-rise > *:nth-child(3) { animation-delay: 120ms; }
+  .stagger-rise > *:nth-child(4) { animation-delay: 180ms; }
+  .stagger-rise > *:nth-child(5) { animation-delay: 240ms; }
+  .stagger-rise > *:nth-child(6) { animation-delay: 300ms; }
+
+  @keyframes shimmer {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
+  }
+
+  /* Error attention: a single restrained shake when a message appears. */
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-4px); }
+    40% { transform: translateX(4px); }
+    60% { transform: translateX(-2px); }
+    80% { transform: translateX(2px); }
+  }
+  .animate-shake {
+    animation: shake 0.4s var(--ease-out-soft) both;
+  }
+
+  /* Status dot that breathes while a check is in flight. */
+  @keyframes pulse-soft {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.45; transform: scale(0.8); }
+  }
+  .animate-pulse-soft {
+    animation: pulse-soft 1s ease-in-out infinite;
+  }
+
+  /* Pop-in for inline status marks (✓ / ✕ trailing an input). */
+  @keyframes pop {
+    from { opacity: 0; transform: scale(0.6); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .animate-pop {
+    animation: pop 0.25s var(--ease-out-expo) both;
+  }
+
+  /* Skeleton block for loading states — matches the hairline aesthetic. */
+  .skeleton {
+    border-radius: var(--radius-sm);
+    background-color: var(--color-line);
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.55) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s ease-in-out infinite;
+  }
+
+  /* ============================================================
+     ADMIN COMMAND CENTER UTILITIES
+     Dark-surface equivalents of the storefront's paper-world helpers,
+     used only by /admin. tnum keeps metric numerals aligned; cc-grid
+     gives panels a faint drafting-grid texture like the storefront's
+     blueprint, tuned for deep surfaces.
+     ============================================================ */
+
+  .cc-skeleton {
+    border-radius: var(--radius-sm);
+    background-color: var(--color-cc-line);
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(236, 231, 218, 0.06) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s ease-in-out infinite;
+  }
+
+  .cc-grid {
+    background-image: linear-gradient(
+        to right,
+        rgba(61, 56, 44, 0.24) 1px,
+        transparent 1px
+      ),
+      linear-gradient(to bottom, rgba(61, 56, 44, 0.24) 1px, transparent 1px);
+    background-size: 36px 36px;
+  }
+
+  /* Subtle top edge highlight on panels — the "layered depth" cue. */
+  .cc-edge {
+    box-shadow: inset 0 1px 0 rgba(236, 231, 218, 0.035);
   }
 }
 

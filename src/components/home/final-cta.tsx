@@ -1,15 +1,19 @@
 import { Reveal } from "@/components/motion/reveal";
 import { Button } from "@/components/ui/button";
 import { getFeaturedProduct } from "@/lib/products";
-import { formatPrice } from "@/lib/site";
+import { formatPrice, REFUND_WINDOW_LABEL } from "@/lib/site";
+import { FOUNDING_PRICE } from "@/lib/pricing";
 
 /**
  * FinalCta — Section J.
  * A calm close focused on the flagship. No countdown timers, no urgency.
+ * During launch pricing, the founding price is what's quoted — the same
+ * number checkout charges.
  */
 export function FinalCta() {
   const product = getFeaturedProduct();
   const price = product.price;
+  const launchActive = price !== null && price > FOUNDING_PRICE;
 
   return (
     <section className="bg-paper">
@@ -45,8 +49,10 @@ export function FinalCta() {
               </Button>
             </div>
             <p className="mt-6 text-xs text-ink-3">
-              {formatPrice(price)} one-time · 14-day refund window · Updates
-              included
+              {launchActive
+                ? `Founding price ${formatPrice(FOUNDING_PRICE)} — regular ${formatPrice(price)} · `
+                : ""}
+              One-time · {REFUND_WINDOW_LABEL} · Updates included
             </p>
           </div>
         </Reveal>

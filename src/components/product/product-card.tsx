@@ -4,7 +4,7 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import type { Product } from "@/lib/products";
 import { phaseMeta } from "@/lib/products";
-import { formatPrice } from "@/lib/site";
+import { FoundingPrice } from "@/components/product/founding-price";
 import { useCart } from "@/components/cart/cart-context";
 import { Button } from "@/components/ui/button";
 import { PlusIcon } from "@/components/ui/icons";
@@ -94,12 +94,7 @@ export function ProductCard({ product }: { product: Product }) {
         <div className="mt-5 flex items-end justify-between gap-4 border-t border-line pt-4">
           {available ? (
             <>
-              <span className="text-lg font-medium tnum text-ink">
-                {formatPrice(product.price!)}
-                <span className="ml-1.5 text-xs font-normal text-ink-4">
-                  one-time
-                </span>
-              </span>
+              <FoundingPrice price={product.price!} size="sm" note="one-time" />
               <Button
                 variant="outline"
                 size="sm"

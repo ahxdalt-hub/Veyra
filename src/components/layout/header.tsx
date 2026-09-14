@@ -266,6 +266,13 @@ function MobileNav({ open, onClose }: { open: boolean; onClose: () => void }) {
             </ul>
             <div className="mt-6 flex flex-col gap-3">
               <Link
+                href="/account"
+                onClick={onClose}
+                className="text-sm text-ink-2 underline-offset-4 hover:text-ink hover:underline"
+              >
+                Account
+              </Link>
+              <Link
                 href="/contact"
                 onClick={onClose}
                 className="text-sm text-ink-2 underline-offset-4 hover:text-ink hover:underline"

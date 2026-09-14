@@ -34,9 +34,13 @@ export type Order = {
   razorpay_order_id: string | null;
   razorpay_payment_id: string | null;
   email: string;
+  /** Owning auth user, when the purchase is (or becomes) tied to a
+   *  Veyra account. Guest orders stay null until claimed by the
+   *  account's verified email — see src/lib/fulfillment.ts. */
+  user_id: string | null;
   product_slug: string;
   quantity: number;
-  /** Smallest currency unit — paise. Always server-computed. */
+  /** Smallest currency unit — cents. Always server-computed. */
   amount: number;
   currency: string;
   status: OrderStatus;
@@ -71,6 +75,11 @@ function supabaseUrl(): string {
 /* ------------------------------------------------------------------ */
 
 const devStore = new Map<string, Order>();
+
+/** All orders from the dev fallback store (admin reads, local dev only). */
+export function devStoreOrders(): Order[] {
+  return Array.from(devStore.values());
+}
 
 /* ------------------------------------------------------------------ */
 /* Public API                                                          */

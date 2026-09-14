@@ -57,13 +57,23 @@ export const footerNav = {
   ] as NavItem[],
 } as const;
 
-/** The purchasable product — payments, orders, and the checkout API all
- *  resolve real amounts through the catalog, never through client input. */
-export const CURRENCY = "INR";
+/**
+ * Approved refund policy — the single source of truth for the refund window.
+ * Every surface that states a refund window (product pages, cart, checkout,
+ * FAQs, offer page, contact, refund policy page) must resolve through these
+ * constants so no contradictory period can drift in.
+ */
+export const REFUND_WINDOW_DAYS = 4;
+export const REFUND_WINDOW_LABEL = `${REFUND_WINDOW_DAYS}-day refund window`;
 
-/** Format a price in INR, whole rupees (products are priced flat). */
+/** Customer-facing pricing is USD across the entire storefront — product
+ *  pages, cards, cart, checkout, and the server-side order amount all
+ *  resolve through the catalog, never through client input. */
+export const CURRENCY = "USD";
+
+/** Format a price in USD, whole dollars (products are priced flat). */
 export function formatPrice(value: number): string {
-  return new Intl.NumberFormat("en-IN", {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: CURRENCY,
     maximumFractionDigits: 0,

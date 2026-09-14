@@ -17,7 +17,7 @@ const API_BASE = "https://api.razorpay.com/v1";
 
 export type RazorpayOrder = {
   id: string;
-  amount: number; // smallest currency unit (paise)
+  amount: number; // smallest currency unit (cents)
   currency: string;
   status: string;
   receipt?: string;
@@ -51,9 +51,9 @@ function authHeader(): string {
   return `Basic ${token}`;
 }
 
-/** Create a Razorpay order for `amount` paise. Server-determined only. */
+/** Create a Razorpay order for `amount` in the smallest currency unit (cents). Server-determined only. */
 export async function createRazorpayOrder(params: {
-  amountPaise: number;
+  amountMinor: number;
   currency: string;
   receipt: string;
   notes?: Record<string, string>;
@@ -65,7 +65,7 @@ export async function createRazorpayOrder(params: {
       Authorization: authHeader(),
     },
     body: JSON.stringify({
-      amount: params.amountPaise,
+      amount: params.amountMinor,
       currency: params.currency,
       receipt: params.receipt,
       notes: params.notes ?? {},

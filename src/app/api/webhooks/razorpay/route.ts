@@ -7,6 +7,8 @@ import {
   razorpayWebhookConfigured,
   verifyWebhookSignature,
 } from "@/lib/razorpay";
+import { grantPurchaseForOrder } from "@/lib/fulfillment";
+import { insertAdminNotification } from "@/lib/admin/notifications";
 
 /**
  * POST /api/webhooks/razorpay — durable payment confirmation.
@@ -120,15 +122,29 @@ export async function POST(request: Request) {
         expectedCurrent: "pending",
         razorpayPaymentId: payment.id,
       });
+      // Durable confirmation → fulfillment. Idempotent; safe even when
+      // the verify route already granted (or will grant) the same order.
+      await grantPurchaseForOrder({ ...order, status: "paid" });
       return NextResponse.json({ received: true });
     }
 
     // payment.failed — only ever from pending; a verified payment cannot
     // be failed by a late event (conditional update enforces it).
-    await updateOrderStatus(order.id, "failed", {
+    const failed = await updateOrderStatus(order.id, "failed", {
       expectedCurrent: "pending",
       razorpayPaymentId: payment.id,
     });
+    if (failed) {
+      // Surface the failure in the command center (fire-and-forget).
+      await insertAdminNotification({
+        kind: "payment_failed",
+        severity: "warning",
+        title: "Payment failed",
+        message: `A ${order.currency} ${(order.amount / 100).toFixed(2)} payment for ${order.email} (${order.product_slug}) failed${payment.error_description ? ` — ${payment.error_description}` : "."}`,
+        related_entity: "order",
+        related_slug: order.id,
+      });
+    }
     return NextResponse.json({ received: true });
   } catch (err) {
     console.error("[webhook] order update failed:", err);

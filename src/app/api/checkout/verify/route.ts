@@ -4,6 +4,7 @@ import {
   fetchRazorpayPayment,
   verifyPaymentSignature,
 } from "@/lib/razorpay";
+import { grantPurchaseForOrder } from "@/lib/fulfillment";
 
 /**
  * POST /api/checkout/verify — confirm a payment server-side.
@@ -102,6 +103,11 @@ export async function POST(request: Request) {
         expectedCurrent: "pending",
         razorpayPaymentId: payment.id,
       });
+      // Payment confirmed → grant entitlement + licence. Idempotent and
+      // non-blocking for the response; the webhook and sign-in claim
+      // routine heal any fulfillment gap.
+      const paidOrder = updated ?? { ...order, status: "paid" as const };
+      await grantPurchaseForOrder(paidOrder);
       return NextResponse.json({
         status: updated?.status ?? "paid",
         orderId: order.id,

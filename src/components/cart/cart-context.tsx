@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { resolvePurchasableProduct, type Product } from "@/lib/products";
+import { clampSeats, seatTier, type SeatTier } from "@/lib/pricing";
 
 /**
  * Cart — client-side cart backed by localStorage.
@@ -21,7 +22,10 @@ import { resolvePurchasableProduct, type Product } from "@/lib/products";
  *
  * Only products the catalog marks purchasable can enter the cart; the
  * checkout API independently re-validates every line server-side, so a
- * stale or tampered cart line can never become an order.
+ * stale or tampered cart line can never become an order. Quantity is
+ * seats (1–5): totals shown here resolve through the same pricing
+ * module the server uses, so the drawer can never disagree with the
+ * amount the checkout API charges.
  */
 
 export type CartLine = {
@@ -29,7 +33,7 @@ export type CartLine = {
   qty: number;
 };
 
-const STORAGE_KEY = "sp-cart-v1";
+const STORAGE_KEY = "veyra-cart-v1";
 const EMPTY: CartLine[] = [];
 
 /* ------------------------------------------------------------------ */
@@ -97,6 +101,8 @@ function subscribe(listener: () => void) {
 type DetailedLine = {
   product: Product & { price: number };
   qty: number;
+  /** Seat-tier pricing for this line's quantity (per-seat, discount, total). */
+  tier: SeatTier;
 };
 
 type CartContextValue = {
@@ -125,9 +131,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
 
   const add = useCallback((slug: string) => {
-    // Digital products: one of each, qty is always 1. Only catalog-marked
-    // purchasable products may enter the cart — coming-soon products are
-    // rejected here as well as at checkout.
+    // Only catalog-marked purchasable products may enter the cart —
+    // coming-soon products are rejected here as well as at checkout.
     if (!resolvePurchasableProduct(slug)) return;
     const current = read();
     if (!current.some((l) => l.slug === slug)) {
@@ -141,7 +146,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setQty = useCallback((slug: string, qty: number) => {
-    const next = Math.min(Math.max(Math.floor(qty) || 1, 1), 5);
+    // Seats: 1–5, enforced here for UX and by the pricing module's clamp;
+    // the checkout API rejects anything outside the range regardless.
+    const next = clampSeats(qty);
     write(
       read().map((l) => (l.slug === slug ? { ...l, qty: next } : l))
     );
@@ -158,7 +165,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const detailedLines = lines
       .map((line) => {
         const product = resolvePurchasableProduct(line.slug);
-        return product ? { product, qty: line.qty } : null;
+        return product
+          ? { product, qty: line.qty, tier: seatTier(line.qty) }
+          : null;
       })
       .filter((l): l is DetailedLine => l !== null);
 
@@ -167,10 +176,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       // Count only lines that resolve to a current catalog product, so the
       // badge can never disagree with what the drawer and checkout show.
       count: detailedLines.length,
-      total: detailedLines.reduce(
-        (sum, l) => sum + l.product.price * l.qty,
-        0
-      ),
+      total: detailedLines.reduce((sum, l) => sum + l.tier.total, 0),
       detailedLines,
       add,
       remove,
