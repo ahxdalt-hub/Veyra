@@ -1,15 +1,15 @@
 import { Reveal } from "@/components/motion/reveal";
 import { Button } from "@/components/ui/button";
-import { getShopProducts } from "@/lib/products";
+import { getFeaturedProduct } from "@/lib/products";
 import { formatPrice } from "@/lib/site";
 
 /**
  * FinalCta — Section J.
- * Practical, calm close: browse, no countdown timers, no false urgency.
+ * A calm close focused on the flagship. No countdown timers, no urgency.
  */
-
 export function FinalCta() {
-  const cheapest = Math.min(...getShopProducts().map((p) => p.price));
+  const product = getFeaturedProduct();
+  const price = product.price;
 
   return (
     <section className="bg-paper">
@@ -22,25 +22,31 @@ export function FinalCta() {
             <span aria-hidden="true" className="absolute bottom-6 left-6 h-3 w-3 border-b border-l border-accent/40" />
             <span aria-hidden="true" className="absolute bottom-6 right-6 h-3 w-3 border-b border-r border-accent/40" />
 
-            <p className="text-eyebrow">Get started</p>
+            <p className="text-eyebrow">Client Growth System — available now</p>
             <h2 className="text-display-1 mx-auto mt-4 max-w-2xl">
-              Pick the system that fixes your busiest bottleneck.
+              Build a better system for growing your business.
             </h2>
             <p className="mx-auto mt-5 max-w-xl text-lead">
-              Browse the collection, read exactly what&rsquo;s inside each one,
-              and start with the workflow that costs you the most time today.
-              Systems from {formatPrice(cheapest)}, delivered instantly.
+              One structured system for the whole journey — foundation,
+              acquisition, sales, delivery, retention, and growth. See exactly
+              what&rsquo;s inside before you decide.
             </p>
             <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Button href="/shop" variant="accent" size="lg" arrow>
-                Browse the systems
+              <Button
+                href={`/products/${product.slug}`}
+                variant="accent"
+                size="lg"
+                arrow
+              >
+                Explore Client Growth System
               </Button>
-              <Button href="/resources" variant="outline" size="lg">
-                Start with the free audit
+              <Button href="/shop" variant="outline" size="lg">
+                View the collection
               </Button>
             </div>
             <p className="mt-6 text-xs text-ink-3">
-              One-time purchase · 14-day refund window · Free quarterly updates
+              {formatPrice(price)} one-time · 14-day refund window · Updates
+              included
             </p>
           </div>
         </Reveal>

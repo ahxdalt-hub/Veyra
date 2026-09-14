@@ -4,18 +4,18 @@
  */
 
 export const site = {
-  name: "Standard Practice",
+  name: "Veyra",
+  /** Parent brand. */
+  parent: "Caelmont",
   /** Canonical production origin — override with NEXT_PUBLIC_SITE_URL. */
-  url:
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ??
-    "https://standardpractice.co",
-  tagline: "Ready-to-use business systems for client work.",
+  url: process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://veyra.co",
+  tagline: "Practical business systems you can actually run.",
   description:
-    "Downloadable business systems — lead management, outreach, follow-up, and onboarding — built as Notion and Google Sheets workspaces you can put into action the same day.",
+    "Veyra turns important business processes into structured systems for freelancers, consultants, service businesses, and small agencies — packaged so you can put them to work, not just read them.",
   positioning:
-    "We build practical, ready-to-use systems for consultants, freelancers, and small studios who want a repeatable way to win and keep clients.",
+    "Veyra, a Caelmont brand, builds practical business systems for freelancers, consultants, service businesses, and small agencies — structured so the work actually gets run, not just documented.",
   contact: {
-    email: "hello@standardpractice.co",
+    email: "hello@veyra.co",
   },
 } as const;
 
@@ -27,31 +27,28 @@ export type NavItem = {
 
 /** Primary navigation — mirrored in header, mobile drawer, and footer. */
 export const primaryNav: NavItem[] = [
-  { label: "Shop", href: "/shop", description: "All systems, one place" },
+  { label: "Products", href: "/shop", description: "The Veyra collection" },
   {
-    label: "Categories",
-    href: "/categories/client-acquisition",
-    description: "Browse by workflow",
+    label: "Client Growth System",
+    href: "/products/client-growth-system",
+    description: "Our flagship system — available now",
   },
-  { label: "About", href: "/about", description: "Why we build these" },
-  { label: "Resources", href: "/resources", description: "Free guides & audits" },
+  { label: "About", href: "/about", description: "Why we build systems" },
 ];
 
 /** Footer link groups — kept intentionally small. */
 export const footerNav = {
-  shop: [
-    { label: "All systems", href: "/shop" },
-    { label: "Client Acquisition", href: "/categories/client-acquisition" },
-    { label: "Sales Pipeline", href: "/categories/sales-pipeline" },
-    { label: "Client Onboarding", href: "/categories/client-onboarding" },
+  products: [
+    { label: "Client Growth System", href: "/products/client-growth-system" },
+    { label: "All products", href: "/shop" },
   ] as NavItem[],
-  resources: [
-    { label: "Client Acquisition Audit", href: "/resources#audit" },
-    { label: "All resources", href: "/resources" },
+  company: [
+    { label: "About Veyra", href: "/about" },
+    { label: "Contact", href: "/contact" },
   ] as NavItem[],
   support: [
-    { label: "Contact", href: "/contact" },
     { label: "FAQ", href: "/#faq" },
+    { label: "Resources", href: "/resources" },
   ] as NavItem[],
   legal: [
     { label: "Privacy", href: "/privacy" },
@@ -60,11 +57,15 @@ export const footerNav = {
   ] as NavItem[],
 } as const;
 
-/** Format a price in USD, whole dollars (products are priced flat). */
+/** The purchasable product — payments, orders, and the checkout API all
+ *  resolve real amounts through the catalog, never through client input. */
+export const CURRENCY = "INR";
+
+/** Format a price in INR, whole rupees (products are priced flat). */
 export function formatPrice(value: number): string {
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
-    currency: "USD",
+    currency: CURRENCY,
     maximumFractionDigits: 0,
   }).format(value);
 }

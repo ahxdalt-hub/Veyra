@@ -4,9 +4,9 @@ import { LegalPage } from "@/components/legal/legal-page";
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description:
-    "How Standard Practice collects, uses, and protects your information — written plainly, because privacy policies should be readable.",
+    "How Veyra collects, uses, and protects your information — written plainly, because privacy policies should be readable.",
   alternates: { canonical: "/privacy" },
-  openGraph: { title: "Privacy Policy — Standard Practice", url: "/privacy" },
+  openGraph: { title: "Privacy Policy — Veyra", url: "/privacy" },
 };
 
 export default function PrivacyPage() {

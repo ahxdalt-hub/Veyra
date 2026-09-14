@@ -1,11 +1,11 @@
 import type { MetadataRoute } from "next";
-import { categories, getProducts } from "@/lib/products";
+import { getProducts } from "@/lib/products";
 import { site } from "@/lib/site";
 
 /**
- * Sitemap — static pages, all products, all categories.
- * Product/category URLs derive from the catalog, so Phase 2's Supabase
- * catalog automatically flows through.
+ * Sitemap — static pages plus every product page (including coming-soon
+ * announcements). URLs derive from the catalog, so a future data-backed
+ * catalog flows through automatically.
  */
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -34,12 +34,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.8,
   }));
 
-  const categoryRoutes: MetadataRoute.Sitemap = categories.map((c) => ({
-    url: `${site.url}/categories/${c.slug}`,
-    lastModified: now,
-    changeFrequency: "weekly",
-    priority: 0.6,
-  }));
-
-  return [...staticRoutes, ...productRoutes, ...categoryRoutes];
+  return [...staticRoutes, ...productRoutes];
 }

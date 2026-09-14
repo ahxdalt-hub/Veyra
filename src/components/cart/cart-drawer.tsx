@@ -9,13 +9,13 @@ import { CloseIcon, TrashIcon } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
 
 /**
- * CartDrawer — slide-in cart panel (Phase 1: no checkout).
- * Checkout is explicitly labeled as arriving with the commerce layer —
- * no misleading purchase affordances until payments exist.
+ * CartDrawer — slide-in cart panel, part of the Veyra storefront.
+ * Lines resolve through the catalog's purchasable gate; the checkout
+ * CTA leads to /checkout where the server re-validates everything.
  */
 
 export function CartDrawer() {
-  const { isOpen, closeCart, detailedLines, total, remove } = useCart();
+  const { isOpen, closeCart, detailedLines, total, remove, setQty } = useCart();
   const reduced = useReducedMotion();
 
   // Lock body scroll while open.
@@ -79,20 +79,26 @@ export function CartDrawer() {
 
             {detailedLines.length === 0 ? (
               <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
+                <span
+                  aria-hidden="true"
+                  className="flex h-12 w-12 items-center justify-center rounded-full border border-line bg-paper font-display text-lg italic text-ink-3"
+                >
+                  V
+                </span>
                 <p className="max-w-xs text-sm text-ink-3">
-                  Your cart is empty. Every system is a one-time purchase with
-                  instant download.
+                  Your cart is empty. The Client Growth System is available
+                  today — one-time payment, instant digital delivery.
                 </p>
-                <Button href="/shop" variant="outline" size="sm">
-                  Browse systems
+                <Button href="/products/client-growth-system" variant="outline" size="sm">
+                  View Client Growth System
                 </Button>
               </div>
             ) : (
               <>
                 <ul className="flex-1 divide-y divide-line overflow-y-auto px-5">
-                  {detailedLines.map(({ product }) => (
+                  {detailedLines.map(({ product, qty }) => (
                     <li key={product.slug} className="flex gap-4 py-5">
-                      <MiniThumb product={product} />
+                      <MiniThumb name={product.name} />
                       <div className="flex min-w-0 flex-1 flex-col">
                         <Link
                           href={`/products/${product.slug}`}
@@ -102,14 +108,16 @@ export function CartDrawer() {
                           {product.name}
                         </Link>
                         <p className="mt-0.5 text-xs text-ink-3">
-                          {product.shortDescription}
+                          {product.tagline}
                         </p>
                         <div className="mt-2 flex items-center justify-between">
-                          <span className="spec text-ink-4">
-                            Instant download
-                          </span>
+                          <QtyStepper
+                            qty={qty}
+                            onChange={(next) => setQty(product.slug, next)}
+                            name={product.name}
+                          />
                           <span className="text-sm font-medium tnum">
-                            {formatPrice(product.price)}
+                            {formatPrice(product.price * qty)}
                           </span>
                         </div>
                       </div>
@@ -126,24 +134,34 @@ export function CartDrawer() {
                 </ul>
 
                 <div className="border-t border-line px-5 py-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-ink-2">Total</span>
-                    <span className="text-base font-medium tnum">
-                      {formatPrice(total)}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs text-ink-3">
-                    Secure checkout arrives with our commerce launch. Your cart
-                    is saved on this device.
+                  <dl className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <dt className="text-sm text-ink-2">Subtotal</dt>
+                      <dd className="text-sm tnum">{formatPrice(total)}</dd>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <dt className="text-sm font-medium text-ink">Total</dt>
+                      <dd className="text-base font-medium tnum">
+                        {formatPrice(total)}
+                      </dd>
+                    </div>
+                  </dl>
+                  <p className="mt-1.5 text-xs text-ink-3">
+                    One-time payment in INR via secure checkout. Your cart is
+                    saved on this device.
                   </p>
                   <Button
+                    href="/checkout"
                     variant="accent"
                     size="lg"
                     className="mt-4 w-full"
-                    disabled
+                    onClick={closeCart}
                   >
-                    Checkout — coming with launch
+                    Proceed to checkout
                   </Button>
+                  <p className="mt-3 text-center text-xs text-ink-4">
+                    14-day refund window
+                  </p>
                 </div>
               </>
             )}
@@ -154,29 +172,55 @@ export function CartDrawer() {
   );
 }
 
-/** Small format-tinted thumb — reused by cart rows. */
-function MiniThumb({
-  product,
-}: {
-  product: {
-    name: string;
-    formats: string[];
-  };
-}) {
-  const label = product.formats.includes("notion")
-    ? "Notion"
-    : product.formats.includes("sheets")
-      ? "Sheets"
-      : "PDF";
-  const tone = product.formats.includes("notion")
-    ? "border-accent/25 bg-accent-soft text-accent-ink"
-    : "border-amber/25 bg-amber-soft text-amber";
+/** Champagne-soft monogram thumb — reused by cart rows. */
+function MiniThumb({ name }: { name: string }) {
   return (
     <span
       aria-hidden="true"
-      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-sm border text-[0.625rem] font-medium uppercase tracking-wide ${tone}`}
+      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-sm border border-accent/25 bg-accent-soft font-display text-lg italic text-accent-ink"
     >
-      {label}
+      {name.charAt(0)}
+    </span>
+  );
+}
+
+/** Compact quantity stepper (licences are per-business; cap is generous). */
+function QtyStepper({
+  qty,
+  onChange,
+  name,
+}: {
+  qty: number;
+  onChange: (qty: number) => void;
+  name: string;
+}) {
+  return (
+    <span className="inline-flex items-center rounded-sm border border-line bg-paper">
+      <button
+        type="button"
+        onClick={() => onChange(qty - 1)}
+        disabled={qty <= 1}
+        aria-label={`Decrease quantity of ${name}`}
+        className="flex h-6 w-6 items-center justify-center rounded-l-sm text-ink-3 transition-colors hover:bg-accent-soft hover:text-ink disabled:pointer-events-none disabled:opacity-40"
+      >
+        <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+          <path d="M2 6h8" />
+        </svg>
+      </button>
+      <span className="w-7 text-center text-xs font-medium tnum" aria-live="polite">
+        {qty}
+      </span>
+      <button
+        type="button"
+        onClick={() => onChange(qty + 1)}
+        disabled={qty >= 5}
+        aria-label={`Increase quantity of ${name}`}
+        className="flex h-6 w-6 items-center justify-center rounded-r-sm text-ink-3 transition-colors hover:bg-accent-soft hover:text-ink disabled:pointer-events-none disabled:opacity-40"
+      >
+        <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+          <path d="M6 2v8M2 6h8" />
+        </svg>
+      </button>
     </span>
   );
 }

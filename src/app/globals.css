@@ -1,11 +1,12 @@
-/* Standard Practice — Design System & Global Styles */
+/* Veyra — Design System & Global Styles */
 @import "tailwindcss";
 
 /* ============================================================
    01 · DESIGN TOKENS
-   Light-first, editorial, restrained. Warm paper + ink +
-   one deep moss accent. Hairline borders, restrained shadows,
-   no gradients, no glow.
+   Light-first, editorial, restrained. Warm cream + off-white
+   surfaces, dark ink typography, warm neutrals, and one deep
+   champagne-bronze accent. Hairline borders, restrained
+   shadows, no gradients, no glow.
    ============================================================ */
 
 @theme {
@@ -18,10 +19,10 @@
   --color-ink-4: #a19a8c;
   --color-line: #e6e2d9;
   --color-line-strong: #d2ccc0;
-  --color-accent: #2f4f3a;
-  --color-accent-deep: #233c2c;
-  --color-accent-soft: #eef2ec;
-  --color-accent-ink: #1d3324;
+  --color-accent: #8a6320;
+  --color-accent-deep: #6e4e18;
+  --color-accent-soft: #f7f1e2;
+  --color-accent-ink: #5c4314;
   --color-amber: #b8842a;
   --color-amber-soft: #f7efe0;
   --color-clay: #a3502e;

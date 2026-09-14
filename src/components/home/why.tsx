@@ -11,23 +11,23 @@ import { ClockIcon, LayersIcon, PipelineIcon, ShieldIcon } from "@/components/ui
 const reasons = [
   {
     icon: LayersIcon,
-    claim: "Ready to use, not ready to assemble",
-    body: "Every system ships complete: structures, rules, templates, and a setup checklist. You don't configure a framework — you duplicate a working setup.",
+    claim: "Ready to run, not ready to assemble",
+    body: "Every system ships complete: structures, rules, and a working rhythm for each stage. You don't configure a framework — you start operating a finished system.",
   },
   {
     icon: PipelineIcon,
-    claim: "Built around real workflows",
-    body: "The modules mirror how client acquisition actually runs: capture, qualify, reach out, follow up, close, onboard. Nothing theoretical, nothing decorative.",
+    claim: "The whole journey, connected",
+    body: "Most products solve one slice — outreach here, proposals there. Veyra systems cover the full journey from positioning to growth review, so the parts actually fit.",
   },
   {
     icon: ClockIcon,
-    claim: "Respects your existing tools",
-    body: "Notion and Google Sheets — free, familiar, and yours. No new platform to learn, no per-seat subscription, no vendor lock-in on your pipeline.",
+    claim: "Built for consistent execution",
+    body: "The point isn't more information — it's the same process every week. Structured phases and defined next steps replace memory and motivation.",
   },
   {
     icon: ShieldIcon,
     claim: "Yours after one payment",
-    body: "A one-time purchase with a licence for your whole business, plus quarterly updates included. The version you buy keeps improving.",
+    body: "A one-time purchase with a licence for your whole business, and future revisions included. No subscription pretending to be infrastructure.",
   },
 ];
 

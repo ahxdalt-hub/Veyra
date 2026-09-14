@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 export const metadata: Metadata = {
   title: "About",
   description:
-    "Why Standard Practice builds ready-to-use business systems for consultants, freelancers, and small studios — and how each one is made.",
+    "Why Veyra builds practical business systems for freelancers, consultants, service businesses, and small agencies — and how each one is made.",
   alternates: { canonical: "/about" },
-  openGraph: { title: "About — Standard Practice", url: "/about" },
+  openGraph: { title: "About — Veyra", url: "/about" },
 };
 
 export default function AboutPage() {
@@ -16,7 +16,7 @@ export default function AboutPage() {
     <>
       <PageHeader
         breadcrumb={[{ label: "Home", href: "/" }, { label: "About" }]}
-        eyebrow="About"
+        eyebrow="About Veyra"
         title={
           <>
             We build the boring infrastructure
@@ -24,7 +24,7 @@ export default function AboutPage() {
             that makes client work <span className="em-serif">possible</span>.
           </>
         }
-        lead="Standard Practice exists because the people who do excellent work rarely have excellent systems for getting it. We make the systems so you can stay in the work."
+        lead="Veyra, a Caelmont brand, exists because the people who do excellent work rarely have excellent systems for getting it. We make the systems so you can stay in the work."
       />
 
       <div className="bg-surface">
@@ -36,18 +36,18 @@ export default function AboutPage() {
                   The premise is simple
                 </h2>
                 <p className="mt-4 max-w-xl text-sm leading-relaxed text-ink-2">
-                  Most independent businesses run on memory and goodwill. That
-                  works until it doesn&rsquo;t — a lead forgotten, a follow-up
-                  that never happened, an onboarding that starts with chaos
-                  instead of clarity. The fix isn&rsquo;t more effort. It&rsquo;s
-                  a standard, written-down way of doing the work that precedes
-                  the work.
+                  Business processes tend to become scattered — across notes,
+                  documents, spreadsheets, memory, and disconnected tools.
+                  That works until it doesn&rsquo;t: a follow-up that never
+                  happened, an onboarding that starts with chaos instead of
+                  clarity. The fix isn&rsquo;t more effort. It&rsquo;s a
+                  structured system for the work that precedes the work.
                 </p>
                 <p className="mt-4 max-w-xl text-sm leading-relaxed text-ink-2">
-                  Every system we sell is one we structure, test, and refine
-                  until it runs without explanation. You download it, duplicate
-                  it, and start operating it the same day. No consultants, no
-                  configuration calls, no retainer.
+                  Every Veyra product is structured, tested, and refined until
+                  it runs without explanation. You get it, set it up, and start
+                  operating it the same day. No consultants, no configuration
+                  calls, no retainer.
                 </p>
               </Reveal>
 
@@ -79,10 +79,10 @@ export default function AboutPage() {
                 </h2>
                 <ol className="mt-5 space-y-5">
                   {[
-                    { n: "01", t: "Map the real workflow", d: "Start from how client acquisition actually runs in a small practice — not enterprise theory." },
-                    { n: "02", t: "Build in familiar tools", d: "Notion and Google Sheets: free, portable, no lock-in." },
+                    { n: "01", t: "Map the real workflow", d: "Start from how the work actually runs in a small business — not enterprise theory." },
+                    { n: "02", t: "Structure it end to end", d: "Turn the scattered process into connected phases with defined next steps." },
                     { n: "03", t: "Test for clarity", d: "If a structure needs a training video, it gets simplified before it ships." },
-                    { n: "04", t: "Ship with a checklist", d: "Every system includes a setup sequence so day one is unambiguous." },
+                    { n: "04", t: "Ship it complete", d: "Every system includes a working rhythm so day one is unambiguous." },
                   ].map((s) => (
                     <li key={s.n} className="flex gap-4">
                       <span className="spec shrink-0 pt-1 text-ink-4">{s.n}</span>
@@ -95,8 +95,8 @@ export default function AboutPage() {
                 </ol>
               </div>
               <div className="mt-6">
-                <Button href="/shop" variant="outline" size="md" arrow>
-                  See what we&rsquo;ve built
+                <Button href="/products/client-growth-system" variant="outline" size="md" arrow>
+                  See our flagship system
                 </Button>
               </div>
             </Reveal>

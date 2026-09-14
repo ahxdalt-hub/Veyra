@@ -1,20 +1,18 @@
 /**
- * FeaturedPreview — the flagship product's detailed preview.
+ * FeaturedPreview — the flagship product's phase-detail preview.
  *
- * A fuller rendition of the Client Acquisition System's lead sheet:
- * lead rows with source, fit score, next action, and due day.
- * Code-rendered — sharp, light, honest. The "sample data" note keeps
- * it trustworthy.
+ * A fuller rendition of one phase of the Client Growth System — the
+ * Acquire phase and its modules — rendered in code. Structural by
+ * design: it shows how the system is organized, with no invented
+ * client data or metrics.
  */
 
-const rows = [
-  { name: "Meridian Studio", source: "Referral", fit: "A", next: "Send intro", due: "Tue" },
-  { name: "Harbor Creative", source: "Outreach", fit: "A", next: "Send recap", due: "Wed" },
-  { name: "Bolt & Bracket", source: "Website", fit: "B", next: "Follow up · day 4", due: "Thu" },
-  { name: "Fernway Group", source: "Outreach", fit: "A", next: "Nudge · day 7", due: "Fri" },
+const cadence = [
+  { step: "Weekly rhythm", detail: "Choose channels and set the cadence" },
+  { step: "Outreach blocks", detail: "Reference · one clear ask · personal note" },
+  { step: "Follow-up rules", detail: "Every open thread gets a next touch + date" },
+  { step: "Signals", detail: "What counts as working, reviewed monthly" },
 ];
-
-const headers = ["Lead", "Source", "Fit", "Next action", "Due"];
 
 export function FeaturedPreview() {
   return (
@@ -22,68 +20,52 @@ export function FeaturedPreview() {
       {/* Chrome */}
       <div className="flex items-center justify-between border-b border-line bg-paper px-4 py-2.5">
         <span className="spec truncate text-ink-4">
-          Lead Management — This week
+          Client Growth System — Acquire
         </span>
-        <span className="spec text-ink-4">Week 37</span>
+        <span className="spec text-ink-4">Phase 02</span>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[440px] border-collapse text-left">
-          <thead>
-            <tr className="border-b border-line">
-              {headers.map((h) => (
-                <th
-                  key={h}
-                  scope="col"
-                  className="spec px-4 py-2.5 font-medium text-ink-4"
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, i) => (
-              <tr
-                key={row.name}
-                className={`border-b border-line/70 transition-colors hover:bg-accent-soft/50 ${
-                  i === rows.length - 1 ? "border-b-0" : ""
-                }`}
-              >
-                <td className="whitespace-nowrap px-4 py-3 text-[0.8125rem] font-medium text-ink">
-                  {row.name}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-xs text-ink-3">
-                  {row.source}
-                </td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex h-5 w-5 items-center justify-center rounded-xs text-[0.625rem] font-semibold ${
-                      row.fit === "A"
-                        ? "bg-accent-soft text-accent-ink"
-                        : "bg-amber-soft text-amber"
-                    }`}
-                  >
-                    {row.fit}
-                  </span>
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-xs text-ink-2">
-                  {row.next}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-xs text-ink-4">
-                  {row.due}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Module tabs */}
+      <div className="flex gap-1 border-b border-line bg-paper/60 px-4 pt-2.5">
+        {["Acquisition Strategy", "Outreach", "Follow-up"].map((tab, i) => (
+          <span
+            key={tab}
+            className={`rounded-t-xs px-2.5 py-1.5 text-[0.6875rem] ${
+              i === 0
+                ? "border border-b-0 border-line bg-surface font-medium text-ink"
+                : "text-ink-4"
+            }`}
+          >
+            {tab}
+          </span>
+        ))}
       </div>
+
+      {/* Cadence rows */}
+      <ul className="divide-y divide-line/70">
+        {cadence.map((row) => (
+          <li
+            key={row.step}
+            className="flex items-start justify-between gap-4 px-4 py-3.5 transition-colors hover:bg-accent-soft/40"
+          >
+            <div className="min-w-0">
+              <p className="text-[0.8125rem] font-medium text-ink">
+                {row.step}
+              </p>
+              <p className="mt-0.5 text-xs leading-relaxed text-ink-3">
+                {row.detail}
+              </p>
+            </div>
+            <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-line-strong" />
+          </li>
+        ))}
+      </ul>
 
       {/* Footnote */}
       <div className="border-t border-line bg-paper px-4 py-2">
         <p className="text-[0.625rem] text-ink-4">
-          Sample data shown. Every system ships empty, ready for your leads.
+          One of six phases. Every module in the system is built to be run,
+          not just read.
         </p>
       </div>
     </div>

@@ -16,14 +16,13 @@ export function Footer() {
         {/* Upper: brand + nav columns */}
         <div className="grid gap-12 py-16 lg:grid-cols-[1.4fr_2fr] lg:gap-20 lg:py-20">
           <div className="max-w-sm">
-            <Link href="/" className="flex items-baseline gap-2" aria-label="Home">
+            <Link href="/" className="flex items-baseline gap-1.5" aria-label="Home">
               <span className="font-display text-xl font-semibold tracking-[-0.02em] text-ink">
-                Standard
+                Veyra
               </span>
-              <span className="font-display text-xl font-light italic tracking-[-0.02em] text-accent">
-                Practice
-              </span>
+              <span className="h-1.5 w-1.5 rounded-full bg-amber" aria-hidden="true" />
             </Link>
+            <p className="mt-1.5 spec text-ink-4">A {site.parent} brand</p>
             <p className="mt-4 text-sm leading-relaxed text-ink-3">
               {site.positioning}
             </p>
@@ -40,8 +39,8 @@ export function Footer() {
             aria-label="Footer"
             className="grid grid-cols-2 gap-10 sm:grid-cols-4"
           >
-            <FooterColumn heading="Shop" links={footerNav.shop} />
-            <FooterColumn heading="Resources" links={footerNav.resources} />
+            <FooterColumn heading="Products" links={footerNav.products} />
+            <FooterColumn heading="Company" links={footerNav.company} />
             <FooterColumn heading="Support" links={footerNav.support} />
             <FooterColumn heading="Legal" links={footerNav.legal} />
           </nav>

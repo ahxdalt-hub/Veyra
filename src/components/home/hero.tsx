@@ -29,21 +29,21 @@ export function Hero() {
     return (
       <section className="relative overflow-hidden border-b border-line">
         <div className="container-page py-16 text-center sm:py-24">
-          <p className="text-eyebrow mb-5">For consultants & independent studios</p>
+          <p className="text-eyebrow mb-5">For freelancers, consultants & small agencies</p>
           <h1 className="text-display-hero mx-auto max-w-4xl">
-            Stop reinventing how you get clients.
+            Practical business systems you can actually run.
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-lead">
-            Ready-to-use business systems for lead management, outreach,
-            follow-up, and onboarding — built as Notion and Google Sheets
-            workspaces you can put into action the same day.
+            Veyra turns the processes that win and keep clients — positioning,
+            acquisition, sales, delivery, retention — into structured systems.
+            Our flagship, Client Growth System, is available now.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button href="/shop" variant="accent" size="lg" arrow>
-              Browse the systems
+            <Button href="/products/client-growth-system" variant="accent" size="lg" arrow>
+              Explore Client Growth System
             </Button>
-            <Button href="#featured" variant="outline" size="lg">
-              See what&rsquo;s inside
+            <Button href="#collection" variant="outline" size="lg">
+              See the collection
             </Button>
           </div>
           <div className="mt-16 sm:mt-20">
@@ -67,7 +67,7 @@ export function Hero() {
           animate="visible"
           className="text-eyebrow mx-auto mb-5 inline-block"
         >
-          For consultants & independent studios
+          For freelancers, consultants & small agencies
         </motion.p>
         <motion.h1
           custom={1}
@@ -76,7 +76,7 @@ export function Hero() {
           animate="visible"
           className="text-display-hero mx-auto max-w-4xl"
         >
-          Stop reinventing how you get clients.
+          Practical business systems you can actually run.
         </motion.h1>
         <motion.p
           custom={2}
@@ -85,9 +85,9 @@ export function Hero() {
           animate="visible"
           className="mx-auto mt-6 max-w-xl text-lead"
         >
-          Ready-to-use business systems for lead management, outreach,
-          follow-up, and onboarding — built as Notion and Google Sheets
-          workspaces you can put into action the same day.
+          Veyra turns the processes that win and keep clients — positioning,
+          acquisition, sales, delivery, retention — into structured systems.
+          Our flagship, Client Growth System, is available now.
         </motion.p>
         <motion.div
           custom={3}
@@ -96,11 +96,11 @@ export function Hero() {
           animate="visible"
           className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row"
         >
-          <Button href="/shop" variant="accent" size="lg" arrow>
-            Browse the systems
+          <Button href="/products/client-growth-system" variant="accent" size="lg" arrow>
+            Explore Client Growth System
           </Button>
-          <Button href="#featured" variant="outline" size="lg">
-            See what&rsquo;s inside
+          <Button href="#collection" variant="outline" size="lg">
+            See the collection
           </Button>
         </motion.div>
 

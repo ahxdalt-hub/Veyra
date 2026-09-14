@@ -10,27 +10,31 @@ import { site } from "@/lib/site";
 export const faqItems: FaqItem[] = [
   {
     q: "What do I receive after purchase?",
-    a: "Immediately after checkout you receive a download page and email containing: the Notion workspace template links, any Google Sheets files, and the PDF playbook or guide. Everything is duplicated into your own accounts — nothing is hosted on ours.",
+    a: "The Client Growth System itself — a finished, structured system covering the six phases of the client-growth journey, delivered digitally with everything you need to start running it.",
   },
   {
     q: "Is this a digital product?",
-    a: "Yes. Every system is a digital download — Notion templates, Google Sheets files, and PDFs. No physical goods, no shipping, no waiting.",
+    a: "Yes. It is delivered digitally — no physical goods, no shipping, no waiting.",
   },
   {
     q: "How quickly do I get access?",
-    a: "Instantly. Access is delivered the moment your payment completes — typically under a minute, straight to your inbox and available on your confirmation page.",
+    a: "Delivery begins the moment your payment is confirmed. You'll receive your access details by email right away.",
   },
   {
     q: "Can I use it for my business?",
-    a: "Yes — the licence covers one business or sole practitioner with unlimited use. Run it with your whole team, use it for every client, and adapt the structures to your services. Reselling or redistributing the templates themselves is not permitted.",
+    a: "Yes — the licence covers one business with unlimited internal use. Run it with your whole team and adapt the structures to your services. Reselling or redistributing the system itself is not permitted.",
   },
   {
     q: "Are refunds available?",
-    a: "Yes. If a system isn't right for you, contact us within 14 days of purchase and we'll refund it — no interrogation. The full policy is on our Refund Policy page.",
+    a: "Yes. If the system isn't right for you, contact us within 14 days of purchase and we'll refund it — no interrogation. The full policy is on our Refund Policy page.",
   },
   {
-    q: "Do I need any special software?",
-    a: "No. Everything runs on free accounts: Notion (free plan is sufficient) and Google Sheets with a Google account. PDFs open anywhere. No paid subscriptions, no installs.",
+    q: "Is this a course or coaching?",
+    a: "No. Veyra products are working systems, not programs to complete. There's nothing to watch and nobody to book — you get the system and run it.",
+  },
+  {
+    q: "What about the other products?",
+    a: "Client Acquisition OS, Offer OS, Sales OS, Client Operations OS, and Agency Growth OS are in development. Each will be announced on its product page when it becomes available.",
   },
 ];
 

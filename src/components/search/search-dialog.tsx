@@ -79,7 +79,7 @@ function SearchDialog() {
                 close();
               }
             }}
-            placeholder="Search systems, workflows, formats…"
+            placeholder="Search products, phases, workflows…"
             aria-label="Search products"
             aria-controls="search-results"
             className="h-13 w-full bg-transparent py-4 text-sm text-ink outline-none placeholder:text-ink-4"
@@ -93,16 +93,16 @@ function SearchDialog() {
           {query.trim() === "" ? (
             <div className="px-4 py-10 text-center">
               <p className="text-sm text-ink-3">
-                Search by product name, workflow, or format — e.g.{" "}
-                <span className="text-ink-2">&ldquo;follow-up&rdquo;</span> or{" "}
-                <span className="text-ink-2">&ldquo;notion&rdquo;</span>.
+                Search by product name or workflow — e.g.{" "}
+                <span className="text-ink-2">&ldquo;growth&rdquo;</span> or{" "}
+                <span className="text-ink-2">&ldquo;acquisition&rdquo;</span>.
               </p>
             </div>
           ) : results.length === 0 ? (
             <div className="px-4 py-10 text-center">
               <p className="text-sm text-ink-3">
-                No systems match &ldquo;{query}&rdquo;. Try{" "}
-                <span className="text-ink-2">&ldquo;pipeline&rdquo;</span> or{" "}
+                No products match &ldquo;{query}&rdquo;. Try{" "}
+                <span className="text-ink-2">&ldquo;sales&rdquo;</span> or{" "}
                 <span className="text-ink-2">&ldquo;onboarding&rdquo;</span>.
               </p>
             </div>
@@ -127,7 +127,9 @@ function SearchDialog() {
                       </span>
                     </span>
                     <span className="spec shrink-0 text-ink-3 tnum">
-                      {formatPrice(p.price)}
+                      {p.status === "available" && p.price !== null
+                        ? formatPrice(p.price)
+                        : "Coming soon"}
                     </span>
                   </button>
                 </li>

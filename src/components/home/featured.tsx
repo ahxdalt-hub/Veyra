@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { getFeaturedProduct, formatLabel } from "@/lib/products";
+import { getFeaturedProduct } from "@/lib/products";
 import { formatPrice } from "@/lib/site";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/motion/reveal";
@@ -25,7 +25,7 @@ export function Featured() {
         <Reveal>
           <div className="mb-12 flex flex-wrap items-end justify-between gap-6">
             <div>
-              <p className="text-eyebrow mb-4">Featured system</p>
+              <p className="text-eyebrow mb-4">Available now</p>
               <h2 className="text-display-1 max-w-xl">{product.name}</h2>
             </div>
             <Link
@@ -85,9 +85,9 @@ export function Featured() {
                   <dd className="text-sm text-ink-2">{product.outcome}</dd>
                 </div>
                 <div className="grid grid-cols-[7.5rem_1fr] gap-4 py-4">
-                  <dt className="spec pt-0.5 text-ink-4">Format</dt>
+                  <dt className="spec pt-0.5 text-ink-4">Delivery</dt>
                   <dd className="text-sm text-ink-2">
-                    {formatLabel(product.formats)}
+                    {product.specs[0]?.value ?? "Instant digital delivery"}
                   </dd>
                 </div>
               </dl>
@@ -116,7 +116,8 @@ export function Featured() {
                     {formatPrice(product.price)}
                   </p>
                   <p className="mt-1 text-xs text-ink-3">
-                    One-time purchase · Instant download · Free updates
+                    One-time payment · Instant digital delivery · Updates
+                    included
                   </p>
                 </div>
                 <div className="flex flex-col gap-3 sm:flex-row">

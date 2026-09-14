@@ -3,26 +3,20 @@ import { ArrowRightIcon } from "@/components/ui/icons";
 /**
  * SystemPreview — the hero's product visual.
  *
- * A realistic miniature of the Client Acquisition System's Notion-style
- * pipeline board: sidebar, stages, lead cards with fit scores and next
- * actions. Rendered in code — crisp at any density, zero image payload,
- * and honest (a workspace wireframe, not a fabricated screenshot).
+ * A realistic miniature of the Client Growth System's journey view:
+ * sidebar of phases, and the six-phase journey with its modules.
+ * Rendered in code — crisp at any density, zero image payload, and
+ * honest (a system wireframe, not a fabricated screenshot full of
+ * invented metrics).
  */
 
-const stages = [
-  { name: "Inquiry", leads: [
-    { name: "Meridian Studio", meta: "Referral · Fit B", action: "Send intro" },
-    { name: "Bolt & Bracket", meta: "Outreach · Fit A", action: "Follow up" },
-  ]},
-  { name: "Conversation", leads: [
-    { name: "Harbor Creative", meta: "Call held · Fit A", action: "Send recap" },
-  ]},
-  { name: "Proposal", leads: [
-    { name: "Fernway Group", meta: "Pricing sent", action: "Nudge Friday" },
-  ]},
-  { name: "Signed", leads: [
-    { name: "Alpine Legal", meta: "Contract in", action: "Kickoff" },
-  ]},
+const phases = [
+  { name: "Build", items: ["Foundation", "Positioning", "Offer", "Ideal Client"] },
+  { name: "Acquire", items: ["Strategy", "Outreach", "Follow-up"] },
+  { name: "Sell", items: ["Sales", "Proposals"] },
+  { name: "Deliver", items: ["Onboarding"] },
+  { name: "Retain", items: ["Retention"] },
+  { name: "Grow", items: ["Growth Review"] },
 ];
 
 export function SystemPreview({ className = "" }: { className?: string }) {
@@ -39,69 +33,74 @@ export function SystemPreview({ className = "" }: { className?: string }) {
           <span className="h-2.5 w-2.5 rounded-full bg-line-strong" />
         </span>
         <span className="spec truncate text-ink-4">
-          Client Acquisition System — Pipeline
+          Client Growth System — Journey
         </span>
       </div>
 
       <div className="flex">
         {/* Sidebar */}
         <div className="hidden w-40 shrink-0 border-r border-line bg-paper py-4 sm:block">
-          <p className="spec px-4 pb-3 text-ink-4">Workspace</p>
+          <p className="spec px-4 pb-3 text-ink-4">System</p>
           <ul className="space-y-1">
-            {["Leads", "Outreach", "Follow-Up", "Pipeline", "Onboarding", "Analytics"].map(
-              (item, i) => (
-                <li key={item}>
-                  <span
-                    className={`block px-4 py-1.5 text-xs ${
-                      item === "Pipeline"
-                        ? "rounded-xs bg-accent-soft font-medium text-accent-ink"
-                        : "text-ink-3"
-                    }`}
-                  >
-                    {item}
-                  </span>
-                  {i === 2 ? (
-                    <span className="mt-1 ml-4 block h-px w-8 bg-line" />
-                  ) : null}
-                </li>
-              )
-            )}
+            {["Overview", ...phases.map((p) => p.name)].map((item) => (
+              <li key={item}>
+                <span
+                  className={`block px-4 py-1.5 text-xs ${
+                    item === "Overview"
+                      ? "rounded-xs bg-accent-soft font-medium text-accent-ink"
+                      : "text-ink-3"
+                  }`}
+                >
+                  {item}
+                </span>
+              </li>
+            ))}
           </ul>
+          <div className="mt-4 border-t border-line px-4 pt-3">
+            <p className="spec text-ink-4">12 modules</p>
+          </div>
         </div>
 
-        {/* Board */}
-        <div className="grid flex-1 grid-cols-2 gap-3 p-4 lg:grid-cols-4">
-          {stages.map((stage) => (
-            <div key={stage.name} className="min-w-0">
-              <div className="mb-2.5 flex items-center justify-between">
-                <span className="text-[0.6875rem] font-medium text-ink-2">
-                  {stage.name}
-                </span>
-                <span className="spec tnum text-ink-4">
-                  {stage.leads.length}
-                </span>
+        {/* Journey */}
+        <div className="min-w-0 flex-1 p-4 sm:p-5">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {phases.map((phase, i) => (
+              <div
+                key={phase.name}
+                className="rounded-xs border border-line bg-paper px-3 py-2.5"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1.5">
+                    <span className="spec tnum text-accent">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <span className="text-[0.6875rem] font-medium text-ink">
+                      {phase.name}
+                    </span>
+                  </span>
+                  {i < phases.length - 1 ? (
+                    <ArrowRightIcon className="h-2.5 w-2.5 text-ink-4" />
+                  ) : (
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber" />
+                  )}
+                </div>
+                <ul className="mt-2 space-y-1">
+                  {phase.items.map((item) => (
+                    <li
+                      key={item}
+                      className="flex items-center gap-1.5 text-[0.625rem] text-ink-3"
+                    >
+                      <span className="h-1 w-1 shrink-0 rounded-full bg-line-strong" />
+                      <span className="truncate">{item}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <ul className="space-y-2">
-                {stage.leads.map((lead) => (
-                  <li
-                    key={lead.name}
-                    className="rounded-xs border border-line bg-surface px-2.5 py-2 shadow-xs"
-                  >
-                    <p className="truncate text-[0.6875rem] font-medium text-ink">
-                      {lead.name}
-                    </p>
-                    <p className="mt-0.5 truncate text-[0.625rem] text-ink-4">
-                      {lead.meta}
-                    </p>
-                    <p className="mt-1.5 flex items-center gap-1 text-[0.625rem] font-medium text-accent">
-                      {lead.action}
-                      <ArrowRightIcon className="h-2.5 w-2.5" />
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+            ))}
+          </div>
+          <p className="mt-3 border-t border-line pt-2.5 text-[0.625rem] text-ink-4">
+            One journey, six phases — each phase feeds the next.
+          </p>
         </div>
       </div>
     </div>

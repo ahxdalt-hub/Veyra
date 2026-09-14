@@ -61,14 +61,16 @@ type ButtonProps = {
   size?: ButtonSize;
   href?: string;
   arrow?: boolean;
+  onClick?: () => void;
   children: ReactNode;
-} & Omit<ComponentPropsWithoutRef<"button">, "children">;
+} & Omit<ComponentPropsWithoutRef<"button">, "children" | "onClick">;
 
 export function Button({
   variant = "primary",
   size = "md",
   href,
   arrow = false,
+  onClick,
   children,
   className = "",
   ...rest
@@ -77,7 +79,7 @@ export function Button({
 
   if (href) {
     return (
-      <Link href={href} className={classes}>
+      <Link href={href} className={classes} onClick={onClick}>
         {children}
         {arrow ? <ButtonArrow /> : null}
       </Link>

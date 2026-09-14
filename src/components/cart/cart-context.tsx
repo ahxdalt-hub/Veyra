@@ -9,18 +9,19 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { products, type Product } from "@/lib/products";
+import { resolvePurchasableProduct, type Product } from "@/lib/products";
 
 /**
- * Cart — Phase 1 client-side cart.
+ * Cart — client-side cart backed by localStorage.
  *
  * State lives in localStorage behind a tiny external store consumed via
  * useSyncExternalStore — React 19's recommended pattern for external
  * state. This hydrates without effect-setState cascades, and keeps
  * multiple tabs in sync for free.
  *
- * Phase 2 swaps the store's internals for Supabase-backed line items;
- * the public API (add/remove/count/total) stays identical.
+ * Only products the catalog marks purchasable can enter the cart; the
+ * checkout API independently re-validates every line server-side, so a
+ * stale or tampered cart line can never become an order.
  */
 
 export type CartLine = {
@@ -93,13 +94,19 @@ function subscribe(listener: () => void) {
 /* Context                                                             */
 /* ------------------------------------------------------------------ */
 
+type DetailedLine = {
+  product: Product & { price: number };
+  qty: number;
+};
+
 type CartContextValue = {
   lines: CartLine[];
   count: number;
   total: number;
-  detailedLines: { product: Product; qty: number }[];
+  detailedLines: DetailedLine[];
   add: (slug: string) => void;
   remove: (slug: string) => void;
+  setQty: (slug: string, qty: number) => void;
   clear: () => void;
   isOpen: boolean;
   openCart: () => void;
@@ -118,7 +125,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
 
   const add = useCallback((slug: string) => {
-    // Digital products: one of each, qty is always 1.
+    // Digital products: one of each, qty is always 1. Only catalog-marked
+    // purchasable products may enter the cart — coming-soon products are
+    // rejected here as well as at checkout.
+    if (!resolvePurchasableProduct(slug)) return;
     const current = read();
     if (!current.some((l) => l.slug === slug)) {
       write([...current, { slug, qty: 1 }]);
@@ -130,21 +140,33 @@ export function CartProvider({ children }: { children: ReactNode }) {
     write(read().filter((l) => l.slug !== slug));
   }, []);
 
+  const setQty = useCallback((slug: string, qty: number) => {
+    const next = Math.min(Math.max(Math.floor(qty) || 1, 1), 5);
+    write(
+      read().map((l) => (l.slug === slug ? { ...l, qty: next } : l))
+    );
+  }, []);
+
   const clear = useCallback(() => write(EMPTY), []);
   const openCart = useCallback(() => setIsOpen(true), []);
   const closeCart = useCallback(() => setIsOpen(false), []);
 
   const value = useMemo<CartContextValue>(() => {
+    // Resolve each line through the catalog's purchasable-product gate.
+    // Stale or unavailable slugs (e.g. a product that went coming-soon
+    // after being added) silently drop out of the display and the total.
     const detailedLines = lines
       .map((line) => {
-        const product = products.find((p) => p.slug === line.slug);
+        const product = resolvePurchasableProduct(line.slug);
         return product ? { product, qty: line.qty } : null;
       })
-      .filter((l): l is { product: Product; qty: number } => l !== null);
+      .filter((l): l is DetailedLine => l !== null);
 
     return {
       lines,
-      count: lines.length,
+      // Count only lines that resolve to a current catalog product, so the
+      // badge can never disagree with what the drawer and checkout show.
+      count: detailedLines.length,
       total: detailedLines.reduce(
         (sum, l) => sum + l.product.price * l.qty,
         0
@@ -152,12 +174,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
       detailedLines,
       add,
       remove,
+      setQty,
       clear,
       isOpen,
       openCart,
       closeCart,
     };
-  }, [lines, isOpen, add, remove, clear, openCart, closeCart]);
+  }, [lines, isOpen, add, remove, setQty, clear, openCart, closeCart]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

@@ -1,6 +1,6 @@
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/reveal";
 import { SectionHead } from "@/components/ui/section";
-import { DocIcon, DownloadIcon, LayersIcon } from "@/components/ui/icons";
+import { LayersIcon, DownloadIcon, CheckIcon } from "@/components/ui/icons";
 
 /**
  * HowItWorks — Section E.
@@ -12,20 +12,20 @@ const steps = [
   {
     n: "1",
     icon: LayersIcon,
-    title: "Choose your system",
-    body: "Pick the workflow you need most — acquisition, follow-up, pipeline, or onboarding. Each is self-contained; the flagship connects all of them.",
+    title: "Get the system",
+    body: "One-time payment, no subscription. Client Growth System covers the whole journey — foundation, acquisition, sales, delivery, retention, growth.",
   },
   {
     n: "2",
     icon: DownloadIcon,
-    title: "Download instantly",
-    body: "Your files and template links arrive immediately after checkout. Duplicate the Notion workspace or copy the Sheet — you're set up in minutes.",
+    title: "Receive it instantly",
+    body: "Delivery happens digitally the moment your payment is confirmed — nothing ships, nothing waits.",
   },
   {
     n: "3",
-    icon: DocIcon,
-    title: "Put it into action",
-    body: "Follow the setup checklist, move your current leads in, and run the weekly rhythm. The systems are pre-built so week one starts today.",
+    icon: CheckIcon,
+    title: "Put it to work",
+    body: "Start at Build and work the journey in order. Every module is structured to be run — your business supplies the content.",
   },
 ];
 

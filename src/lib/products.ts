@@ -1,21 +1,23 @@
 /**
- * Product catalog — typed data layer.
+ * Veyra product catalog — typed data layer.
  *
- * Single source of truth driving the shop grid, product pages, category
- * pages, search, the homepage featured sections, and the sitemap. In
- * Phase 2 the same interface is served from Supabase — every consumer
- * depends only on the types and helpers below.
+ * Single source of truth driving the shop grid, product pages, search,
+ * the homepage, the sitemap, and — critically — server-side price
+ * resolution for checkout. The checkout API reads amounts from here,
+ * never from client input.
+ *
+ * Only products with status "available" may be purchased. Coming-soon
+ * products carry no price and no checkout path by construction.
  */
 
-export type ProductCategory =
-  | "client-acquisition"
-  | "sales-pipeline"
-  | "client-onboarding";
+export type Phase = "build" | "acquire" | "sell" | "deliver" | "retain" | "grow";
 
-export type ProductFormat = "notion" | "sheets" | "pdf";
+export type ProductStatus = "available" | "coming-soon";
 
 export type ProductModule = {
+  phase: Phase;
   name: string;
+  /** One-line job description. */
   purpose: string;
   detail: string;
 };
@@ -28,9 +30,12 @@ export type ProductSpec = {
 export type Product = {
   slug: string;
   name: string;
-  category: ProductCategory;
-  formats: ProductFormat[];
-  price: number;
+  status: ProductStatus;
+  /** Whole rupees. `null` for coming-soon products — they cannot be priced
+   *  or purchased, so the type makes an accidental checkout impossible. */
+  price: number | null;
+  tagline: string;
+  /** Meta description / short line. */
   shortDescription: string;
   /** Benefit-oriented description used on cards. */
   cardDescription: string;
@@ -38,42 +43,56 @@ export type Product = {
   audience: string;
   /** The outcome the buyer gets. */
   outcome: string;
+  /** The problem it solves. */
+  problem: string;
+  /** "What it is" — the full description. */
   description: string;
+  /** How the system works — the journey, in order. */
+  workflow: { phase: Phase; headline: string; detail: string }[];
   modules: ProductModule[];
   specs: ProductSpec[];
   featured: boolean;
 };
 
-export type CategoryMeta = {
-  slug: ProductCategory;
-  name: string;
-  description: string;
-};
-
 /* ------------------------------------------------------------------ */
-/* Categories                                                          */
+/* Phases                                                              */
 /* ------------------------------------------------------------------ */
 
-export const categories: CategoryMeta[] = [
-  {
-    slug: "client-acquisition",
-    name: "Client Acquisition",
-    description:
-      "Systems for finding, qualifying, and winning new clients — from first contact to signed agreement.",
-  },
-  {
-    slug: "sales-pipeline",
-    name: "Sales Pipeline",
-    description:
-      "Systems for tracking, advancing, and reviewing every active deal so nothing stalls unseen.",
-  },
-  {
-    slug: "client-onboarding",
-    name: "Client Onboarding",
-    description:
-      "Systems for turning a signed agreement into a running engagement without dropped threads.",
-  },
+export const PHASE_ORDER: Phase[] = [
+  "build",
+  "acquire",
+  "sell",
+  "deliver",
+  "retain",
+  "grow",
 ];
+
+export const phaseMeta: Record<Phase, { label: string; blurb: string }> = {
+  build: {
+    label: "Build",
+    blurb: "Foundation, positioning, offer, and the client you serve.",
+  },
+  acquire: {
+    label: "Acquire",
+    blurb: "A strategy and cadence for finding and starting conversations.",
+  },
+  sell: {
+    label: "Sell",
+    blurb: "Sales conversations and proposals that move to a decision.",
+  },
+  deliver: {
+    label: "Deliver",
+    blurb: "Onboarding that turns a yes into a running engagement.",
+  },
+  retain: {
+    label: "Retain",
+    blurb: "Keeping good clients — deliberately, not by accident.",
+  },
+  grow: {
+    label: "Grow",
+    blurb: "A standing review of what works and what to scale.",
+  },
+};
 
 /* ------------------------------------------------------------------ */
 /* Products                                                            */
@@ -81,208 +100,265 @@ export const categories: CategoryMeta[] = [
 
 export const products: Product[] = [
   {
-    slug: "client-acquisition-system",
-    name: "The Client Acquisition System",
-    category: "client-acquisition",
-    formats: ["notion", "sheets", "pdf"],
-    price: 59,
+    slug: "client-growth-system",
+    name: "Client Growth System",
+    status: "available",
+    price: 9999,
+    tagline: "The complete operating system for the client-growth journey.",
     shortDescription:
-      "The complete workflow for finding, qualifying, and winning clients.",
+      "A structured system for the whole client-growth journey — build your foundation, acquire clients, sell, deliver, retain, and grow. One-time purchase, instant digital delivery.",
     cardDescription:
-      "Find, qualify, and win clients with one connected workflow — from first contact to signed agreement.",
+      "One connected system for the entire client-growth journey — from business foundation to acquisition, sales, delivery, retention, and growth review.",
     audience:
-      "Consultants, freelancers, and small studios who get leads but close them inconsistently.",
+      "For freelancers, consultants, service businesses, independent professionals, and small agencies who run client work and want the growth side of the business to run on structure instead of memory.",
     outcome:
-      "A repeatable weekly rhythm for outreach, lead tracking, and closing — without improvising.",
+      "A business where every stage of client growth — from positioning to retention — has a defined process, a place to work, and a next step you can see.",
+    problem:
+      "Most service businesses already know what good execution looks like. The problem is that the process lives everywhere except one place: notes, documents, spreadsheets, memory, and disconnected tools. When the process is scattered, execution becomes inconsistent — outreach stops after a good week, follow-up depends on mood, onboarding is reinvented per client. The Client Growth System exists to end that: one structured system for the entire journey, so the work runs the same way every week.",
     description:
-      "The Client Acquisition System is a complete, connected workspace for the work that precedes every invoice: finding clients, qualifying them, and winning the engagement. Instead of leads scattered across your inbox, a spreadsheet, and a sticky note, you get one pipeline with defined stages, follow-up rules, and a weekly operating rhythm. It ships as a Notion workspace with a linked Google Sheets tracker and a printable PDF playbook — download, duplicate, and start running it today.",
+      "The Client Growth System is Veyra's flagship product: a structured system that manages the journey from building a service business to acquiring clients, selling, delivering, retaining, and growing. It is not a course to watch or a template to fill in once — it is a working system organized around six connected phases. Each phase contains the modules for that stage of growth, and each module is built to be used: define your positioning, run your outreach, track your pipeline, structure your proposals, onboard every client the same deliberate way, and review what is working on a fixed cadence. Buy it once and run your growth on it.",
+    workflow: [
+      {
+        phase: "build",
+        headline: "Build the foundation",
+        detail:
+          "Define your business foundation, positioning, offer, and ideal client — the decisions everything else depends on.",
+      },
+      {
+        phase: "acquire",
+        headline: "Acquire clients",
+        detail:
+          "Run acquisition as a strategy: structured outreach and follow-up instead of bursts of motivation.",
+      },
+      {
+        phase: "sell",
+        headline: "Sell with structure",
+        detail:
+          "Run sales conversations and write proposals from a defined process, so deals advance on their merits.",
+      },
+      {
+        phase: "deliver",
+        headline: "Deliver deliberately",
+        detail:
+          "Onboard every client through the same start sequence — no dropped threads between signed and started.",
+      },
+      {
+        phase: "retain",
+        headline: "Retain the right clients",
+        detail:
+          "Work retention as a process: check-ins, value reviews, and early signals before a client drifts.",
+      },
+      {
+        phase: "grow",
+        headline: "Grow on review",
+        detail:
+          "A standing growth review that turns what worked into what you repeat — and what to scale next.",
+      },
+    ],
     modules: [
       {
-        name: "Lead Management",
-        purpose: "Every lead in one place",
+        phase: "build",
+        name: "Business Foundation",
+        purpose: "Get the fundamentals out of your head",
         detail:
-          "A single capture board with source, fit score, and next action — inbox, spreadsheet, and DMs all feed one list.",
+          "Capture how your business actually runs — services, capacity, constraints, and goals — in one structured place that the rest of the system builds on.",
       },
       {
+        phase: "build",
+        name: "Positioning",
+        purpose: "Say clearly what you're the best at",
+        detail:
+          "Work through positioning as a set of decisions, not a paragraph of inspiration: who you serve, what you're worth, and why you over alternatives.",
+      },
+      {
+        phase: "build",
+        name: "Offer",
+        purpose: "Package the work so it's easy to buy",
+        detail:
+          "Shape your services into a defined offer with scope, outcomes, and boundaries — so selling becomes presenting, not improvising.",
+      },
+      {
+        phase: "build",
+        name: "Ideal Client",
+        purpose: "Know exactly who you're for",
+        detail:
+          "Define the clients you want more of — criteria you can actually apply when a lead arrives, not a persona poster.",
+      },
+      {
+        phase: "acquire",
+        name: "Acquisition Strategy",
+        purpose: "One plan instead of scattered attempts",
+        detail:
+          "Choose your acquisition channels and set a weekly rhythm — what you do, how often, and what counts as working.",
+      },
+      {
+        phase: "acquire",
         name: "Outreach",
-        purpose: "Outreach you can sustain",
+        purpose: "Conversations you can sustain",
         detail:
-          "Message sequences with structure: reference points, a clear ask, and room for personalization — not a wall of cold templates.",
+          "Structured outreach with reference points, a clear ask, and room for personalization — built to run every week, not just in desperate ones.",
       },
       {
-        name: "Follow-Up",
-        purpose: "Nothing slips",
+        phase: "acquire",
+        name: "Follow-up",
+        purpose: "Nothing slips after the first reply",
         detail:
-          "Rules-based follow-up with day counters and escalating touch types, so a forgotten reply stops ending deals.",
+          "Rules-based follow-up so every open conversation has a next touch and a date — the stage where most deals quietly die.",
       },
       {
-        name: "Sales Pipeline",
-        purpose: "See every active deal",
+        phase: "sell",
+        name: "Sales",
+        purpose: "Run the conversation, not the vibe",
         detail:
-          "A board view of every engagement from inquiry to signature, with value, stage, and next step at a glance.",
+          "A defined structure for sales conversations — discovery, qualification, and next steps — so deals advance on evidence.",
       },
       {
+        phase: "sell",
+        name: "Proposals",
+        purpose: "Proposals that read like decisions",
+        detail:
+          "Write proposals from structure — scope, outcomes, terms — consistently and quickly, without starting from a blank page.",
+      },
+      {
+        phase: "deliver",
         name: "Client Onboarding",
-        purpose: "Handoff without dropped threads",
+        purpose: "From yes to running engagement",
         detail:
-          "A start-up checklist that carries the client from yes to kickoff — contract, invoice, access, schedule — in one place.",
+          "A start-up sequence that carries every client from signature to kickoff — contract, access, schedule — the same deliberate way each time.",
       },
       {
-        name: "Analytics",
-        purpose: "Know what's working",
+        phase: "retain",
+        name: "Retention",
+        purpose: "Keep the clients worth keeping",
         detail:
-          "A monthly review sheet measuring outreach sent, reply rate, calls held, and close rate — numbers you can act on.",
+          "A retention practice with standing check-ins and value reviews, so the relationship is managed instead of assumed.",
+      },
+      {
+        phase: "grow",
+        name: "Growth Review",
+        purpose: "A cadence for improving the system",
+        detail:
+          "A recurring review of the whole journey — what produced clients, what stalled, what to change — so the system compounds.",
       },
     ],
     specs: [
-      { label: "Format", value: "Notion + Google Sheets + PDF" },
-      { label: "Delivery", value: "Instant download" },
-      { label: "Licence", value: "One business, unlimited use" },
-      { label: "Requires", value: "Free Notion + Google accounts" },
-      { label: "Version", value: "2.1 — updated quarterly" },
+      { label: "Delivery", value: "Instant digital delivery" },
+      { label: "Licence", value: "One business, unlimited internal use" },
+      { label: "Updates", value: "Included — every future revision" },
+      { label: "Pricing", value: "One-time payment" },
+      { label: "Guarantee", value: "14-day refund window" },
     ],
     featured: true,
   },
+
+  /* ---------------- Coming soon — not purchasable ---------------- */
+
   {
-    slug: "follow-up-engine",
-    name: "The Follow-Up Engine",
-    category: "client-acquisition",
-    formats: ["sheets", "pdf"],
-    price: 29,
-    shortDescription: "A rules-based follow-up tracker for open deals.",
+    slug: "client-acquisition-os",
+    name: "Client Acquisition OS",
+    status: "coming-soon",
+    price: null,
+    tagline: "The acquisition engine, as a dedicated system.",
+    shortDescription:
+      "A dedicated operating system for client acquisition — pipelines, outreach cadences, and demand tracking. Coming soon.",
     cardDescription:
-      "A rules-based follow-up tracker that keeps every conversation moving — without a CRM subscription.",
-    audience:
-      "Anyone whose deals stall between \u201csounds interesting\u201d and signature.",
-    outcome:
-      "A follow-up cadence that runs itself: every open conversation has a next touch and a date.",
+      "A dedicated operating system for the acquisition engine — pipelines, outreach cadences, and demand tracking, built to run week after week.",
+    audience: "For businesses whose growth bottleneck is starting conversations.",
+    outcome: "Acquisition that runs on a weekly operating rhythm.",
+    problem:
+      "Acquisition work is the first thing to slip when delivery gets busy. Client Acquisition OS gives it a dedicated system.",
     description:
-      "The Follow-Up Engine is a focused tracker for the stage where most deals quietly die: after the first yes. Every conversation becomes a row with a stage, a next touch, and a due date — plus a rules sheet that tells you exactly which touch comes next. It runs entirely in Google Sheets. No CRM subscription, no onboarding calls, no forty-field records.",
-    modules: [
-      {
-        name: "Conversation Tracker",
-        purpose: "One row per open thread",
-        detail:
-          "Contact, stage, last touch, next touch, and due date — five columns that replace a spreadsheet full of tabs.",
-      },
-      {
-        name: "Cadence Rules",
-        purpose: "No guessing the next step",
-        detail:
-          "A rules sheet mapping stage to touch type — nudge, value-add, recap, or close — with day counts per step.",
-      },
-      {
-        name: "Follow-Up Library",
-        purpose: "Write less, send more",
-        detail:
-          "Twelve follow-up message skeletons covering stalled replies, pricing follow-ups, and post-call recaps.",
-      },
-      {
-        name: "Weekly Sweep",
-        purpose: "A fifteen-minute ritual",
-        detail:
-          "A filtered view of everything due this week — run it Monday morning and you are current.",
-      },
-    ],
-    specs: [
-      { label: "Format", value: "Google Sheets + PDF guide" },
-      { label: "Delivery", value: "Instant download" },
-      { label: "Licence", value: "One business, unlimited use" },
-      { label: "Requires", value: "Free Google account" },
-      { label: "Version", value: "1.4 — updated quarterly" },
-    ],
+      "Client Acquisition OS is a dedicated operating system for the acquisition engine: pipeline, outreach cadences, follow-up, and demand tracking in one place. It extends the acquisition phase of the Client Growth System into a full standalone product. Currently in development — not yet available.",
+    workflow: [],
+    modules: [],
+    specs: [],
     featured: false,
   },
   {
-    slug: "onboarding-kit",
-    name: "The Client Onboarding Kit",
-    category: "client-onboarding",
-    formats: ["notion", "pdf"],
-    price: 39,
-    shortDescription: "A structured start for every new engagement.",
+    slug: "offer-os",
+    name: "Offer OS",
+    status: "coming-soon",
+    price: null,
+    tagline: "Design and stress-test what you sell.",
+    shortDescription:
+      "A system for designing offers — structure, pricing logic, and packaging decisions in one place. Coming soon.",
     cardDescription:
-      "Turn every signed client into a running engagement with a checklist that catches every handoff detail.",
-    audience:
-      "Service businesses where week one with a new client is improvised every time.",
-    outcome:
-      "A repeatable start sequence — contract through kickoff — that looks deliberate and misses nothing.",
+      "A system for designing and stress-testing what you sell — offer structure, pricing logic, and packaging decisions in one place.",
+    audience: "For businesses whose offer has grown by accretion, not design.",
+    outcome: "An offer that is easy to present, price, and buy.",
+    problem:
+      "Offers tend to accrete — every new client adds a exception until the menu is unreadable. Offer OS makes offer design a deliberate process.",
     description:
-      "The Client Onboarding Kit is the sequence between signed and started. A Notion checklist with a welcome email set, a kickoff agenda, and a first-thirty-days plan. Use it for every new client and week one stops being a scramble — it becomes the part of your service clients remember.",
-    modules: [
-      {
-        name: "Start Checklist",
-        purpose: "Contract to kickoff, itemized",
-        detail:
-          "Every step from countersignature to kickoff call: invoices, access, tooling, agenda — with an owner per item.",
-      },
-      {
-        name: "Welcome Sequence",
-        purpose: "A calm first impression",
-        detail:
-          "Three email drafts — welcome, what to expect, and kickoff confirmation — written to be edited, not pasted.",
-      },
-      {
-        name: "Kickoff Agenda",
-        purpose: "A call that sets terms",
-        detail:
-          "A forty-five minute kickoff structure covering scope, cadence, channels, and success criteria.",
-      },
-      {
-        name: "First 30 Days",
-        purpose: "Momentum you can see",
-        detail:
-          "A milestone plan for the first month of the engagement, with a weekly check-in format.",
-      },
-    ],
-    specs: [
-      { label: "Format", value: "Notion + PDF templates" },
-      { label: "Delivery", value: "Instant download" },
-      { label: "Licence", value: "One business, unlimited use" },
-      { label: "Requires", value: "Free Notion account" },
-      { label: "Version", value: "1.2 — updated quarterly" },
-    ],
+      "Offer OS is a system for designing what you sell: offer structure, pricing logic, and packaging decisions, stress-tested before you take them to market. Currently in development — not yet available.",
+    workflow: [],
+    modules: [],
+    specs: [],
     featured: false,
   },
   {
-    slug: "pipeline-board",
-    name: "The Pipeline Board",
-    category: "sales-pipeline",
-    formats: ["notion"],
-    price: 19,
-    shortDescription: "A visual pipeline for every active deal.",
+    slug: "sales-os",
+    name: "Sales OS",
+    status: "coming-soon",
+    price: null,
+    tagline: "The selling system, end to end.",
+    shortDescription:
+      "A system for selling — from first call to signature, with a repeatable pipeline and proposal flow. Coming soon.",
     cardDescription:
-      "A visual board for every active deal — stage, value, and next step visible at a glance.",
-    audience:
-      "Anyone who has ever lost a deal because its status lived in their head.",
-    outcome:
-      "Every active deal visible on one board, with a next step assigned before a card can move.",
+      "The selling system — from first call to signature, with a repeatable pipeline and proposal flow that advances on evidence.",
+    audience: "For businesses where closing depends on who is selling.",
+    outcome: "A sales process that produces the same quality of decision every time.",
+    problem:
+      "When sales lives in individual heads, quality varies by mood and memory. Sales OS turns selling into a defined process.",
     description:
-      "The Pipeline Board is a Notion kanban for active engagements — from inquiry to signature. Each card carries value, stage, next step, and next touch. It is deliberately minimal: one board, four stages, no configuration required.",
-    modules: [
-      {
-        name: "Deal Board",
-        purpose: "Four stages, no setup",
-        detail:
-          "Inquiry, Conversation, Proposal, Signed — with value and next touch on every card.",
-      },
-      {
-        name: "Weekly Review",
-        purpose: "Stalled deals surface fast",
-        detail:
-          "A review view highlighting cards that have not moved in fourteen days, with a one-line diagnosis field.",
-      },
-    ],
-    specs: [
-      { label: "Format", value: "Notion workspace" },
-      { label: "Delivery", value: "Instant download" },
-      { label: "Licence", value: "One business, unlimited use" },
-      { label: "Requires", value: "Free Notion account" },
-      { label: "Version", value: "1.1 — updated quarterly" },
-    ],
+      "Sales OS is a dedicated system for the selling stage: pipeline, conversation structure, proposals, and decision tracking. It extends the sales phase of the Client Growth System into a full standalone product. Currently in development — not yet available.",
+    workflow: [],
+    modules: [],
+    specs: [],
+    featured: false,
+  },
+  {
+    slug: "client-operations-os",
+    name: "Client Operations OS",
+    status: "coming-soon",
+    price: null,
+    tagline: "The delivery side, on one rail.",
+    shortDescription:
+      "A system for client operations — onboarding, engagement tracking, and client communication on one rail. Coming soon.",
+    cardDescription:
+      "The delivery side of the business as a system — onboarding, engagement tracking, and client communication on one rail.",
+    audience: "For businesses where delivery quality depends on heroics.",
+    outcome: "Client work that runs the same deliberate way every engagement.",
+    problem:
+      "Delivery is where reputations are made, yet it is usually the least systematized part of a service business. Client Operations OS fixes that.",
+    description:
+      "Client Operations OS is a dedicated system for the deliver and retain stages: onboarding sequences, engagement tracking, and client communication cadences. Currently in development — not yet available.",
+    workflow: [],
+    modules: [],
+    specs: [],
+    featured: false,
+  },
+  {
+    slug: "agency-growth-os",
+    name: "Agency Growth OS",
+    status: "coming-soon",
+    price: null,
+    tagline: "Run agency growth as an operations problem.",
+    shortDescription:
+      "A system for agency owners — capacity, pipeline, and review cadences in one operating system. Coming soon.",
+    cardDescription:
+      "For agency owners running growth as an operations problem — capacity, pipeline, and review cadences in one system.",
+    audience: "For agency owners past the solo stage.",
+    outcome: "Growth decisions made on a cadence, not in a crisis.",
+    problem:
+      "Agencies grow on momentum until it runs out. Agency Growth OS puts capacity, pipeline, and review into one operating rhythm.",
+    description:
+      "Agency Growth OS is a system for agency owners: capacity planning, pipeline visibility, and standing review cadences — the growth side of the agency run deliberately. Currently in development — not yet available.",
+    workflow: [],
+    modules: [],
+    specs: [],
     featured: false,
   },
 ];
-
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -297,22 +373,37 @@ export function getProducts(): Product[] {
   return products;
 }
 
-export function getCategory(slug: string): CategoryMeta | undefined {
-  return categories.find((c) => c.slug === slug);
+/** Products that can actually be bought. */
+export function getAvailableProducts(): Product[] {
+  return products.filter((p) => p.status === "available" && p.price !== null);
 }
 
-export function getProductsByCategory(slug: ProductCategory): Product[] {
-  return products.filter((p) => p.category === slug);
+/** Products announced but not yet purchasable. */
+export function getComingSoonProducts(): Product[] {
+  return products.filter((p) => p.status === "coming-soon");
 }
 
-export function getFeaturedProduct(): Product {
+/**
+ * Server-side price resolution — the only sanctioned way to turn a cart
+ * line into an amount. Returns null for anything that isn't currently
+ * purchasable, so the checkout API can reject it.
+ */
+export function resolvePurchasableProduct(
+  slug: string
+): (Product & { price: number }) | undefined {
+  const product = getProduct(slug);
+  if (!product || product.status !== "available" || product.price === null) {
+    return undefined;
+  }
+  return product as Product & { price: number };
+}
+
+export function getFeaturedProduct(): Product & { price: number } {
   const featured = products.find((p) => p.featured);
-  if (!featured) throw new Error("No featured product configured.");
-  return featured;
-}
-
-export function getShopProducts(): Product[] {
-  return [...products].sort((a, b) => b.price - a.price);
+  if (!featured || featured.price === null) {
+    throw new Error("No purchasable featured product configured.");
+  }
+  return featured as Product & { price: number };
 }
 
 /** Lightweight search across name, description, and audience. */
@@ -320,26 +411,13 @@ export function searchProducts(query: string): Product[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
   return products.filter((p) =>
-    [
-      p.name,
-      p.shortDescription,
-      p.cardDescription,
-      p.audience,
-      p.outcome,
-      getCategory(p.category)?.name ?? "",
-    ]
+    [p.name, p.tagline, p.shortDescription, p.cardDescription, p.audience, p.outcome]
       .join(" ")
       .toLowerCase()
       .includes(q)
   );
 }
 
-const formatNames: Record<ProductFormat, string> = {
-  notion: "Notion",
-  sheets: "Google Sheets",
-  pdf: "PDF",
-};
-
-export function formatLabel(formats: ProductFormat[]): string {
-  return formats.map((f) => formatNames[f]).join(" + ");
+export function formatPhase(phase: Phase): string {
+  return phaseMeta[phase].label;
 }

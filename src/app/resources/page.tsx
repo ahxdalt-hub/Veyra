@@ -7,9 +7,9 @@ import { DocIcon, DownloadIcon } from "@/components/ui/icons";
 export const metadata: Metadata = {
   title: "Resources",
   description:
-    "Free, practical resources from Standard Practice — starting with the 25-Point Client Acquisition Audit. No drip campaigns.",
+    "Free, practical resources from Veyra — starting with the 25-Point Client Acquisition Audit. No drip campaigns.",
   alternates: { canonical: "/resources" },
-  openGraph: { title: "Resources — Standard Practice", url: "/resources" },
+  openGraph: { title: "Resources — Veyra", url: "/resources" },
 };
 
 export default function ResourcesPage() {

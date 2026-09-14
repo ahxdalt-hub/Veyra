@@ -7,9 +7,9 @@ import { site } from "@/lib/site";
 export const metadata: Metadata = {
   title: "Contact",
   description:
-    "Questions about a system, your order, or a refund? Contact Standard Practice — we answer every email personally.",
+    "Questions about a system, your order, or a refund? Contact Veyra — we answer every email personally.",
   alternates: { canonical: "/contact" },
-  openGraph: { title: "Contact — Standard Practice", url: "/contact" },
+  openGraph: { title: "Contact — Veyra", url: "/contact" },
 };
 
 export default function ContactPage() {

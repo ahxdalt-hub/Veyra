@@ -90,16 +90,13 @@ export function Header() {
           {/* Brand */}
           <Link
             href="/"
-            className="group flex items-baseline gap-2"
+            className="group flex items-baseline gap-1.5"
             aria-label={`${site.name} — home`}
           >
             <span className="font-display text-[1.35rem] font-semibold leading-none tracking-[-0.02em] text-ink">
-              Standard
+              Veyra
             </span>
-            <span className="font-display text-[1.35rem] font-light italic leading-none tracking-[-0.02em] text-accent">
-              Practice
-            </span>
-            <span className="ml-1 hidden h-1.5 w-1.5 rounded-full bg-amber transition-transform duration-300 group-hover:scale-125 sm:block" />
+            <span className="hidden h-1.5 w-1.5 rounded-full bg-amber transition-transform duration-300 group-hover:scale-125 sm:block" />
           </Link>
 
           {/* Desktop nav */}

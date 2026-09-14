@@ -8,7 +8,7 @@ import { ImageResponse } from "next/og";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "Standard Practice — ready-to-use business systems for client work";
+export const alt = "Veyra — ready-to-use business systems for client work";
 
 export default function OgImage() {
   return new ImageResponse(
@@ -133,7 +133,7 @@ export default function OgImage() {
               textTransform: "uppercase",
             }}
           >
-            standardpractice.co
+            veyra.co
           </div>
         </div>
       </div>

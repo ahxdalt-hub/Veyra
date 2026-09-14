@@ -1,24 +1,25 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getShopProducts, categories, getProductsByCategory } from "@/lib/products";
+import { getAvailableProducts, getComingSoonProducts } from "@/lib/products";
 import { ProductCard } from "@/components/product/product-card";
 import { Reveal } from "@/components/motion/reveal";
 
 export const metadata: Metadata = {
-  title: "Shop all systems",
+  title: "Products",
   description:
-    "Browse every Standard Practice business system — client acquisition, follow-up, pipeline, and onboarding. Instant download, one-time purchase.",
+    "The Veyra collection — practical business systems for freelancers, consultants, service businesses, and small agencies. Client Growth System available now.",
   alternates: { canonical: "/shop" },
   openGraph: {
-    title: "Shop all systems — Standard Practice",
+    title: "Veyra products",
     description:
-      "Ready-to-use business systems for client work. Instant download, one-time purchase.",
+      "Practical business systems you can actually run. One-time payment, instant digital delivery.",
     url: "/shop",
   },
 };
 
 export default function ShopPage() {
-  const products = getShopProducts();
+  const available = getAvailableProducts();
+  const comingSoon = getComingSoonProducts();
 
   return (
     <>
@@ -34,53 +35,65 @@ export default function ShopPage() {
                   </Link>
                 </li>
                 <li aria-hidden="true">/</li>
-                <li aria-current="page" className="text-ink-2">Shop</li>
+                <li aria-current="page" className="text-ink-2">Products</li>
               </ol>
             </nav>
             <h1 className="text-display-1 max-w-2xl">
-              Every system, built for implementation.
+              The Veyra collection.
             </h1>
             <p className="mt-5 max-w-xl text-lead">
-              One-time purchase, instant download, yours to run forever. Each
-              system is self-contained — the flagship connects them all.
+              Practical business systems, packaged to be used. One-time
+              payment, instant digital delivery — and a pipeline of systems in
+              development.
             </p>
           </Reveal>
         </div>
       </div>
 
-      {/* Category rail */}
-      <div className="border-b border-line bg-surface">
-        <div className="container-page flex flex-wrap items-center gap-2 py-4">
-          <span className="spec mr-2 text-ink-4">Filter by workflow:</span>
-          {categories.map((c) => {
-            const count = getProductsByCategory(c.slug).length;
-            return (
-              <Link
-                key={c.slug}
-                href={`/categories/${c.slug}`}
-                className="inline-flex items-center gap-1.5 rounded-full border border-line bg-paper px-3 py-1.5 text-xs text-ink-2 transition-colors hover:border-accent/40 hover:bg-accent-soft/60 hover:text-accent-ink"
-              >
-                {c.name}
-                <span className="tnum text-ink-4">{count}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Product list */}
+      {/* Available */}
       <div className="bg-surface">
         <div className="container-page py-12">
           <p className="mb-6 text-xs text-ink-4 tnum">
-            {products.length} systems
+            {available.length} available
           </p>
           <div className="space-y-6">
-            {products.map((p, i) => (
+            {available.map((p, i) => (
               <Reveal key={p.slug} delay={Math.min(i * 0.05, 0.2)}>
                 <ProductCard product={p} />
               </Reveal>
             ))}
           </div>
+
+          {comingSoon.length > 0 ? (
+            <div className="mt-16">
+              <div className="flex items-baseline gap-4">
+                <h2 className="text-eyebrow">Coming soon</h2>
+                <span className="h-px flex-1 bg-line" aria-hidden="true" />
+              </div>
+              <ul className="mt-6 grid gap-x-10 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
+                {comingSoon.map((p) => (
+                  <li key={p.slug}>
+                    <Link
+                      href={`/products/${p.slug}`}
+                      className="group block rounded-sm border border-dashed border-line-strong bg-paper px-4 py-3.5 transition-colors hover:border-ink/25"
+                    >
+                      <span className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-medium text-ink group-hover:text-accent">
+                          {p.name}
+                        </span>
+                        <span className="spec shrink-0 text-ink-4">
+                          In development
+                        </span>
+                      </span>
+                      <span className="mt-1 block text-xs leading-relaxed text-ink-3">
+                        {p.tagline}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
       </div>
     </>

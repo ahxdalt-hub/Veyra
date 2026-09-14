@@ -7,10 +7,10 @@ import { DocIcon, DownloadIcon, UserIcon } from "@/components/ui/icons";
 export const metadata: Metadata = {
   title: "Account",
   description:
-    "Your Standard Practice account — order history and re-download links arrive with the commerce launch.",
+    "Your Veyra account — order history, receipts, and licence management arrive with customer accounts.",
   alternates: { canonical: "/account" },
   robots: { index: false, follow: true },
-  openGraph: { title: "Account — Standard Practice", url: "/account" },
+  openGraph: { title: "Account — Veyra", url: "/account" },
 };
 
 export default function AccountPage() {
@@ -20,7 +20,7 @@ export default function AccountPage() {
         breadcrumb={[{ label: "Home", href: "/" }, { label: "Account" }]}
         eyebrow="Account"
         title="Your account"
-        lead="Sign-in and order history arrive with our commerce launch. Until then, purchases deliver through email, and this page explains exactly what changes."
+        lead="Customer accounts arrive with our fulfillment launch. Until then, purchases deliver through email, and this page explains exactly what changes."
       />
 
       <div className="bg-surface">
@@ -32,12 +32,12 @@ export default function AccountPage() {
                   <UserIcon className="h-5 w-5 text-accent" />
                 </span>
                 <h2 className="mt-5 text-display-2 text-[1.375rem]">
-                  Coming with checkout
+                  Coming with customer accounts
                 </h2>
                 <ul className="mt-5 space-y-3.5">
                   {[
                     { icon: DocIcon, t: "Order history", d: "Every purchase, receipt, and licence in one place." },
-                    { icon: DownloadIcon, t: "Re-download links", d: "Grab the latest version of any system you own, anytime." },
+                    { icon: DownloadIcon, t: "Re-delivery", d: "Get the latest version of any system you own, anytime." },
                     { icon: UserIcon, t: "Licence management", d: "See which systems your business is licensed for." },
                   ].map((row) => (
                     <li key={row.t} className="flex gap-4">
@@ -55,9 +55,9 @@ export default function AccountPage() {
             </Reveal>
             <Reveal delay={0.05}>
               <p className="text-center text-sm text-ink-3">
-                Today, every purchase delivers instantly to your inbox —{" "}
+                Today, every purchase is confirmed by email —{" "}
                 <Button href="/shop" variant="ghost" size="sm" className="px-1">
-                  browse systems
+                  browse products
                 </Button>{" "}
                 or{" "}
                 <Button href="/contact" variant="ghost" size="sm" className="px-1">

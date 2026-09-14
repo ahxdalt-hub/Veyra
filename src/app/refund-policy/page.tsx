@@ -4,10 +4,10 @@ import { LegalPage } from "@/components/legal/legal-page";
 export const metadata: Metadata = {
   title: "Refund Policy",
   description:
-    "Standard Practice refunds: 14 days, no interrogation. The full policy in plain language.",
+    "Veyra refunds: 14 days, no interrogation. The full policy in plain language.",
   alternates: { canonical: "/refund-policy" },
   openGraph: {
-    title: "Refund Policy — Standard Practice",
+    title: "Refund Policy — Veyra",
     url: "/refund-policy",
   },
 };

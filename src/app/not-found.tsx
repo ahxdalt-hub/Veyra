@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { getShopProducts } from "@/lib/products";
+import { getFeaturedProduct } from "@/lib/products";
 import { formatPrice } from "@/lib/site";
 
 export default function NotFound() {
-  const featured = getShopProducts()[0];
+  const featured = getFeaturedProduct();
 
   return (
     <div className="container-page flex flex-1 flex-col items-center justify-center py-24 text-center">
@@ -21,21 +21,19 @@ export default function NotFound() {
           Back to the homepage
         </Button>
         <Button href="/shop" variant="outline" size="lg">
-          Browse systems
+          Browse products
         </Button>
       </div>
-      {featured ? (
-        <p className="mt-10 text-xs text-ink-4">
-          P.S. — the flagship is{" "}
-          <Link
-            href={`/products/${featured.slug}`}
-            className="font-medium text-accent underline-offset-2 hover:underline"
-          >
-            {featured.name}
-          </Link>{" "}
-          ({formatPrice(featured.price)}).
-        </p>
-      ) : null}
+      <p className="mt-10 text-xs text-ink-4">
+        P.S. — the flagship is{" "}
+        <Link
+          href={`/products/${featured.slug}`}
+          className="font-medium text-accent underline-offset-2 hover:underline"
+        >
+          {featured.name}
+        </Link>{" "}
+        ({formatPrice(featured.price)}).
+      </p>
     </div>
   );
 }
