@@ -76,27 +76,6 @@ export type RedeliveryRequestRow = {
   created_at: string;
 };
 
-export type AdminNotificationRowT = {
-  id: string;
-  kind: "sale" | "customer" | "payment_failed" | "delivery" | "system";
-  severity: "info" | "success" | "warning" | "error";
-  title: string;
-  message: string;
-  related_entity: string | null;
-  related_slug: string | null;
-  read_at: string | null;
-  created_at: string;
-};
-
-export type AdminAuditRowT = {
-  id: string;
-  action: string;
-  entity: string | null;
-  entity_id: string | null;
-  detail: string | null;
-  created_at: string;
-};
-
 type Tables = {
   orders: OrderRow;
   profiles: ProfileRow;
@@ -104,8 +83,6 @@ type Tables = {
   licences: LicenceRow;
   seat_assignments: SeatAssignmentRow;
   redelivery_requests: RedeliveryRequestRow;
-  admin_notifications: AdminNotificationRowT;
-  admin_audit_log: AdminAuditRowT;
 };
 
 export type Database = {

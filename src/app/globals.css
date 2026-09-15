@@ -50,30 +50,6 @@
   --radius-lg: 0.625rem;
   --radius-xl: 0.75rem;
 
-  /* — Veyra Admin Command Center (Stage 05) —
-     The private system gets its own world: deep warm neutrals (the
-     storefront's ink, inverted), hairline borders, one bronze accent
-     brightened for dark-surface contrast. No neon, no glow. */
-  --color-cc-bg: #14120d;
-  --color-cc-panel: #1a1812;
-  --color-cc-panel-2: #211e16;
-  --color-cc-panel-3: #292519;
-  --color-cc-line: #2b271f;
-  --color-cc-line-strong: #3d382c;
-  --color-cc-text: #ece7da;
-  --color-cc-text-2: #b3ab98;
-  --color-cc-text-3: #7f7869;
-  --color-cc-text-4: #575235;
-  --color-cc-accent: #c9973f;
-  --color-cc-accent-deep: #a3762c;
-  --color-cc-accent-soft: #2a2314;
-  --color-cc-good: #8db08d;
-  --color-cc-good-soft: #1d2418;
-  --color-cc-bad: #d08b6c;
-  --color-cc-bad-soft: #2b2019;
-  --color-cc-info: #9aabbc;
-  --color-cc-info-soft: #1e2229;
-
   /* — Breakpoint-aware containers — */
   --container-6xl: 72rem;
   --container-7xl: 80rem;
@@ -374,27 +350,7 @@
     animation: shimmer 1.6s ease-in-out infinite;
   }
 
-  /* ============================================================
-     ADMIN COMMAND CENTER UTILITIES
-     Dark-surface equivalents of the storefront's paper-world helpers,
-     used only by /admin. tnum keeps metric numerals aligned; cc-grid
-     gives panels a faint drafting-grid texture like the storefront's
-     blueprint, tuned for deep surfaces.
-     ============================================================ */
-
-  .cc-skeleton {
-    border-radius: var(--radius-sm);
-    background-color: var(--color-cc-line);
-    background-image: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(236, 231, 218, 0.06) 50%,
-      transparent 100%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.6s ease-in-out infinite;
-  }
-
+  /* Faint drafting-grid texture for deep surfaces. */
   .cc-grid {
     background-image: linear-gradient(
         to right,
@@ -403,11 +359,6 @@
       ),
       linear-gradient(to bottom, rgba(61, 56, 44, 0.24) 1px, transparent 1px);
     background-size: 36px 36px;
-  }
-
-  /* Subtle top edge highlight on panels — the "layered depth" cue. */
-  .cc-edge {
-    box-shadow: inset 0 1px 0 rgba(236, 231, 218, 0.035);
   }
 }
 

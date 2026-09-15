@@ -8,7 +8,6 @@ import {
 } from "@/lib/supabase/config";
 import type { Database } from "@/lib/supabase/types";
 import type { Order } from "@/lib/orders";
-import { notifyNewSale } from "@/lib/admin/notifications";
 
 /**
  * Fulfillment — the payment→entitlement→licence chain.
@@ -147,18 +146,6 @@ export async function grantPurchaseForOrder(order: Order): Promise<void> {
   } catch (err) {
     console.error(`[fulfillment] grant failed for order ${order.id}:`, err);
   }
-  // Admin notification — the one event the command center never misses.
-  // Fire-and-forget: a notification failure must never affect the
-  // payment path (notifyNewSale swallows its own errors).
-  const product = getProduct(order.product_slug);
-  await notifyNewSale({
-    orderId: order.id,
-    productSlug: order.product_slug,
-    productName: product?.name ?? order.product_slug,
-    email: order.email,
-    amount: order.amount,
-    currency: order.currency,
-  });
 }
 
 /**

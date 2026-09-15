@@ -8,7 +8,6 @@ import {
   verifyWebhookSignature,
 } from "@/lib/razorpay";
 import { grantPurchaseForOrder } from "@/lib/fulfillment";
-import { insertAdminNotification } from "@/lib/admin/notifications";
 
 /**
  * POST /api/webhooks/razorpay — durable payment confirmation.
@@ -135,15 +134,9 @@ export async function POST(request: Request) {
       razorpayPaymentId: payment.id,
     });
     if (failed) {
-      // Surface the failure in the command center (fire-and-forget).
-      await insertAdminNotification({
-        kind: "payment_failed",
-        severity: "warning",
-        title: "Payment failed",
-        message: `A ${order.currency} ${(order.amount / 100).toFixed(2)} payment for ${order.email} (${order.product_slug}) failed${payment.error_description ? ` — ${payment.error_description}` : "."}`,
-        related_entity: "order",
-        related_slug: order.id,
-      });
+      console.warn(
+        `[webhook] payment failed for order ${order.id} (${order.email})`
+      );
     }
     return NextResponse.json({ received: true });
   } catch (err) {

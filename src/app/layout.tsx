@@ -24,9 +24,8 @@ const plexMono = IBM_Plex_Mono({
 
 /**
  * Root layout — html/body/fonts/globals only. The public storefront
- * (under (site)) and the admin command center (under /admin) each apply
- * their own chrome and color world inside the body, so neither inherits
- * the other's header, footer, or background.
+ * (under (site)) applies its own chrome and color world inside the
+ * body, so it doesn't inherit a header, footer, or background here.
  */
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
