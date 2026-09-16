@@ -21,6 +21,8 @@
  * resolved order.
  */
 
+import { FLAGSHIP_SLUG, revalidateFoundingStatus } from "@/lib/founding";
+
 export type OrderStatus =
   | "pending"
   | "paid"
@@ -228,6 +230,7 @@ export async function updateOrderStatus(
     };
     devStore.set(id, next);
     console.log(`[orders] dev-store ${id} → ${status}`);
+    invalidateFoundingIfAllocationMoved(next);
     return next;
   }
 
@@ -261,7 +264,21 @@ export async function updateOrderStatus(
   }
   const rows = (await res.json()) as Order[];
   // Empty array = conditional update didn't match (e.g. no longer pending).
-  return rows[0] ?? null;
+  const updated = rows[0] ?? null;
+  if (updated) invalidateFoundingIfAllocationMoved(updated);
+  return updated;
+}
+
+/**
+ * A paid (or un-paid) flagship order moves the founding allocation, so
+ * the banner's cached state must refresh. Only statuses that change the
+ * paid count matter; other transitions (pending→cancelled, …) skip it.
+ */
+function invalidateFoundingIfAllocationMoved(order: Order): void {
+  if (order.product_slug !== FLAGSHIP_SLUG) return;
+
+  if (order.status !== "paid" && order.status !== "refunded") return;
+  revalidateFoundingStatus();
 }
 
 /** Safe projection for client-facing API responses (no PII, no Razorpay ids). */

@@ -30,7 +30,9 @@ export function useLenisScroll(
 ) {
   const lenisRef = useRef<Lenis | null>(null);
   const cb = useRef(onScroll);
-  cb.current = onScroll;
+  useEffect(() => {
+    cb.current = onScroll;
+  }, [onScroll]);
 
   useEffect(() => {
     const el = ref.current;

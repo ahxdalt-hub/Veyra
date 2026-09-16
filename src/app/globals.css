@@ -360,6 +360,43 @@
       linear-gradient(to bottom, rgba(61, 56, 44, 0.24) 1px, transparent 1px);
     background-size: 36px 36px;
   }
+
+  /* — Founding-release marquee (announcement banner) —
+     Pure CSS: two identical halves on a flex track sliding to -50%, so
+     the loop point is pixel-identical to the start — no jump, no JS.
+     GPU-friendly translateX, linear, constant speed. Duration comes from
+     --founding-marquee-duration (set by the banner to match text width). */
+
+  @keyframes founding-marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  .founding-marquee__track {
+    display: flex;
+    width: max-content;
+    will-change: transform;
+    animation: founding-marquee
+      var(--founding-marquee-duration, 30s)
+      linear
+      infinite;
+  }
+
+  /* Reduced motion: the global rule collapses animations to a frame,
+     which would freeze the sentence mid-width — instead, turn the band
+     into a quiet horizontal scroller holding the full announcement. */
+  @media (prefers-reduced-motion: reduce) {
+    .founding-marquee {
+      overflow-x: auto;
+    }
+    .founding-marquee__track {
+      animation: none;
+    }
+  }
 }
 
 

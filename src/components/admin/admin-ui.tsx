@@ -325,7 +325,12 @@ export function Drawer({
                 <XIcon className="h-4 w-4" />
               </button>
             </header>
-            <div className="no-scrollbar flex-1 overflow-y-auto px-5 py-4">{children}</div>
+            <div
+              className="flex-1 overflow-y-auto px-5 py-4"
+              data-lenis-prevent=""
+            >
+              {children}
+            </div>
           </motion.aside>
         </>
       )}

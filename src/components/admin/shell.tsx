@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useLocalStorageState } from "@/lib/use-local-storage";
 import { useCcTheme } from "@/components/admin/theme";
+import { useLenisScroll } from "@/components/admin/smooth-scroll";
 import { SunIcon, MoonIcon } from "@/components/admin/icons";
 import {
   OverviewIcon,
@@ -399,7 +400,20 @@ export function AdminShell({
           />
         </div>
         <main ref={mainRef} className="flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-[86rem] px-5 py-6 lg:px-7">{children}</div>
+          {/* Stable content node for Lenis (it binds firstElementChild once).
+              Inside it, a per-route soft mount transition: the page eases
+              in as new data arrives — quick rise, no exit theatrics. */}
+          <div>
+            <motion.div
+              key={pathname}
+              initial={reduced ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              className="mx-auto w-full max-w-[86rem] px-5 py-6 lg:px-7"
+            >
+              {children}
+            </motion.div>
+          </div>
         </main>
       </div>
     </div>

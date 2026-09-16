@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { site } from "@/lib/site";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import { FoundingBanner } from "@/components/layout/founding-banner";
 import { CartProvider } from "@/components/cart/cart-context";
 import { HeaderSearchProvider } from "@/components/search/search-context";
 
@@ -66,6 +67,7 @@ export default function SiteLayout({
       </a>
       <HeaderSearchProvider>
         <CartProvider>
+          <FoundingBanner />
           <Header />
           <main id="main" className="flex-1">
             {children}

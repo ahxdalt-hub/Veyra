@@ -283,7 +283,7 @@ async function CustomerDetail({ email }: { email: string }) {
                     ))}
                   </tbody>
                 </table>
-              </ScrollFadeX>
+              </div>
             )}
           </Panel>
 
