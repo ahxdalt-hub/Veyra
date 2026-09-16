@@ -8,6 +8,7 @@ import {
 import { supabaseAuthConfigured } from "@/lib/supabase/config";
 import type {
   EntitlementRow,
+  LicenceActivationRow,
   LicenceRow,
   OrderRow,
   SeatAssignmentRow,
@@ -15,6 +16,7 @@ import type {
 import { getProduct } from "@/lib/products";
 import { AccountShell, AccountCard } from "@/components/account/account-shell";
 import { TeamSeats, type SeatView } from "@/components/account/team-seats";
+import { LicenceDevices, type DeviceView } from "@/components/account/licence-devices";
 import { formatDate, shortOrderRef } from "@/components/account/account-format";
 import { ShieldIcon } from "@/components/ui/icons";
 
@@ -65,11 +67,12 @@ export default async function LicencesPage() {
   const licences = (data ?? []) as LicenceRow[];
 
   // Entitlement (seat count) + order (purchase record) + seat assignments
-  // for each licence — all RLS-scoped to the caller.
-  const [entRes, orderRes, seatRes] = await Promise.all([
+  // + device activations for each licence — all RLS-scoped to the caller.
+  const [entRes, orderRes, seatRes, devRes] = await Promise.all([
     supabase.from("entitlements").select("*").eq("status", "active"),
     supabase.from("orders").select("id, created_at"),
     supabase.from("seat_assignments").select("*").order("seat_number"),
+    supabase.from("licence_activations").select("*").order("activated_at", { ascending: false }),
   ]);
 
   const entitlements = new Map(
@@ -85,6 +88,21 @@ export default async function LicencesPage() {
     const list = seatsByEntitlement.get(seat.entitlement_id) ?? [];
     list.push(seat);
     seatsByEntitlement.set(seat.entitlement_id, list);
+  }
+  const devicesByLicence = new Map<string, DeviceView[]>();
+  for (const dev of (devRes.data ?? []) as LicenceActivationRow[]) {
+    const list = devicesByLicence.get(dev.licence_id) ?? [];
+    list.push({
+      id: dev.id,
+      deviceLabel:
+        dev.device_label ||
+        `Device ${dev.device_id.slice(0, 6).toUpperCase()}`,
+      email: dev.activated_email,
+      activatedAt: dev.activated_at,
+      lastSeenAt: dev.last_seen_at,
+      active: dev.status === "active",
+    });
+    devicesByLicence.set(dev.licence_id, list);
   }
 
   return (
@@ -131,7 +149,10 @@ export default async function LicencesPage() {
                 isOwner: s.seat_number === 1 && s.email === licence.email,
               })
             );
-            const activated = assignments.length;
+            // Activated seats count devices, not assigned seat rows:
+            // a purchased-but-unassigned seat uses nothing (Stage 07).
+            const devices = devicesByLicence.get(licence.id) ?? [];
+            const activated = devices.filter((d) => d.active).length;
             const available = Math.max(0, licensed - activated);
 
             return (
@@ -203,6 +224,11 @@ export default async function LicencesPage() {
                       />
                     </div>
                   ) : null}
+
+                  {/* Activated devices — release to free a seat */}
+                  <div className="mt-5 border-t border-line pt-5">
+                    <LicenceDevices devices={devices} />
+                  </div>
                 </AccountCard>
               </li>
             );

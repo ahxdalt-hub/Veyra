@@ -7,6 +7,7 @@ import {
   supabaseUrl,
 } from "@/lib/supabase/config";
 import { getProduct } from "@/lib/products";
+import { currentRelease } from "@/lib/registry";
 
 /**
  * GET /api/download/[slug] — secure product delivery.
@@ -15,8 +16,11 @@ import { getProduct } from "@/lib/products";
  *   1. A valid Veyra session (cookies) — anonymous requests stop here.
  *   2. Entitlement check through the session client, so Supabase RLS
  *      guarantees the caller only ever reaches their own entitlements.
- *   3. Only then is a short-lived signed storage URL (service role,
- *      private bucket) minted for the current catalog version.
+ *   3. The product registry decides WHAT ships: only the current version
+ *      with release_status 'published' and an uploaded artifact (0016).
+ *      Withdrawing a release stops deliveries instantly.
+ *   4. Only then is a short-lived signed storage URL (service role,
+ *      private bucket) minted for that exact artifact key.
  *
  * No permanent public storage URL is ever exposed. If delivery storage
  * isn't configured for this deployment, the endpoint says so honestly
@@ -24,6 +28,13 @@ import { getProduct } from "@/lib/products";
  */
 
 const SIGNED_URL_TTL_SECONDS = 300; // 5 minutes — single download intent
+
+/** Customer-facing filename: derived from the artifact's own extension so
+ *  an .exe release downloads as an .exe, not a .zip. */
+function artifactName(objectKey: string, productName: string, version: string): string {
+  const ext = objectKey.match(/\.[A-Za-z0-9]+$/)?.[0] ?? ".zip";
+  return `Veyra-${productName.replace(/\s+/g, " ")}-v${version}${ext}`;
+}
 
 export async function GET(
   request: Request,
@@ -74,7 +85,20 @@ export async function GET(
     );
   }
 
-  // 3. Signed URL — private bucket, short TTL, service role only.
+  // 3. Registry decides what ships — current + published + uploaded.
+  const release = await currentRelease(slug);
+  if (!release) {
+    return NextResponse.json(
+      {
+        error:
+          "The installer is being published for this product. In the meantime, request delivery and our team will send the current version to your email.",
+        code: "not_published",
+      },
+      { status: 503 }
+    );
+  }
+
+  // 4. Signed URL — private bucket, short TTL, service role only.
   const bucket = process.env.SUPABASE_DELIVERY_BUCKET;
   if (!supabaseAdminConfigured() || !bucket) {
     return NextResponse.json(
@@ -87,16 +111,42 @@ export async function GET(
     );
   }
 
-  const version = product.version ?? "latest";
-  const objectKey = `${slug}/${version}/download.zip`;
+  const version = release.version;
   const admin = createClient(supabaseUrl()!, supabaseServiceRoleKey()!, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
+  // Honest 404-prevention: a registry row can predate its upload (or be a
+  // stale backfill), so confirm the object exists before promising it.
+  const exists = await fetch(
+    `${supabaseUrl()}/storage/v1/object/${bucket}/${release.artifactKey}`,
+    {
+      method: "HEAD",
+      headers: {
+        apikey: supabaseServiceRoleKey()!,
+        Authorization: `Bearer ${supabaseServiceRoleKey()}`,
+      },
+      cache: "no-store",
+    }
+  ).catch(() => null);
+  if (!exists?.ok) {
+    console.warn(
+      `[download] registry points at missing artifact ${bucket}/${release.artifactKey}`
+    );
+    return NextResponse.json(
+      {
+        error:
+          "The installer is being published for this product. In the meantime, request delivery and our team will send the current version to your email.",
+        code: "not_published",
+      },
+      { status: 503 }
+    );
+  }
+
   const { data, error } = await admin.storage
     .from(bucket)
-    .createSignedUrl(objectKey, SIGNED_URL_TTL_SECONDS, {
-      download: `Veyra-${product.name.replace(/\s+/g, "-")}-v${version}.zip`,
+    .createSignedUrl(release.artifactKey, SIGNED_URL_TTL_SECONDS, {
+      download: artifactName(release.artifactKey, product.name, version),
     });
 
   if (error || !data) {
@@ -110,6 +160,21 @@ export async function GET(
       { status: 503 }
     );
   }
+
+  // Record the authorized delivery — the command center's download counts
+  // and per-customer download history read exactly this trail. Fire-and-
+  // forget: an event-write hiccup must never break a customer download.
+  void admin
+    .from("download_events")
+    .insert({
+      product_slug: slug,
+      product_version: version,
+      email: user.email ?? "",
+      user_id: user.id,
+    })
+    .then(({ error: evErr }) => {
+      if (evErr) console.error("[download] event write failed:", evErr.message);
+    });
 
   // Temporary, expiring, authorized — the only URL shape customers see.
   if (jsonMode) {

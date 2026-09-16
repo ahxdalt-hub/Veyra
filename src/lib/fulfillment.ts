@@ -8,6 +8,9 @@ import {
 } from "@/lib/supabase/config";
 import type { Database } from "@/lib/supabase/types";
 import type { Order } from "@/lib/orders";
+import { notifyLicenceEvent } from "@/lib/admin/notifications";
+import { sendPurchaseEmail } from "@/lib/email/purchase";
+import { currentRelease } from "@/lib/registry";
 
 /**
  * Fulfillment — the payment→entitlement→licence chain.
@@ -39,7 +42,7 @@ function adminClient() {
 }
 
 /** VY-XXXX-XXXX-XXXX — deterministic, derived from the entitlement id. */
-function licenceReference(entitlementId: string): string {
+function licenceReferenceFor(entitlementId: string): string {
   const hex = entitlementId.replace(/-/g, "").slice(0, 12).toUpperCase();
   return `VY-${hex.slice(0, 4)}-${hex.slice(4, 8)}-${hex.slice(8, 12)}`;
 }
@@ -95,21 +98,38 @@ async function grantForOrder(db: ReturnType<typeof adminClient>, order: Order) {
   // 2. Licence — unique on entitlement_id, derived from it.
   const existingLicence = await db
     .from("licences")
-    .select("id")
+    .select("licence_reference")
     .eq("entitlement_id", entitlementId)
     .maybeSingle();
   if (existingLicence.error) throw existingLicence.error;
-  if (existingLicence.data) return;
 
-  const licence = await db.from("licences").insert({
-    entitlement_id: entitlementId,
-    user_id: order.user_id,
-    email: order.email,
-    product_slug: order.product_slug,
-    licence_reference: licenceReference(entitlementId),
-    status: "active",
-  });
-  if (licence.error) throw licence.error;
+  let licenceReference: string;
+  if (existingLicence.data) {
+    licenceReference = existingLicence.data.licence_reference;
+  } else {
+    const licence = await db
+      .from("licences")
+      .insert({
+        entitlement_id: entitlementId,
+        user_id: order.user_id,
+        email: order.email,
+        product_slug: order.product_slug,
+        licence_reference: licenceReferenceFor(entitlementId),
+        status: "active",
+      })
+      .select("id, licence_reference")
+      .single();
+    if (licence.error) throw licence.error;
+    licenceReference = licence.data.licence_reference;
+
+    // Licence issuance is a real operational event for the command center.
+    notifyLicenceEvent({
+      licenceId: licence.data.id,
+      email: order.email,
+      productName: product.name,
+      event: "issued",
+    });
+  }
 
   // 3. Seat 1 — the purchaser. Remaining seats stay in the pool for the
   //    owner to assign from the account area; the seat ceiling is enforced
@@ -124,6 +144,23 @@ async function grantForOrder(db: ReturnType<typeof adminClient>, order: Order) {
       status: "active",
     });
   if (seat.error && seat.error.code !== "23505") throw seat.error; // unique = already seated
+
+  // 4. Customer email (Stage 8) — the buy→pay→download handoff. Idempotent
+  //    via the email_events ledger (unique order_id+type): re-running the
+  //    whole grant on a webhook replay sends nothing twice, and a send
+  //    that previously failed is retried here. Never throws.
+  const release = await currentRelease(order.product_slug);
+  await sendPurchaseEmail({
+    toEmail: order.email,
+    productName: product.name,
+    orderId: order.id,
+    seats: clampSeats(order.quantity),
+    amountMinor: order.amount,
+    currency: order.currency,
+    licenceReference,
+    version: release?.version ?? product.version,
+    purchasedAt: order.paid_at ?? order.created_at,
+  });
 }
 
 /**

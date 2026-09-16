@@ -147,7 +147,15 @@ export async function POST(request: Request) {
   }
 
   const product = getProduct(licence.product_slug);
-  const activatedSeats = normalized.length;
+
+  // Activated seats are devices (0008_activations.sql), not assigned seat
+  // rows: a purchased-but-unassigned seat consumes nothing.
+  const { data: activations } = await admin
+    .from("licence_activations")
+    .select("id")
+    .eq("licence_id", licence.id)
+    .eq("status", "active");
+  const activatedSeats = activations?.length ?? 0;
 
   return NextResponse.json({
     valid: true,

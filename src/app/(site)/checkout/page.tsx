@@ -53,11 +53,64 @@ function loadRazorpay(): Promise<NonNullable<Window["Razorpay"]>> {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { detailedLines, total } = useCart();
+  const { detailedLines } = useCart();
 
   const [email, setEmail] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | undefined>();
+
+  // Coupon — a proposal, nothing more. The server re-validates and
+  // decides at order creation; the UI only mirrors what the validate
+  // endpoint returns (a preview, never the charged number).
+  const [couponCode, setCouponCode] = useState("");
+  const [couponState, setCouponState] = useState<
+    | { status: "idle" }
+    | { status: "checking" }
+    | { status: "applied"; code: string; label: string; discountDollars: number }
+    | { status: "rejected"; message: string }
+  >({ status: "idle" });
+
+  const seatQty = detailedLines.reduce((sum, l) => sum + l.qty, 0) || 1;
+
+  async function applyCoupon() {
+    const code = couponCode.trim();
+    if (!code || couponState.status === "checking" || couponState.status === "applied") return;
+    setCouponState({ status: "checking" });
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, email, qty: seatQty }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        valid?: boolean;
+        message?: string;
+        error?: string;
+        code?: string;
+        label?: string;
+        discountDollars?: number;
+      };
+      if (res.ok && data.valid) {
+        setCouponState({
+          status: "applied",
+          code: data.code ?? code.toLowerCase(),
+          label: data.label ?? code.toUpperCase(),
+          discountDollars: data.discountDollars ?? 0,
+        });
+      } else {
+        setCouponState({
+          status: "rejected",
+          message:
+            data.message ?? data.error ?? "We couldn't apply that code. Check for typos.",
+        });
+      }
+    } catch {
+      setCouponState({
+        status: "rejected",
+        message: "We couldn't check that code right now.",
+      });
+    }
+  }
 
   const busy = phase === "creating" || phase === "paying" || phase === "verifying";
 
@@ -76,6 +129,7 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           email,
           items: detailedLines.map((l) => ({ slug: l.product.slug, qty: l.qty })),
+          coupon: couponState.status === "applied" ? couponState.code : undefined,
         }),
       });
       const data = (await res.json().catch(() => ({}))) as {
@@ -230,6 +284,12 @@ export default function CheckoutPage() {
   const product = line.product;
   const tier = line.tier;
 
+  // The charged amount mirrors the server's validation preview; when no
+  // coupon is applied this equals the plain tier total.
+  const couponDiscount =
+    couponState.status === "applied" ? couponState.discountDollars : 0;
+  const payable = Math.max(0, tier.total - couponDiscount);
+
   return (
     <div className="bg-paper">
       <div className="container-page py-12 sm:py-16">
@@ -299,14 +359,74 @@ export default function CheckoutPage() {
                   {phase === "paying" && "Complete payment in the secure window…"}
                   {phase === "verifying" && "Verifying your payment…"}
                   {phase === "idle" &&
-                    `Pay ${formatPrice(total)} securely`}
+                    `Pay ${formatPrice(payable)} securely`}
                   {(phase === "failed" || phase === "cancelled") &&
-                    `Try again — pay ${formatPrice(total)}`}
+                    `Try again — pay ${formatPrice(payable)}`}
                 </Button>
 
                 <p className="mt-3 text-center text-xs text-ink-4">
                   Processed by Razorpay · {REFUND_WINDOW_LABEL}
                 </p>
+
+                {/* Coupon — a preview only; the server decides at payment. */}
+                <div className="mt-6 border-t border-line pt-5">
+                  {couponState.status === "applied" ? (
+                    <div className="flex items-center justify-between rounded-sm border border-accent/25 bg-accent-soft/50 px-3 py-2.5">
+                      <p className="text-sm text-accent-ink">
+                        <span className="font-medium">{couponState.code.toUpperCase()}</span>
+                        {" · "}
+                        {couponState.label}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCouponState({ status: "idle" });
+                          setCouponCode("");
+                        }}
+                        className="text-xs font-medium text-ink-3 underline-offset-2 hover:text-ink hover:underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <label htmlFor="coupon" className="spec text-ink-4">
+                        Discount code
+                      </label>
+                      <div className="mt-2 flex gap-2">
+                        <input
+                          id="coupon"
+                          type="text"
+                          autoComplete="off"
+                          spellCheck={false}
+                          value={couponCode}
+                          disabled={busy}
+                          onChange={(e) => {
+                            setCouponCode(e.target.value.toUpperCase());
+                            if (couponState.status === "rejected")
+                              setCouponState({ status: "idle" });
+                          }}
+                          placeholder="CODE"
+                          className="h-10 min-w-0 flex-1 rounded-sm border border-line bg-surface px-3 font-mono text-sm tracking-wider text-ink placeholder:text-ink-4/70 focus:border-line-strong focus:outline-none focus:ring-2 focus:ring-accent/15 disabled:opacity-60"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="md"
+                          onClick={() => void applyCoupon()}
+                          disabled={busy || !couponCode.trim() || couponState.status === "checking"}
+                        >
+                          {couponState.status === "checking" ? "Checking…" : "Apply"}
+                        </Button>
+                      </div>
+                      {couponState.status === "rejected" ? (
+                        <p role="alert" className="mt-2 text-xs text-clay">
+                          {couponState.message}
+                        </p>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
               </form>
             )}
 
@@ -403,10 +523,20 @@ export default function CheckoutPage() {
                     </dd>
                   </div>
                 ) : null}
+                {couponDiscount > 0 ? (
+                  <div className="flex items-center justify-between">
+                    <dt className="text-ink-3">
+                      Coupon ({couponState.status === "applied" ? couponState.code.toUpperCase() : ""})
+                    </dt>
+                    <dd className="tnum text-accent-ink">
+                      −{formatPrice(couponDiscount)}
+                    </dd>
+                  </div>
+                ) : null}
                 <div className="flex items-center justify-between border-t border-line pt-3">
                   <dt className="font-medium text-ink">Total</dt>
                   <dd className="text-base font-medium tnum text-ink">
-                    <AnimatedNumber value={tier.total} format={formatPrice} />
+                    <AnimatedNumber value={payable} format={formatPrice} />
                   </dd>
                 </div>
               </dl>

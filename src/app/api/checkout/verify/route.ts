@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { getOrder, updateOrderStatus } from "@/lib/orders";
+import { getProduct } from "@/lib/products";
 import {
   fetchRazorpayPayment,
   verifyPaymentSignature,
 } from "@/lib/razorpay";
 import { grantPurchaseForOrder } from "@/lib/fulfillment";
+import { notifyNewSale } from "@/lib/admin/notifications";
 
 /**
  * POST /api/checkout/verify — confirm a payment server-side.
@@ -108,6 +110,21 @@ export async function POST(request: Request) {
       // routine heal any fulfillment gap.
       const paidOrder = updated ?? { ...order, status: "paid" as const };
       await grantPurchaseForOrder(paidOrder);
+      // Command-center toast — only when THIS transition was ours
+      // (expectedCurrent=pending guarantees a returned row means the
+      // pending→paid flip happened right here; duplicate confirms are
+      // no-ops and stay silent).
+      if (updated?.status === "paid") {
+        notifyNewSale({
+          orderId: order.id,
+          email: order.email,
+          productName:
+            getProduct(order.product_slug)?.name ?? order.product_slug,
+          amountMinor: order.amount,
+          currency: order.currency,
+          seats: order.quantity,
+        });
+      }
       return NextResponse.json({
         status: updated?.status ?? "paid",
         orderId: order.id,

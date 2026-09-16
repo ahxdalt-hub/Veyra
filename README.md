@@ -9,6 +9,12 @@ A Caelmont brand.
   webhook foundation, order + entitlement records
 - **Later — fulfillment phase:** licensing/activation,
   download/fulfillment infrastructure, customer accounts
+- **Stage 07 — commercial licensing:** activation API with signed offline
+  entitlement tokens for the Client Growth System desktop app (see
+  “Licensing” below)
+- **Stage 08 — purchase-to-delivery automation:** verified payment →
+  order → entitlement → licence → receipt email → account download,
+  fully automated and idempotent (see “Delivery automation” below)
 
 Veyra's flagship product, **Client Growth System** (₹9,999, one-time), is
 the only purchasable product. The rest of the collection (Client
@@ -106,6 +112,7 @@ Order statuses: `pending → paid | failed | cancelled` (this stage),
 | `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` | Leads + orders persistence (server-only) |
 | `RAZORPAY_KEY_ID` + `RAZORPAY_KEY_SECRET` | Razorpay API (server-only) |
 | `RAZORPAY_WEBHOOK_SECRET` | Webhook signature verification (server-only) |
+| `VEYRA_LICENCE_SIGNING_KEY` + `VEYRA_LICENCE_PUBLIC_KEY_JWK` | Licensing — offline entitlement signing (server-only; the JWK is public material mirrored into the desktop app) |
 
 Every variable degrades gracefully: without Supabase, leads log locally and
 orders use a clearly-labelled in-memory dev store; without Razorpay,
@@ -115,9 +122,76 @@ and nothing pretends to be live.
 # Supabase setup
 
 1. Create a Supabase project.
-2. Run `supabase/migrations/0001_leads.sql`, then `0002_orders.sql`
-   in the SQL editor.
+2. Run `supabase/migrations/0001_leads.sql` → `0008_activations.sql`
+   in order in the SQL editor (skip `0004_reconcile.sql` on a fresh
+   project — it's a dev-local fix for the pre-0003 shape).
 3. Copy `.env.example` → `.env.local` and fill in the vars.
+
+# Licensing (Stage 07)
+
+The commercial activation plane for desktop products. Everything is
+server-deciding; the desktop app only ever holds the public key.
+
+- `POST /api/licence/activate` — the app presents its licence key
+  (`VY-XXXX-XXXX-XXXX`), the purchase email, product slug, and a random
+  per-install device id. `public.licence_activate` (Postgres, advisory-
+  locked per licence) verifies the full chain — licence exists → active →
+  entitlement active → order paid → product matches the registry →
+  email owns or holds a seat → active-device count < purchased seats —
+  records the device, and the route returns a signed entitlement token.
+  Replays are idempotent (`already_active`), never double-count a seat.
+- `POST /api/licence/deactivate` — a machine releases its seat for
+  another device. `POST /api/licence/revalidate` — the app's opportunistic
+  online check behind the offline token (updates `last_seen_at`).
+- Token: `base64url(claims).base64url(ES256-P256 sig)` signed with
+  `VEYRA_LICENCE_SIGNING_KEY`. Claims carry product, licence reference,
+  activation id, device id, seats, issued-at — no expiry (perpetual
+  licence). Revocation reaches a machine through the revalidation check.
+- Schema: `licence_activations` + `products`/`product_versions` in
+  `supabase/migrations/0008_activations.sql` (reuses licences/entitlements/
+  seat_assignments — nothing duplicated). Customers manage devices from
+  the account licence page; RLS keeps every table private to its owner.
+- Tests: `npm run test:licensing` (token crypto + 18-scenario Postgres
+  engine suite on PGlite). Live end-to-end: `node
+  supabase/test/licensing.e2e.mjs <origin>` against a running deployment.
+
+# Delivery automation (Stage 08)
+
+Buy → pay → account → download → install → activate, with no manual step:
+
+- **One fulfillment chain, three entry points.** `grantPurchaseForOrder`
+  (src/lib/fulfillment.ts) turns a paid order into entitlement + licence +
+  seat 1 + receipt email. The verify route, the Razorpay webhook, and the
+  sign-in claim routine all call it; unique constraints make every step
+  idempotent, and a webhook replay after a half-failed fulfillment HEALS
+  the gap instead of short-circuiting.
+- **Receipt email** (src/lib/email/purchase.ts, Resend over REST, no SDK).
+  Sends once per order — a row in `email_events` (0016) unique on
+  (order_id, email_type) records the attempt; 'sent' is final, 'failed' or
+  abandoned rows are retryable, so replays never double-email and a
+  provider outage self-heals. Without `RESEND_API_KEY` the exact email
+  renders to the server console.
+- **Payment truth is server-side only.** Verify = signature + stored order
+  id + Razorpay's authoritative payment state; webhook = HMAC over the raw
+  body + amount/currency match. A `payment.captured` event also
+  RECONCILES an order the browser prematurely marked cancelled/failed —
+  money moved, so the product ships (guarded for refunded).
+- **Registry-gated downloads.** `/api/download/[slug]` serves only the
+  `product_versions` row that is `current` AND `published` AND has an
+  uploaded artifact (short-lived signed URL on the private bucket, 5 min).
+  Withdrawing a release (`scripts/publish-version.mjs --withdraw`) stops
+  deliveries instantly.
+- **Releases** are published with
+  `node scripts/publish-version.mjs --file <installer> --slug <product>
+  --version <x.y.z> [--notes …]` — uploads the artifact first, then points
+  the registry at it.
+- **Test infrastructure:** `node scripts/fake-razorpay.mjs` (local gateway
+  with the exact Razorpay API + signature schemes; pair with
+  `RAZORPAY_API_BASE` in .env.local — test only) and
+  `node supabase/test/delivery.e2e.mjs <origin>` — 33 checks covering the
+  full brief matrix: success, failure, cancellation, duplicate + delayed
+  webhooks, refresh-polling, account rendering, licence creation, download
+  authorization, activation, and forged-signature rejection.
 
 # Design system
 

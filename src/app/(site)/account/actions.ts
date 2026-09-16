@@ -501,3 +501,49 @@ export async function requestRedeliveryAction(
       : `Request received — ${productName} will be delivered to ${user.email}.`,
   };
 }
+
+/* ------------------------------------------------------------------ */
+/* Licence devices — activation management (Stage 07 licensing)        */
+/* ------------------------------------------------------------------ */
+
+export type DeviceState = { message?: string; error?: string };
+
+/**
+ * Release one device's activation from the account area. The caller may
+ * only target activations RLS already made visible to them (their licence
+ * or a seat they hold); the server action resolves the licence reference
+ * and device id from the row itself, never from client input, so ids can't
+ * be aimed at other customers' activations. Releasing a device frees its
+ * seat for another machine; the customer's local data is never touched.
+ */
+export async function deactivateActivationAction(
+  activationId: string
+): Promise<DeviceState> {
+  if (!UUID_RE.test(activationId)) {
+    return { error: "That request couldn't be validated. Please try again." };
+  }
+  const user = await getSessionUser();
+  if (!user?.email) {
+    return { error: "Your session expired — please sign in again." };
+  }
+
+  const { deactivateActivationById } = await import("@/lib/licensing/service");
+  const result = await deactivateActivationById({
+    activationId,
+    callerEmail: user.email,
+  });
+
+  if (!result.ok) {
+    return {
+      error:
+        result.code === "not_found"
+          ? "We couldn't find that device on your licence."
+          : result.code === "not_activated"
+            ? "That device is already released."
+            : "We couldn't release that device right now. Please try again.",
+    };
+  }
+
+  revalidatePath("/account/licences");
+  return { message: "Device released — its seat is free to activate again." };
+}

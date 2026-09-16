@@ -45,3 +45,4 @@ next-env.d.ts
 # temp dev server logs
 dev*.log
 *.log
+.sbp-token

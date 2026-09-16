@@ -67,6 +67,43 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  /* --- Admin command center gate (defense in depth) --------------------
+   * The JWT claim check here is a FAST pre-filter, not the authority:
+   * every admin page/action/layout independently re-verifies the role
+   * against auth.users with the service-role key (src/lib/admin/auth.ts).
+   * A demoted admin's live session therefore passes this middleware but
+   * fails the authoritative check on the next render — and never touches
+   * data. Customers hitting /admin see the login gate, nothing else. */
+  const isAdminRoute =
+    pathname === "/admin" || pathname.startsWith("/admin/");
+  if (isAdminRoute) {
+    const isAuthPage =
+      pathname === "/admin/sign-in" || pathname === "/admin/forgot-password";
+    const claimsAdmin =
+      (user?.app_metadata as { role?: string } | undefined)?.role === "admin";
+
+    if (!user && !isAuthPage) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/admin/sign-in";
+      url.search = `?next=${encodeURIComponent(pathname + search)}`;
+      return NextResponse.redirect(url);
+    }
+    if (user && isAuthPage) {
+      const url = request.nextUrl.clone();
+      url.pathname = claimsAdmin ? "/admin" : "/account";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+    // Signed in but not an admin: the command center doesn't exist for
+    // them — bounce to their account rather than render anything.
+    if (user && !claimsAdmin && !isAuthPage) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/account";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+  }
+
   return response;
 }
 

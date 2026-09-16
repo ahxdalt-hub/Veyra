@@ -3,11 +3,13 @@ import {
   getOrderByRazorpayOrderId,
   updateOrderStatus,
 } from "@/lib/orders";
+import { getProduct } from "@/lib/products";
 import {
   razorpayWebhookConfigured,
   verifyWebhookSignature,
 } from "@/lib/razorpay";
 import { grantPurchaseForOrder } from "@/lib/fulfillment";
+import { notifyNewSale, notifyPaymentFailed } from "@/lib/admin/notifications";
 
 /**
  * POST /api/webhooks/razorpay — durable payment confirmation.
@@ -101,10 +103,12 @@ export async function POST(request: Request) {
 
   try {
     if (eventName === "payment.captured") {
-      // Idempotent replay of an already-confirmed order.
-      if (order.status === "paid") {
-        return NextResponse.json({ received: true });
-      }
+      // Re-delivery of an already-confirmed order. NOT an early return:
+      // grantPurchaseForOrder is idempotent end-to-end (unique constraints
+      // on entitlement/licence/seat + the email_events ledger), so replaying
+      // here also HEALS a first delivery that died mid-fulfillment — a paid
+      // order whose licence or receipt email never completed — without ever
+      // producing duplicate records or duplicate emails.
       if (
         payment.amount !== order.amount ||
         payment.currency !== order.currency
@@ -117,13 +121,44 @@ export async function POST(request: Request) {
         );
         return NextResponse.json({ received: true });
       }
-      await updateOrderStatus(order.id, "paid", {
+      const updated = await updateOrderStatus(order.id, "paid", {
         expectedCurrent: "pending",
         razorpayPaymentId: payment.id,
       });
+      // Reconciliation: money was CAPTURED (amount + signature verified).
+      // A cancelled or failed status here means the browser raced us (modal
+      // dismissed, or a premature failure report) — the authoritative event
+      // wins, so reconcile the row into 'paid' from any non-paid state.
+      // 'refunded' stays untouched (that needs refund.processed handling).
+      let reconciled = updated;
+      if (!reconciled && order.status !== "paid" && order.status !== "refunded") {
+        reconciled = await updateOrderStatus(order.id, "paid", {
+          expectedCurrent: order.status,
+          razorpayPaymentId: payment.id,
+        });
+        if (reconciled) {
+          console.warn(
+            `[webhook] reconciled ${order.status}→paid for order ${order.id} ` +
+              `(captured payment ${payment.id} overrides earlier ${order.status})`
+          );
+        }
+      }
       // Durable confirmation → fulfillment. Idempotent; safe even when
       // the verify route already granted (or will grant) the same order.
       await grantPurchaseForOrder({ ...order, status: "paid" });
+      // Command-center toast — only when THIS delivery made the flip
+      // (a null row from the conditional update means the verify route
+      // already confirmed it and notified).
+      if (reconciled?.status === "paid") {
+        notifyNewSale({
+          orderId: order.id,
+          email: order.email,
+          productName: getProduct(order.product_slug)?.name ?? order.product_slug,
+          amountMinor: order.amount,
+          currency: order.currency,
+          seats: order.quantity,
+        });
+      }
       return NextResponse.json({ received: true });
     }
 
@@ -137,6 +172,13 @@ export async function POST(request: Request) {
       console.warn(
         `[webhook] payment failed for order ${order.id} (${order.email})`
       );
+      notifyPaymentFailed({
+        orderId: order.id,
+        email: order.email,
+        productName: getProduct(order.product_slug)?.name ?? order.product_slug,
+        amountMinor: order.amount,
+        currency: order.currency,
+      });
     }
     return NextResponse.json({ received: true });
   } catch (err) {

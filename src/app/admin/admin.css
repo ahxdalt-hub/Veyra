@@ -1,0 +1,337 @@
+/* ============================================================
+   VEYRA COMMAND CENTER — private theme layer.
+   Scoped to the .cc root; the storefront never sees these.
+   Dark is the default (the control-room surface); .cc-light
+   switches to the warm ivory register. Gold is an accent,
+   never a background. Typography and hairlines carry the
+   cinematic weight — no glow, no neon, no glass.
+   ============================================================ */
+
+.cc {
+  /* — Dark (default) — */
+  --cc-bg: #131210;            /* deep neutral, not pure black */
+  --cc-bg-2: #191815;          /* sunken panels */
+  --cc-surface: #1e1d19;       /* raised surfaces */
+  --cc-surface-2: #26241f;     /* hover / active surfaces */
+  --cc-line: rgba(235, 229, 215, 0.09);
+  --cc-line-strong: rgba(235, 229, 215, 0.16);
+  --cc-text: #efece4;          /* warm ivory text */
+  --cc-text-2: #b5af9f;        /* secondary */
+  --cc-text-3: #807a6c;        /* tertiary / meta */
+  --cc-text-4: #57524a;        /* faint */
+  --cc-accent: #c9a45c;        /* champagne — accents only */
+  --cc-accent-ink: #e6cf9a;
+  --cc-accent-dim: rgba(201, 164, 92, 0.12);
+  --cc-accent-line: rgba(201, 164, 92, 0.32);
+  --cc-success: #7fb069;
+  --cc-success-dim: rgba(127, 176, 105, 0.13);
+  --cc-warning: #d9a441;
+  --cc-warning-dim: rgba(217, 164, 65, 0.13);
+  --cc-error: #d26d5a;
+  --cc-error-dim: rgba(210, 109, 90, 0.13);
+  --cc-info: #8fa6b8;
+  --cc-info-dim: rgba(143, 166, 184, 0.12);
+  --cc-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.28);
+  color-scheme: dark;
+}
+
+.cc.cc-light {
+  /* — Light — the storefront's warm ivory, operational */
+  --cc-bg: #f4f1ea;
+  --cc-bg-2: #edeade;
+  --cc-surface: #faf8f3;
+  --cc-surface-2: #f1eee5;
+  --cc-line: rgba(23, 21, 15, 0.09);
+  --cc-line-strong: rgba(23, 21, 15, 0.16);
+  --cc-text: #17150f;
+  --cc-text-2: #4b463b;
+  --cc-text-3: #6b665a;
+  --cc-text-4: #a19a8c;
+  --cc-accent: #8a6320;
+  --cc-accent-ink: #6e4e18;
+  --cc-accent-dim: rgba(138, 99, 32, 0.08);
+  --cc-accent-line: rgba(138, 99, 32, 0.3);
+  --cc-success: #4f7a43;
+  --cc-success-dim: rgba(79, 122, 67, 0.1);
+  --cc-warning: #a06f1e;
+  --cc-warning-dim: rgba(160, 111, 30, 0.1);
+  --cc-error: #a3502e;
+  --cc-error-dim: rgba(163, 80, 46, 0.1);
+  --cc-info: #55708a;
+  --cc-info-dim: rgba(85, 112, 138, 0.1);
+  --cc-shadow: 0 1px 2px rgba(23, 21, 15, 0.06), 0 8px 24px rgba(23, 21, 15, 0.08);
+  color-scheme: light;
+}
+
+/* The root scroll containers — the shell owns its own scroll areas. */
+html.cc-html {
+  background-color: var(--cc-bg, #131210);
+}
+
+/* — Shared form control (search boxes, selects, date inputs).
+   One geometry for every filter field: 32px tall, hairline border,
+   native chrome replaced so rows align to the same line everywhere. — */
+.cc .cc-ctl {
+  box-sizing: border-box;
+  height: 2rem;
+  border: 1px solid var(--cc-line-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--cc-bg-2);
+  color: var(--cc-text-2);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  padding: 0 0.625rem;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.cc .cc-ctl:focus {
+  border-color: var(--cc-accent-line);
+}
+.cc .cc-ctl::placeholder {
+  color: var(--cc-text-4);
+}
+.cc .cc-ctl:disabled {
+  opacity: 0.55;
+}
+/* Selects: kill the native arrow, draw ours in the accent-quiet tone. */
+.cc select.cc-ctl {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 1.75rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23807a6c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9.5 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 0.7rem;
+  cursor: pointer;
+}
+.cc.cc-light select.cc-ctl {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a19a8c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9.5 6 6 6-6'/%3E%3C/svg%3E");
+}
+.cc select.cc-ctl option {
+  background-color: var(--cc-surface);
+  color: var(--cc-text);
+}
+/* Date fields: native box stripped; the label sits inline, the picker
+   indicator is dimmed until hover. */
+.cc .cc-date {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 2rem;
+  padding: 0 0.5rem;
+  border: 1px solid var(--cc-line-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--cc-bg-2);
+  transition: border-color 0.15s ease;
+}
+.cc .cc-date:focus-within {
+  border-color: var(--cc-accent-line);
+}
+.cc .cc-date input {
+  border: 0;
+  background: transparent;
+  outline: none;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  color: var(--cc-text-2);
+  width: 6.75rem;
+}
+.cc .cc-date input::-webkit-calendar-picker-indicator {
+  opacity: 0.45;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.cc .cc-date input::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.9;
+}
+.cc .cc-ctl[type="search"]::-webkit-search-cancel-button {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 0.7rem;
+  width: 0.7rem;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23807a6c' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M6 6l12 12M18 6 6 18'/%3E%3C/svg%3E") center / contain no-repeat;
+  cursor: pointer;
+}
+
+/* Hairline grid texture for large surfaces (restrained, 48px). Named
+   cc-bg-grid to avoid colliding with the storefront's .cc-grid drafting
+   texture in globals.css (used by the offer page). */
+.cc-bg-grid {
+  background-image:
+    linear-gradient(to right, var(--cc-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--cc-line) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* Big dashboard numerals */
+.cc-figure {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+/* Compact metadata label — uppercase used sparingly: groups, table heads,
+   eyebrows only. */
+.cc-label {
+  font-family: var(--font-mono);
+  font-size: 0.6563rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cc-text-3);
+  font-weight: 500;
+}
+
+/* Tables: dense but never cramped. Header hairline, row separators only. */
+.cc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+.cc-table thead th {
+  font-family: var(--font-mono);
+  font-size: 0.6563rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cc-text-3);
+  font-weight: 500;
+  text-align: left;
+  padding: 0 1rem 0.625rem;
+  border-bottom: 1px solid var(--cc-line-strong);
+  white-space: nowrap;
+}
+.cc-table tbody td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--cc-line);
+  color: var(--cc-text-2);
+  vertical-align: middle;
+}
+.cc-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+.cc-table tbody tr:hover {
+  background-color: var(--cc-surface-2);
+}
+.cc-table tbody tr[data-clickable="true"] {
+  cursor: pointer;
+}
+
+/* Scrollbars inside the command center only */
+.cc ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.cc ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.cc ::-webkit-scrollbar-thumb {
+  background: var(--cc-line-strong);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+.cc ::-webkit-scrollbar-thumb:hover {
+  background: var(--cc-text-4);
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+.cc .no-scrollbar {
+  scrollbar-width: none;
+}
+.cc .no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+/* Nested scrollers (drawers, popovers, table wrappers): never chain a
+   finished scroll into the page behind, and thin native bars where
+   Firefox renders them. */
+.cc [data-lenis-prevent-wheel],
+.cc .cc-fade-x,
+.cc aside nav,
+.cc main {
+  overscroll-behavior: contain;
+}
+.cc * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--cc-line-strong) transparent;
+}
+
+/* Horizontal table overflow: a soft fade marks the edge where more
+   columns wait (set by <ScrollFadeX/>). The wrapper is relative; the
+   scroller fills it; the fades sit over the edges, outside the scroll
+   surface, so they never scroll themselves. */
+.cc-fade-x-wrap {
+  position: relative;
+}
+.cc-fade-x-wrap > [data-x-scroll] {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+.cc-fade-x-wrap::before,
+.cc-fade-x-wrap::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 44px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  z-index: 2;
+}
+.cc-fade-x-wrap::before {
+  left: 0;
+  background: linear-gradient(to right, var(--cc-bg-2), transparent);
+}
+.cc-fade-x-wrap::after {
+  right: 0;
+  background: linear-gradient(to left, var(--cc-bg-2), transparent);
+}
+.cc-fade-x-wrap[data-x="right"]::after,
+.cc-fade-x-wrap[data-x="left"]::before,
+.cc-fade-x-wrap[data-x="both"]::before,
+.cc-fade-x-wrap[data-x="both"]::after {
+  opacity: 1;
+}
+
+/* Skeleton — the dark register version */
+.cc-skeleton {
+  border-radius: var(--radius-sm);
+  background-color: var(--cc-surface-2);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(235, 229, 215, 0.045) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: cc-shimmer 1.6s ease-in-out infinite;
+}
+@keyframes cc-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* Focus rings in the cc accent */
+.cc :focus-visible {
+  outline: 2px solid var(--cc-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Number roll-in used on metric mount (opacity+blur only — no bounce) */
+@keyframes cc-figure-in {
+  from { opacity: 0; transform: translateY(6px); filter: blur(3px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+.cc .animate-figure-in {
+  animation: cc-figure-in 0.55s var(--ease-out-expo) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc .animate-figure-in,
+  .cc .cc-skeleton {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

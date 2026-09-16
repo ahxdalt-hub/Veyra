@@ -57,6 +57,19 @@ export default async function LibraryProductPage({
   const entitlement = (entRes.data ?? null) as EntitlementRow | null;
   if (!entitlement) notFound();
 
+  // The current PUBLISHED release, read through the customer session (the
+  // registry is RLS read-only for authenticated users). This is the same
+  // source /api/download authorizes against — what you see is what ships.
+  const versionRes = await supabase
+    .from("product_versions")
+    .select("version")
+    .eq("product_slug", slug)
+    .eq("current", true)
+    .eq("release_status", "published")
+    .maybeSingle();
+  const currentVersion =
+    versionRes.data?.version ?? product?.version ?? null;
+
   // Licence + purchase record, RLS-scoped. Guest orders are claimed at
   // sign-in, so both are populated for everything visible here.
   const [orderRes, licenceRes, seatsRes] = await Promise.all([
@@ -107,9 +120,7 @@ export default async function LibraryProductPage({
               <div>
                 <dt className="spec text-ink-4">Version</dt>
                 <dd className="mt-1 text-sm font-medium tnum text-ink">
-                  {product?.version
-                    ? `${product.version} — latest`
-                    : "—"}
+                  {currentVersion ? `${currentVersion} — latest` : "—"}
                 </dd>
               </div>
               <div>
@@ -135,6 +146,12 @@ export default async function LibraryProductPage({
               className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
             >
               View Licence
+            </Link>
+            <Link
+              href="/account/licences"
+              className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
+            >
+              Manage Activations
             </Link>
             <Link
               href="/account/quick-start"

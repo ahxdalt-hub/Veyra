@@ -8,6 +8,7 @@ import {
   razorpayConfigured,
 } from "@/lib/razorpay";
 import { insertOrder } from "@/lib/orders";
+import { couponErrorMessage, validateCoupon } from "@/lib/coupons";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { supabaseAuthConfigured } from "@/lib/supabase/config";
 
@@ -37,6 +38,7 @@ export async function POST(request: Request) {
   const payload = body as {
     email?: unknown;
     items?: unknown;
+    coupon?: unknown;
   };
 
   // --- Email -----------------------------------------------------------
@@ -136,7 +138,48 @@ export async function POST(request: Request) {
   // discount, and the payable amount are computed from the catalog's
   // pricing configuration. A client-sent total is never read.
   const tier = seatTier(line.qty);
-  const amountMinor = checkoutAmountMinor(line.qty); // cents
+  const subtotalMinor = checkoutAmountMinor(line.qty); // cents, pre-coupon
+
+  // --- Coupon (0013): the client may PROPOSE a code; the database decides.
+  // validate_coupon enforces active flag, date window, minimums, usage
+  // caps, and per-customer limits. Amounts are recomputed here from the
+  // returned discount — a tampered or stale proposal simply fails
+  // validation and the order proceeds at full price only when no code
+  // was sent at all.
+  const proposedCoupon =
+    typeof payload.coupon === "string" ? payload.coupon : undefined;
+  let amountMinor = subtotalMinor;
+  let couponApplied: { code: string; label: string; discountMinor: number } | null = null;
+  if (proposedCoupon && proposedCoupon.trim()) {
+    const verdict = await validateCoupon(
+      proposedCoupon,
+      email,
+      Math.round(subtotalMinor / 100)
+    );
+    if (!verdict) {
+      return NextResponse.json(
+        {
+          error:
+            "We couldn't check that code right now. Try again — or continue without it.",
+          code: "coupon_validation_unavailable",
+        },
+        { status: 503 }
+      );
+    }
+    if (!verdict.ok) {
+      return NextResponse.json(
+        { error: couponErrorMessage(verdict.reason), code: "coupon_invalid" },
+        { status: 422 }
+      );
+    }
+    const discountMinor = Math.min(verdict.discount_dollars * 100, subtotalMinor - 1);
+    amountMinor = subtotalMinor - discountMinor;
+    couponApplied = {
+      code: verdict.code,
+      label: verdict.label,
+      discountMinor,
+    };
+  }
 
   // --- Guard: payments must be configured -------------------------------
   if (!razorpayConfigured()) {
@@ -188,6 +231,16 @@ export async function POST(request: Request) {
       amount: amountMinor,
       currency: CURRENCY,
       status: "pending",
+      // Coupon trail — cents, alongside the charged amount. used_count is
+      // maintained by the DB's pending→paid trigger, never here.
+      ...(couponApplied
+        ? {
+            subtotal: subtotalMinor,
+            discount: couponApplied.discountMinor,
+            total: amountMinor,
+            coupon_code: couponApplied.code,
+          }
+        : {}),
     });
 
     return NextResponse.json({
@@ -204,6 +257,14 @@ export async function POST(request: Request) {
       discountPercent: tier.discountPercent,
       subtotal: tier.subtotal,
       total: tier.total,
+      // Coupon outcome, decided server-side (null when none applied).
+      coupon: couponApplied
+        ? {
+            code: couponApplied.code,
+            label: couponApplied.label,
+            discountMinor: couponApplied.discountMinor,
+          }
+        : null,
     });
   } catch (err) {
     console.error("[checkout] order creation failed:", err);

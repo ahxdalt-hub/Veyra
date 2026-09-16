@@ -13,7 +13,13 @@
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-const API_BASE = "https://api.razorpay.com/v1";
+/** Razorpay's REST API base. Production code never sets RAZORPAY_API_BASE;
+ *  it exists so Stage 8 test runs can point the server-side flow at a
+ *  local fake gateway (scripts/fake-razorpay.mjs) that speaks the same
+ *  API + signature scheme. Keys/webhook secrets stay the trust anchors —
+ *  the override changes WHERE requests go, never WHETHER they're verified. */
+const API_BASE =
+  process.env.RAZORPAY_API_BASE || "https://api.razorpay.com/v1";
 
 export type RazorpayOrder = {
   id: string;

@@ -40,13 +40,39 @@ export type Order = {
   user_id: string | null;
   product_slug: string;
   quantity: number;
-  /** Smallest currency unit — cents. Always server-computed. */
+  /** Smallest currency unit — cents. Always server-computed. This is the
+   *  authoritative CHARGED amount: what Razorpay was asked for. */
   amount: number;
   currency: string;
   status: OrderStatus;
+  /* --- Coupon trail (0013) — optional; written when a code was applied.
+   *  subtotal/discount/total are cents, mirroring amount: total equals
+   *  amount whenever a discount applies. Legacy rows leave these null. --- */
+  /** Pre-discount server-computed total, cents. */
+  subtotal: number | null;
+  /** Coupon discount, cents (never negative). */
+  discount: number | null;
+  /** Post-discount payable total, cents (= amount when a coupon applied). */
+  total: number | null;
+  /** Coupon code applied, lowercase, if any. */
+  coupon_code: string | null;
+  /** When the payment was confirmed (set on the pending→paid transition). */
+  paid_at: string | null;
+  /** Payment provider label ('razorpay'); informational. */
+  provider: string | null;
   created_at: string;
   updated_at: string;
 };
+
+export type OrderRow = Order;
+
+/** The insert payload: everything except server-managed timestamps. The
+ *  coupon-trail columns are optional (absent = no discount applied). */
+export type NewOrder = Omit<
+  Order,
+  "created_at" | "updated_at" | "subtotal" | "discount" | "total" | "coupon_code" | "paid_at" | "provider"
+> &
+  Partial<Pick<Order, "subtotal" | "discount" | "total" | "coupon_code" | "provider">>;
 
 const TABLE = "orders";
 
@@ -90,11 +116,21 @@ export function usingDevOrderStore(): boolean {
 }
 
 export async function insertOrder(
-  order: Omit<Order, "created_at" | "updated_at">
+  order: NewOrder
 ): Promise<Order> {
   if (!supabaseConfigured()) {
     const now = new Date().toISOString();
-    const row: Order = { ...order, created_at: now, updated_at: now };
+    const row: Order = {
+      subtotal: null,
+      discount: null,
+      total: null,
+      coupon_code: null,
+      paid_at: null,
+      provider: null,
+      ...order,
+      created_at: now,
+      updated_at: now,
+    };
     devStore.set(row.id, row);
     console.log(`[orders] dev-store insert ${row.id} (${order.status})`);
     return row;
@@ -188,6 +224,7 @@ export async function updateOrderStatus(
       updated_at: new Date().toISOString(),
       razorpay_payment_id:
         options?.razorpayPaymentId ?? row.razorpay_payment_id,
+      paid_at: status === "paid" && !row.paid_at ? new Date().toISOString() : row.paid_at,
     };
     devStore.set(id, next);
     console.log(`[orders] dev-store ${id} → ${status}`);
@@ -204,6 +241,12 @@ export async function updateOrderStatus(
   };
   if (options?.razorpayPaymentId) {
     body.razorpay_payment_id = options.razorpayPaymentId;
+  }
+  // Confirm the payment instant. The DB trigger (0014) is the authoritative
+  // stamper; writing it here keeps the API layer self-describing and the
+  // expectedCurrent filter already guards against re-stamping.
+  if (status === "paid") {
+    body.paid_at = new Date().toISOString();
   }
 
   const res = await fetch(`${supabaseUrl()}?${params.toString()}`, {
