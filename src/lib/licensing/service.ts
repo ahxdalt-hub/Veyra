@@ -154,17 +154,31 @@ export async function activateDevice(
     return { ok: false, code: normaliseCode(res.code) };
   }
 
-  const key = licenceSigningKey()!;
-  const { token, claims } = mintEntitlementToken(
-    {
-      productSlug: input.productSlug,
-      licenceReference: reference,
-      activationId: res.activation_id,
-      deviceId: input.deviceId,
-      seats: res.seats ?? 1,
-    },
-    key
-  );
+  // The signing key is imported through WebCrypto; a missing or unusable key
+  // fails this call closed (server_unavailable) instead of throwing a 500.
+  const key = await licenceSigningKey();
+  if (!key) {
+    console.error("[licensing] signing key unavailable on this deployment");
+    return { ok: false, code: "server_unavailable" };
+  }
+
+  let minted: { token: string; claims: EntitlementClaims };
+  try {
+    minted = await mintEntitlementToken(
+      {
+        productSlug: input.productSlug,
+        licenceReference: reference,
+        activationId: res.activation_id,
+        deviceId: input.deviceId,
+        seats: res.seats ?? 1,
+      },
+      key
+    );
+  } catch (err) {
+    console.error("[licensing] entitlement token mint failed:", err);
+    return { ok: false, code: "server_unavailable" };
+  }
+  const { token, claims } = minted;
   return {
     ok: true,
     action: res.action as "activated" | "reactivated" | "already_active",

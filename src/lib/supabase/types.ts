@@ -59,6 +59,9 @@ export type LicenceRow = {
   email: string;
   product_slug: string;
   licence_reference: string;
+  /** Product version stamped at grant time (the current published release);
+   *  null for legacy rows granted before version stamping existed. */
+  version: string | null;
   status: "active" | "revoked";
   issued_at: string;
 };

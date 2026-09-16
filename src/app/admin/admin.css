@@ -201,6 +201,12 @@ html.cc-html {
   border-bottom: 1px solid var(--cc-line-strong);
   white-space: nowrap;
 }
+/* Opt-in vertical centring of header text: the base th style puts all its
+   spacing on the bottom, so the label rides the top of the row. */
+.cc-table.cc-head-middle thead th {
+  vertical-align: middle;
+  padding-top: 0.625rem;
+}
 .cc-table tbody td {
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--cc-line);
@@ -328,9 +334,33 @@ html.cc-html {
   animation: cc-figure-in 0.55s var(--ease-out-expo) both;
 }
 
+/* Live-sync heartbeat — a quiet radial pulse behind the live dot. */
+@keyframes cc-live-pulse {
+  0% { transform: scale(0.9); opacity: 0.5; }
+  70% { transform: scale(2.4); opacity: 0; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+.cc .cc-live-pulse {
+  animation: cc-live-pulse 2.4s ease-out infinite;
+}
+
+/* New-row flash — a brief champagne wash on a freshly-polled row,
+   fading to the normal surface. Duration is set inline per poll. */
+@keyframes cc-row-flash {
+  from { background-color: var(--cc-accent-dim); }
+  to { background-color: transparent; }
+}
+.cc .cc-row-flash {
+  animation-name: cc-row-flash;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cc .animate-figure-in,
-  .cc .cc-skeleton {
+  .cc .cc-skeleton,
+  .cc .cc-live-pulse,
+  .cc .cc-row-flash {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }

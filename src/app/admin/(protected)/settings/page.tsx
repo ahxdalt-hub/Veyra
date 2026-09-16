@@ -3,6 +3,9 @@ import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/admin/auth";
 import {
   razorpayConfigured,
+  razorpayConfigProblem,
+  razorpayMode,
+  razorpayUsesLocalGateway,
   razorpayWebhookConfigured,
 } from "@/lib/razorpay";
 import {
@@ -83,12 +86,36 @@ export default async function SettingsPage() {
           <div className="space-y-0">
             <KV k="API keys" v={<StatusPill status={razorpayConfigured() ? "connected" : "pending-config"} />} />
             <KV k="Webhook verification" v={<StatusPill status={razorpayWebhookConfigured() ? "connected" : "pending-config"} />} />
-            <KV k="Environment" v={process.env.RAZORPAY_KEY_ID?.startsWith("rzp_test_") ? "Test keys" : razorpayConfigured() ? "Live keys" : "Not configured"} />
+            <KV
+              k="Mode"
+              v={
+                razorpayMode() === "test"
+                  ? "Test mode — no real money moves"
+                  : razorpayMode() === "live"
+                    ? "Live mode"
+                    : "Not configured"
+              }
+            />
+            <KV
+              k="Live-key guard"
+              v={
+                razorpayMode() === "live"
+                  ? "RAZORPAY_MODE=live — live charging enabled"
+                  : "TEST ONLY — rzp_live_ keys are refused"
+              }
+            />
+            <KV
+              k="Gateway"
+              v={razorpayUsesLocalGateway() ? "Local test gateway (RAZORPAY_API_BASE)" : "Razorpay API"}
+            />
             <KV k="Webhook endpoint" v={<code className="font-mono text-xs" style={{ color: "var(--cc-text-3)" }}>{site.url}/api/webhooks/razorpay</code>} />
             <KV k="Key handling" v="Secrets live server-side only; card data never touches Veyra" />
           </div>
           {!razorpayConfigured() ? (
             <Note>Razorpay keys are set in .env.local (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET). Values are never displayed here — only whether they exist.</Note>
+          ) : null}
+          {razorpayConfigProblem() ? (
+            <Note>Configuration refused: {razorpayConfigProblem()}</Note>
           ) : null}
         </Panel>
 

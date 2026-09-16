@@ -193,6 +193,118 @@ Buy → pay → account → download → install → activate, with no manual st
   webhooks, refresh-polling, account rendering, licence creation, download
   authorization, activation, and forged-signature rejection.
 
+# Razorpay TEST MODE (end-to-end test environment)
+
+Checkout runs against **Razorpay's TEST mode only**. Test credentials come
+from the environment; no key, key secret, or webhook secret is ever
+hardcoded, logged, or sent to the browser — `/api/checkout` returns only
+the public key id.
+
+```bash
+# .env.local
+RAZORPAY_MODE=test                 # test | live — test is the default
+RAZORPAY_KEY_ID=rzp_test_xxxxxxxx  # Razorpay Dashboard (TEST) → API Keys
+RAZORPAY_KEY_SECRET=…              # server-side only
+RAZORPAY_WEBHOOK_SECRET=…          # the secret you set on the webhook
+# RAZORPAY_API_BASE stays UNSET for real test mode; it is local test
+# infrastructure (scripts/fake-razorpay.mjs) only.
+```
+
+**Live mode is refused by construction.** `src/lib/razorpay.ts` resolves a
+mode from `RAZORPAY_MODE` + the key id prefix and fails closed:
+a `rzp_live_…` key under `RAZORPAY_MODE=test` (or a `rzp_test_…` key under
+`RAZORPAY_MODE=live`) makes `razorpayConfigured()` false, so checkout
+answers *payments not configured* and nothing is ever charged. The admin
+Settings page shows the resolved mode and the guard.
+
+## Flow
+
+```
+Razorpay TEST Checkout → /api/checkout/verify (signature + payment state)
+                       → /api/webhooks/razorpay (durable, idempotent)
+                       → order PAID → entitlement ACTIVE → licence ACTIVE
+                       → registry-gated download → customer account
+```
+
+- **Order** — `POST /api/checkout` prices the canonical product
+  (`client-growth-system`) from `src/lib/pricing.ts` only, creates the
+  Razorpay order server-side, and stores the relationship in `orders`
+  (`razorpay_order_id`, customer `email` + `user_id`, `product_slug`,
+  `quantity` = seats, `amount`, `currency`) with the Razorpay order's
+  `receipt`/`notes.internal_order_id` set to the Veyra order id.
+- **Verify** — the browser's callback is a *claim*: HMAC signature +
+  Razorpay's authoritative payment state must both agree before
+  `pending → paid`.
+- **Webhook** — HMAC-SHA256 over the **raw** body with the webhook secret
+  (`X-Razorpay-Signature`), then event, payment status, amount + currency,
+  and the order must all match. Duplicates are no-ops: transitions are
+  conditional (`expectedCurrent`), entitlements/licences/seats are
+  unique-keyed, and the receipt ledger is unique on `(order_id, type)`.
+  `x-razorpay-event-id` is logged for traceability.
+- **Failure** — a failed/cancelled attempt never moves to paid, so no
+  entitlement, licence, or download authorization can exist (the download
+  route requires an active entitlement).
+
+## Setting the webhook (test)
+
+Dashboard in **TEST mode** → Accounts & Settings → Webhooks → *+ Add New
+Webhook* (test-mode OTP `754081`):
+
+- URL: `https://<public-https-url>/api/webhooks/razorpay`
+- Events: `payment.captured`, `payment.failed`
+- Secret: copy it into `RAZORPAY_WEBHOOK_SECRET`
+
+Razorpay does not deliver to `localhost` and blacklists several tunnel
+domains (including `ngrok.io`) — their docs recommend **zrok**. Point the
+tunnel at port 3000, then register the tunnel's HTTPS URL. Until
+`RAZORPAY_WEBHOOK_SECRET` is set the endpoint answers `503` and trusts
+nothing.
+
+## Automated checks
+
+```bash
+npm run test:razorpay:config        # credentials/mode/leak audit (no network)
+npm run test:razorpay:testmode      # + Razorpay API, order relationship, webhook
+npm run test:delivery:e2e           # full fulfillment matrix on the local gateway
+npm run test:licensing              # licence token + activation engine
+npm run typecheck && npm run lint
+```
+
+`test:razorpay:testmode` asserts: mode is test, the key is `rzp_test_…`,
+no secret sits behind a `NEXT_PUBLIC_*` variable or inside
+`.next/static`, Razorpay accepts the keys, `/api/checkout` returns the
+public key id + the server-computed amount (1 seat = $79 → `7900` USD) +
+the matching Razorpay order (receipt/notes/amount), no secret in the
+response body, and the webhook rejects unsigned/forged deliveries while
+ignoring non-captured statuses and amount mismatches. It cancels the
+order it creates, so no paid order is left behind. Real capture is not
+synthesized — that is the in-browser matrix below.
+
+## In-browser TEST matrix
+
+Run with **test cards only** — never a real card or bank credential.
+
+| Scenario | Steps | Expected |
+| --- | --- | --- |
+| Successful payment | 1 seat → checkout → card `4100 2800 0000 1007`, any future expiry, random CVV, mock bank **Success**, OTP of 4–10 digits | `paid` → entitlement + licence + seat 1 + receipt; account shows product, order, payment status, licence, seats, current version, download |
+| Failed payment | failure card `4100 2800 0004 0005` (card_declined) or mock bank **Failure**, or an OTP below 4 digits | order `failed`; no entitlement/licence/seat; download refused |
+| Cancelled checkout | close the Razorpay modal | order `cancelled`, nothing charged; webhook `payment.captured` later (if the payment actually went through) reconciles it to `paid` |
+| Refresh / retry | refresh `/checkout/complete?order=…`, or reload the cart and pay again | the result page polls real order status; a retry creates a **new** order row (one row per attempt) |
+| Duplicate webhook | resend the same event from the dashboard's webhook logs, or run `npm run test:delivery:e2e` (sends one signed event twice) | both deliveries `200`; exactly one entitlement, licence, seat, and receipt email |
+
+Verify in Supabase after a run:
+
+```sql
+select o.status, o.amount, o.currency, o.razorpay_payment_id, o.paid_at,
+       e.status as entitlement, e.seats, l.licence_reference, l.status as licence,
+       (select count(*) from seat_assignments s where s.entitlement_id = e.id) as seats_assigned,
+       (select count(*) from email_events m where m.order_id = o.id) as receipt_emails
+from orders o
+left join entitlements e on e.order_id = o.id
+left join licences l on l.entitlement_id = e.id
+where o.email = '<the test email you used>';
+```
+
 # Design system
 
 Defined once in `src/app/globals.css` (`@theme` + `@layer utilities`):

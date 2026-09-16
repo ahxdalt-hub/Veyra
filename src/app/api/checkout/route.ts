@@ -6,6 +6,10 @@ import { CURRENCY } from "@/lib/site";
 import {
   createRazorpayOrder,
   razorpayConfigured,
+  razorpayConfigProblem,
+  razorpayKeyId,
+  razorpayMode,
+  razorpayUsesLocalGateway,
 } from "@/lib/razorpay";
 import { insertOrder } from "@/lib/orders";
 import { couponErrorMessage, validateCoupon } from "@/lib/coupons";
@@ -181,13 +185,22 @@ export async function POST(request: Request) {
     };
   }
 
-  // --- Guard: payments must be configured -------------------------------
-  if (!razorpayConfigured()) {
+  // --- Guard: payments must be configured and usable --------------------
+  // razorpayConfigured() fails closed when the credentials are missing OR
+  // when the configuration is refused (e.g. LIVE keys in this test-mode
+  // deployment — see razorpayConfigProblem). Nothing is charged either way.
+  const keyId = razorpayKeyId();
+  if (!razorpayConfigured() || !keyId) {
+    const reason = razorpayConfigProblem();
+    if (reason) console.error(`[checkout] refusing to charge: ${reason}`);
     return NextResponse.json(
       {
         error:
           "Payments are not configured on this deployment yet. Nothing was charged.",
         code: "payments_not_configured",
+        // Safe, secret-free diagnostics for operators (never shown to
+        // customers in the UI, which only reads `code`).
+        ...(reason ? { reason } : {}),
       },
       { status: 503 }
     );
@@ -248,7 +261,13 @@ export async function POST(request: Request) {
       razorpayOrderId: rzpOrder.id,
       amount: rzpOrder.amount,
       currency: rzpOrder.currency,
-      keyId: process.env.RAZORPAY_KEY_ID,
+      // Public identifier only — the key SECRET never leaves the server.
+      keyId,
+      // Safe public configuration: the resolved mode (test/live) and
+      // whether the server-side flow is running against local test
+      // infrastructure. Both are display-only facts, never credentials.
+      mode: razorpayMode(),
+      gateway: razorpayUsesLocalGateway() ? "local-test-gateway" : "razorpay",
       productName: line.name,
       quantity: line.qty,
       // Server-resolved team pricing, for display only.

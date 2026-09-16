@@ -49,6 +49,8 @@ type NotifCtx = {
 
 const Ctx = createContext<NotifCtx | null>(null);
 const TOAST_TTL_MS = 8000;
+/** Sale toasts are deliberately brief: slide in, hold ~2.5s, slide out. */
+const SALE_TTL_MS = 2500;
 const TOAST_MAX = 4;
 const RESYNC_WINDOW_HOURS = 6;
 
@@ -98,10 +100,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       seenIds.current.add(row.id);
       setToasts((t) => [row, ...t].slice(0, TOAST_MAX));
       const id = row.id;
+      // Sales are a light "heads up" — slide in, breathe, slide out.
+      // Operational toasts (failures etc.) stay longer.
+      const ttl = row.kind === "sale" ? SALE_TTL_MS : TOAST_TTL_MS;
       const timer = setTimeout(() => {
         setToasts((t) => t.filter((x) => x.id !== id));
         timers.current.delete(id);
-      }, TOAST_TTL_MS);
+      }, ttl);
       timers.current.set(id, timer);
       setRecent((r) => [row, ...r].slice(0, 40));
       if (!row.read_at) {

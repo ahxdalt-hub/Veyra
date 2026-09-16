@@ -59,6 +59,11 @@ export async function POST(request: Request) {
   // The signature covers the raw bytes — read before any JSON parsing.
   const rawBody = await request.text();
   const signature = request.headers.get("x-razorpay-signature") ?? "";
+  // Razorpay's per-delivery event id (unique per event). Recorded for
+  // duplicate tracing only — idempotency is enforced by the database
+  // (conditional status transitions + the 0002 unique constraints), which
+  // is what makes a replay safe even if this header is missing.
+  const eventId = request.headers.get("x-razorpay-event-id") ?? "unknown";
 
   if (!signature || !verifyWebhookSignature(rawBody, signature)) {
     // Genuine mismatches are a security signal; log server-side only.
@@ -103,6 +108,21 @@ export async function POST(request: Request) {
 
   try {
     if (eventName === "payment.captured") {
+      // Event ↔ payment-statement consistency: a 'captured' event must
+      // actually carry a captured (or authorized) payment. An event whose
+      // payment status says otherwise is acknowledged and ignored — it is
+      // never allowed to move an order to paid.
+      if (
+        payment.status !== undefined &&
+        payment.status !== "captured" &&
+        payment.status !== "authorized"
+      ) {
+        console.warn(
+          `[webhook] ${eventId}: ignoring payment.captured carrying status ` +
+            `"${payment.status}" for order ${order.id}`
+        );
+        return NextResponse.json({ received: true });
+      }
       // Re-delivery of an already-confirmed order. NOT an early return:
       // grantPurchaseForOrder is idempotent end-to-end (unique constraints
       // on entitlement/licence/seat + the email_events ledger), so replaying
@@ -145,6 +165,13 @@ export async function POST(request: Request) {
       }
       // Durable confirmation → fulfillment. Idempotent; safe even when
       // the verify route already granted (or will grant) the same order.
+      // A duplicate delivery of this same event re-runs the grant as a
+      // no-op: entitlements/licences/seats are unique-keyed and the receipt
+      // ledger is unique on (order_id, email_type).
+      console.log(
+        `[webhook] ${eventId}: payment.captured for order ${order.id} ` +
+          `(order was ${order.status} before this delivery)`
+      );
       await grantPurchaseForOrder({ ...order, status: "paid" });
       // Command-center toast — only when THIS delivery made the flip
       // (a null row from the conditional update means the verify route
@@ -163,14 +190,23 @@ export async function POST(request: Request) {
     }
 
     // payment.failed — only ever from pending; a verified payment cannot
-    // be failed by a late event (conditional update enforces it).
+    // be failed by a late event (conditional update enforces it). The event
+    // must also carry a genuinely failed payment: a captured payment
+    // under a 'failed' event is ignored (the captured branch owns it).
+    if (payment.status !== undefined && payment.status !== "failed") {
+      console.warn(
+        `[webhook] ${eventId}: ignoring payment.failed carrying status ` +
+          `"${payment.status}" for order ${order.id}`
+      );
+      return NextResponse.json({ received: true });
+    }
     const failed = await updateOrderStatus(order.id, "failed", {
       expectedCurrent: "pending",
       razorpayPaymentId: payment.id,
     });
     if (failed) {
       console.warn(
-        `[webhook] payment failed for order ${order.id} (${order.email})`
+        `[webhook] payment failed for order ${order.id} (${order.email}) — event ${eventId}`
       );
       notifyPaymentFailed({
         orderId: order.id,

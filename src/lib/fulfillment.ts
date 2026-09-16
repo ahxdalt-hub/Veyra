@@ -95,7 +95,14 @@ async function grantForOrder(db: ReturnType<typeof adminClient>, order: Order) {
     }
   }
 
-  // 2. Licence — unique on entitlement_id, derived from it.
+  // 2. Licence — unique on entitlement_id, derived from it. The licence is
+  //    stamped with the CURRENT published product version at grant time
+  //    (the version the customer is entitled to download first); delivery
+  //    itself always authorizes against the registry (currentRelease), so
+  //    a later republish naturally supersedes this record.
+  const release = await currentRelease(order.product_slug);
+  const licenceVersion = release?.version ?? product.version ?? null;
+
   const existingLicence = await db
     .from("licences")
     .select("licence_reference")
@@ -115,6 +122,7 @@ async function grantForOrder(db: ReturnType<typeof adminClient>, order: Order) {
         email: order.email,
         product_slug: order.product_slug,
         licence_reference: licenceReferenceFor(entitlementId),
+        version: licenceVersion,
         status: "active",
       })
       .select("id, licence_reference")
@@ -148,8 +156,8 @@ async function grantForOrder(db: ReturnType<typeof adminClient>, order: Order) {
   // 4. Customer email (Stage 8) — the buy→pay→download handoff. Idempotent
   //    via the email_events ledger (unique order_id+type): re-running the
   //    whole grant on a webhook replay sends nothing twice, and a send
-  //    that previously failed is retried here. Never throws.
-  const release = await currentRelease(order.product_slug);
+  //    that previously failed is retried here. Never throws. (The release
+  //    was already resolved above for the licence version stamp.)
   await sendPurchaseEmail({
     toEmail: order.email,
     productName: product.name,

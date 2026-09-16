@@ -83,6 +83,23 @@ const server = createServer(async (req, res) => {
       return send(res, 201, entity);
     }
 
+    /* ---- list orders (used by the test-mode preflight's credential check) ---- */
+    if (method === "GET" && path === "/orders") {
+      return send(res, 200, {
+        entity: "collection",
+        count: orders.size,
+        items: [...orders.values()],
+      });
+    }
+
+    /* ---- fetch an order (relationship check for the E2E caller) ---- */
+    const orderGet = path.match(/^\/orders\/([^/]+)$/);
+    if (method === "GET" && orderGet) {
+      const o = orders.get(orderGet[1]);
+      if (!o) return send(res, 404, { error: { description: "Not found" } });
+      return send(res, 200, o);
+    }
+
     /* ---- fetch payment (authoritative state) ---- */
     const payGet = path.match(/^\/payments\/([^/]+)$/);
     if (method === "GET" && payGet) {

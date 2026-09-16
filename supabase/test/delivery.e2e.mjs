@@ -52,7 +52,6 @@ if (!SUPA_URL || !ANON || !SERVICE) {
   process.exit(2);
 }
 
-const KEY_SECRET = "test_key_secret_zzz";
 // Razorpay's schemes are hex HMAC-SHA256, identical for checkout
 // signatures (key secret) and webhook signatures (webhook secret).
 const hmacHex = (key, data) =>
@@ -386,6 +385,11 @@ async function main() {
     }
     await sql(`delete from download_events where email like 'stage8-%'`).catch(() => null);
     await sql(`delete from licence_activations where activated_email like 'stage8-%'`).catch(() => null);
+    // The fulfillment/webhook paths insert admin notifications (sale, licence,
+    // payment_failed, new customer). The referenced rows above are gone after
+    // teardown, so remove the notifications too — otherwise the command center
+    // accumulates orphans referencing deleted orders/licences/profiles.
+    await sql(`delete from admin_notifications where message ilike '%@veyra.test%'`).catch((e) => console.log("teardown admin_notifications:", e.message));
     await deleteAuthUser(userId).catch((e) => console.log("teardown auth:", e.message));
     console.log("\nteardown complete");
   }
