@@ -156,10 +156,22 @@ export default function CheckoutClient({
         currency?: string;
         keyId?: string;
         productName?: string;
+        free?: boolean;
+        status?: string;
       };
 
       if (res.status === 503 && data.code === "payments_not_configured") {
         setPhase("not-configured");
+        return;
+      }
+
+      // Free checkout — the coupon covered the full amount, so the server
+      // has ALREADY confirmed the order and granted the licence. There is
+      // no payment window to open: go straight to the result page, which
+      // links into the account where the product and licence appear.
+      if (res.ok && data.free && data.orderId && data.status === "paid") {
+        setPhase("verifying");
+        router.replace(`/checkout/complete?order=${data.orderId}`);
         return;
       }
       if (
@@ -323,10 +335,21 @@ export default function CheckoutClient({
           <div>
             <h1 className="text-display-1">Checkout</h1>
             <p className="mt-3 max-w-md text-sm leading-relaxed text-ink-3">
-              One product, one payment, delivered digitally. You&rsquo;re
-              buying licences for {tier.seats === 1 ? "1 seat" : `${tier.seats} seats`} —
-              confirm the amount in Razorpay&rsquo;s secure window before
-              anything is charged.
+              {payable === 0 && couponState.status === "applied" ? (
+                <>
+                  Your coupon covers the full amount — nothing will be
+                  charged. Your licences are issued the moment you confirm,
+                  and everything lands in your account.
+                </>
+              ) : (
+                <>
+                  One product, one payment, delivered digitally. You&rsquo;re
+                  buying licences for{" "}
+                  {tier.seats === 1 ? "1 seat" : `${tier.seats} seats`} —
+                  confirm the amount in Razorpay&rsquo;s secure window before
+                  anything is charged.
+                </>
+              )}
             </p>
 
             {phase === "not-configured" ? (
@@ -374,7 +397,9 @@ export default function CheckoutClient({
                   {phase === "paying" && "Complete payment in the secure window…"}
                   {phase === "verifying" && "Verifying your payment…"}
                   {phase === "idle" &&
-                    `Pay ${formatPrice(payable)} securely`}
+                    (payable === 0 && couponState.status === "applied"
+                      ? "Complete your free order"
+                      : `Pay ${formatPrice(payable)} securely`)}
                   {(phase === "failed" || phase === "cancelled") &&
                     `Try again — pay ${formatPrice(payable)}`}
                 </Button>
@@ -576,7 +601,9 @@ export default function CheckoutClient({
               <ul className="mt-6 space-y-2.5 border-t border-line pt-5">
                 {[
                   "One-time payment — no subscription",
-                  `Licences for ${tier.seats === 1 ? "1 seat" : `${tier.seats} seats`} — delivered after payment is confirmed`,
+                  payable === 0 && couponState.status === "applied"
+                    ? "Full discount applied — licences issued instantly, no payment needed"
+                    : `Licences for ${tier.seats === 1 ? "1 seat" : `${tier.seats} seats`} — delivered after payment is confirmed`,
                   REFUND_WINDOW_LABEL,
                 ].map((point) => (
                   <li key={point} className="flex items-start gap-2.5">

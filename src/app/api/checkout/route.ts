@@ -11,7 +11,10 @@ import {
   razorpayMode,
   razorpayUsesLocalGateway,
 } from "@/lib/razorpay";
-import { insertOrder } from "@/lib/orders";
+import { insertOrder, updateOrderStatus } from "@/lib/orders";
+import type { Order } from "@/lib/orders";
+import { grantPurchaseForOrder } from "@/lib/fulfillment";
+import { notifyNewSale } from "@/lib/admin/notifications";
 import { couponErrorMessage, validateCoupon } from "@/lib/coupons";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { supabaseAuthConfigured } from "@/lib/supabase/config";
@@ -154,6 +157,9 @@ export async function POST(request: Request) {
     typeof payload.coupon === "string" ? payload.coupon : undefined;
   let amountMinor = subtotalMinor;
   let couponApplied: { code: string; label: string; discountMinor: number } | null = null;
+  // True when the validated coupon covers the entire subtotal — checkout
+  // then completes without the gateway (see the free-order branch below).
+  let freeOrder = false;
   if (proposedCoupon && proposedCoupon.trim()) {
     const verdict = await validateCoupon(
       proposedCoupon,
@@ -176,13 +182,125 @@ export async function POST(request: Request) {
         { status: 422 }
       );
     }
-    const discountMinor = Math.min(verdict.discount_dollars * 100, subtotalMinor - 1);
+    const rawDiscountMinor = verdict.discount_dollars * 100;
+    freeOrder = rawDiscountMinor >= subtotalMinor;
+    // Free orders take the full discount (nothing is charged). Partial
+    // discounts keep the ≥1-cent floor Razorpay's gateway requires —
+    // a $0.00 charge would be rejected by Razorpay, so a fully-covered
+    // order must skip the gateway rather than send it one cent.
+    const discountMinor = freeOrder
+      ? subtotalMinor
+      : Math.min(rawDiscountMinor, subtotalMinor - 1);
     amountMinor = subtotalMinor - discountMinor;
     couponApplied = {
       code: verdict.code,
       label: verdict.label,
       discountMinor,
     };
+  }
+
+  // Signed-in customers get the order linked to their account directly;
+  // guests stay unlinked until they claim it with their verified email.
+  let userId: string | null = null;
+  if (supabaseAuthConfigured()) {
+    try {
+      const supabase = await createSupabaseServerClient();
+      const { data } = await supabase.auth.getUser();
+      userId = data.user?.id ?? null;
+    } catch {
+      userId = null;
+    }
+  }
+
+  // --- FREE CHECKOUT: the coupon covers everything ------------------------
+  // No gateway, no modal, no charge. The order still walks the REAL
+  // lifecycle — inserted as pending, then confirmed to paid — so the
+  // database's own triggers stamp paid_at and increment the coupon's
+  // used_count exactly as a card payment would. Fulfillment runs through
+  // the same idempotent grant (entitlement + licence + seat + receipt
+  // email) the verify route and webhook use.
+  if (freeOrder) {
+    const orderId = randomUUID();
+    try {
+      const order = await insertOrder({
+        id: orderId,
+        razorpay_order_id: null,
+        razorpay_payment_id: null,
+        email,
+        user_id: userId,
+        product_slug: line.slug,
+        quantity: line.qty,
+        amount: 0,
+        currency: CURRENCY,
+        status: "pending",
+        ...(couponApplied
+          ? {
+              subtotal: subtotalMinor,
+              discount: subtotalMinor,
+              total: 0,
+              coupon_code: couponApplied.code,
+            }
+          : {}),
+      });
+
+      // pending → paid: the DB triggers (0011/0014) are the authoritative
+      // stampers for coupon usage and paid_at on this transition.
+      const paid = await updateOrderStatus(order.id, "paid");
+      const paidOrder =
+        paid ??
+        ({
+          ...order,
+          status: "paid" as const,
+          paid_at: new Date().toISOString(),
+        } as Order);
+
+      // Official fulfillment — entitlement + licence + seat + receipt.
+      // Idempotent; failures are logged, never surfaced as checkout errors.
+      await grantPurchaseForOrder(paidOrder);
+
+      // Command-center toast — only when THIS transition was ours.
+      if (paid?.status === "paid") {
+        notifyNewSale({
+          orderId: order.id,
+          email,
+          productName: line.name,
+          amountMinor: 0,
+          currency: CURRENCY,
+          seats: line.qty,
+        });
+      }
+
+      return NextResponse.json({
+        orderId: order.id,
+        status: "paid",
+        free: true,
+        mode: razorpayMode(),
+        gateway: razorpayUsesLocalGateway() ? "local-test-gateway" : "razorpay",
+        productName: line.name,
+        quantity: line.qty,
+        seats: tier.seats,
+        perSeat: tier.perSeat,
+        discountPercent: tier.discountPercent,
+        subtotal: tier.subtotal,
+        total: 0,
+        coupon: couponApplied
+          ? {
+              code: couponApplied.code,
+              label: couponApplied.label,
+              discountMinor: couponApplied.discountMinor,
+            }
+          : null,
+      });
+    } catch (err) {
+      console.error("[checkout] free order failed:", err);
+      return NextResponse.json(
+        {
+          error:
+            "We couldn't complete your free order. Please try again — nothing was charged.",
+        },
+        { status: 502 }
+      );
+    }
   }
 
   // --- Guard: payments must be configured and usable --------------------
@@ -208,19 +326,6 @@ export async function POST(request: Request) {
 
   // --- Create the Razorpay order, then record ours ----------------------
   const orderId = randomUUID();
-
-  // Signed-in customers get the order linked to their account directly;
-  // guests stay unlinked until they claim it with their verified email.
-  let userId: string | null = null;
-  if (supabaseAuthConfigured()) {
-    try {
-      const supabase = await createSupabaseServerClient();
-      const { data } = await supabase.auth.getUser();
-      userId = data.user?.id ?? null;
-    } catch {
-      userId = null;
-    }
-  }
 
   try {
     const rzpOrder = await createRazorpayOrder({
