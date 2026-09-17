@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { FoundingCta } from "@/components/offer/founding-cta";
+import { DemoCta } from "@/components/offer/demo-cta";
 import { PriceAnchor } from "@/components/offer/price-anchor";
 import { Rise } from "@/components/offer/rise";
 import { JourneyPreview } from "@/components/product/journey-preview";
@@ -72,6 +73,7 @@ export function OfferHero({
           </p>
           <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <FoundingCta slug={slug} name={name} price={price} />
+            <DemoCta />
             <Button href="#inside" variant="outline" size="lg">
               See what&rsquo;s inside
             </Button>

@@ -1,6 +1,7 @@
 import { Reveal } from "@/components/motion/reveal";
 import { PriceAnchor } from "@/components/offer/price-anchor";
 import { FoundingCta } from "@/components/offer/founding-cta";
+import { DemoCta } from "@/components/offer/demo-cta";
 import { FOUNDING_PRICE, REGULAR_PRICE } from "@/lib/pricing";
 import { getFeaturedProduct } from "@/lib/products";
 import { REFUND_WINDOW_LABEL } from "@/lib/site";
@@ -74,6 +75,7 @@ export function OfferFounding() {
                     price={founding.price}
                     className="w-full"
                   />
+                  <DemoCta className="mt-2.5 w-full" />
                   <p className="mt-4 text-center text-xs text-ink-3">
                     One-time purchase · No subscription · Instant digital
                     delivery

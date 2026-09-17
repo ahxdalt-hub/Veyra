@@ -222,3 +222,12 @@ export function SettingsIcon(props: IconProps) {
     </Icon>
   );
 }
+
+/** Spark — a four-point star for "coming soon" / announcement moments. */
+export function SparkIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M8 2.5 9.3 6.7 13.5 8 9.3 9.3 8 13.5 6.7 9.3 2.5 8 6.7 6.7 8 2.5Z" />
+    </Icon>
+  );
+}
