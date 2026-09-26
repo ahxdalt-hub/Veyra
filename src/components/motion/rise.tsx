@@ -6,8 +6,7 @@ import { useMotionPreference } from "@/components/motion/reveal";
 
 /**
  * Rise — one quiet entrance: fade + rise with expo-out, played once on
- * load. Used for the offer page's staggered hero and the price-anchor
- * sequence.
+ * load. Used for the product page's staggered hero and price moments.
  *
  * Under prefers-reduced-motion the content renders as a plain element —
  * swapped in only after hydration (see useMotionPreference) so the SSR

@@ -1,20 +1,31 @@
-import { PHASE_ORDER, phaseMeta } from "@/lib/products";
 import { ArrowRightIcon } from "@/components/ui/icons";
+import { getProduct, PHASE_ORDER, phaseMeta } from "@/lib/products";
 
 /**
- * JourneyPreview — the offer page's hero visual.
+ * JourneyPreview — the hero's product presentation.
  *
- * The Client Growth System's journey view at its starting state: six
- * phases queued in order with Build underway, and the Positioning module
- * open as a guided set of steps. Rendered in code — crisp at any density,
- * zero image payload, and honest: it shows the system's structure, never
- * invented customer data or metrics.
+ * The Client Growth System desktop application at its starting state:
+ * the six-phase journey in the sidebar, the journey board, and the
+ * Positioning module open as a guided sequence — with the local-first
+ * workspace status the application actually surfaces. Rendered in code
+ * and clearly illustrative: it shows the real structure of the product
+ * (phases, module counts from the catalog, the genuine positioning
+ * steps), never invented customer data or metrics.
+ *
+ * Same layout as the current app: chrome bar, journey rail, board,
+ * open-module panel — refreshed for the desktop release.
  */
 
+/* Genuine module counts per phase, straight from the catalog. */
+const product = getProduct("client-growth-system");
+const moduleCounts = PHASE_ORDER.map(
+  (phase) => product?.modules.filter((m) => m.phase === phase).length ?? 0
+);
+
 const guidedSteps = [
-  "Who you serve",
-  "What you're worth",
-  "Why you over alternatives",
+  { label: "Who you serve", done: true },
+  { label: "What you're worth", done: false },
+  { label: "Why you over alternatives", done: false },
 ];
 
 export function JourneyPreview({ className = "" }: { className?: string }) {
@@ -23,34 +34,56 @@ export function JourneyPreview({ className = "" }: { className?: string }) {
       aria-hidden="true"
       className={`overflow-hidden rounded-lg border border-line bg-surface text-left shadow-lg ${className}`}
     >
-      {/* Window chrome */}
+      {/* Chrome bar — Windows desktop style */}
       <div className="flex items-center justify-between gap-3 border-b border-line bg-paper px-4 py-2.5 sm:px-5">
         <span className="flex min-w-0 items-center gap-3">
-          <span className="flex shrink-0 gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-line-strong" />
-            <span className="h-2.5 w-2.5 rounded-full bg-line-strong" />
-            <span className="h-2.5 w-2.5 rounded-full bg-line-strong" />
+          {/* App mark */}
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border border-accent/30 bg-accent-soft">
+            <span className="h-2 w-2 rotate-45 bg-accent/70" />
           </span>
-          <span className="spec truncate text-ink-4">
-            Client Growth System — Journey
+          <span className="truncate text-xs font-medium text-ink-2">
+            Client Growth System
+          </span>
+          <span aria-hidden="true" className="hidden text-ink-4 sm:inline">
+            —
+          </span>
+          <span className="spec hidden truncate text-ink-4 sm:inline">
+            Journey
           </span>
         </span>
-        <span className="spec hidden rounded-full border border-line bg-surface px-2 py-0.5 text-ink-4 sm:inline-block">
-          v1.0
+        <span className="flex shrink-0 items-center gap-1.5">
+          <span className="hidden h-3.5 w-6 items-center justify-center rounded-sm bg-line/60 text-[9px] leading-none text-ink-3 md:inline-flex">
+            –
+          </span>
+          <span className="hidden h-3.5 w-6 items-center justify-center rounded-sm bg-line/60 text-[8px] leading-none text-ink-3 md:inline-flex">
+            ▢
+          </span>
+          <span className="flex h-3.5 w-6 items-center justify-center rounded-sm bg-line/60 text-[9px] leading-none text-ink-3">
+            ✕
+          </span>
         </span>
       </div>
 
       <div className="flex">
-        {/* Sidebar — the six-phase journey, Build active */}
-        <div className="hidden w-44 shrink-0 border-r border-line bg-paper py-4 md:block">
-          <p className="spec px-5 pb-3 text-ink-4">Journey</p>
-          <ul className="space-y-0.5">
+        {/* Sidebar — the journey rail */}
+        <div className="hidden w-48 shrink-0 border-r border-line bg-paper py-4 md:block">
+          {/* Workspace — local-first status, the app's actual model */}
+          <div className="mx-4 rounded-sm border border-accent/20 bg-accent-soft/70 px-3 py-2.5">
+            <p className="spec text-accent-ink">Workspace</p>
+            <p className="mt-1 flex items-center gap-1.5 text-[0.6875rem] font-medium text-ink">
+              <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+              On this device
+            </p>
+          </div>
+
+          <p className="spec px-4 pb-2.5 pt-4 text-ink-4">Journey</p>
+          <ul className="space-y-0.5 pr-2">
             {PHASE_ORDER.map((phase, i) => {
               const active = i === 0;
               return (
                 <li key={phase}>
                   <span
-                    className={`flex items-baseline gap-2 px-5 py-1.5 text-xs ${
+                    className={`flex items-center gap-2 rounded-sm px-4 py-1.5 text-xs ${
                       active
                         ? "bg-accent-soft font-medium text-accent-ink"
                         : "text-ink-3"
@@ -64,21 +97,14 @@ export function JourneyPreview({ className = "" }: { className?: string }) {
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     {phaseMeta[phase].label}
-                    {active ? (
-                      <span className="ml-auto h-1.5 w-1.5 rounded-full bg-accent" />
-                    ) : null}
+                    <span className="ml-auto tnum text-[0.625rem] text-ink-4">
+                      {moduleCounts[i]} module{moduleCounts[i] === 1 ? "" : "s"}
+                    </span>
                   </span>
                 </li>
               );
             })}
           </ul>
-          <div className="mt-4 space-y-1.5 border-t border-line px-5 pt-3.5">
-            <p className="spec text-ink-4">12 modules · 6 phases</p>
-            <p className="text-[0.625rem] leading-relaxed text-ink-4">
-              Each phase feeds the next — the output of one is the input to
-              the following.
-            </p>
-          </div>
         </div>
 
         {/* Main — journey board + open module */}
@@ -123,7 +149,9 @@ export function JourneyPreview({ className = "" }: { className?: string }) {
                     )}
                   </div>
                   <p className="mt-1.5 text-[0.625rem] leading-relaxed text-ink-3">
-                    {active ? "In progress" : "Upcoming"}
+                    {active
+                      ? `In progress · ${moduleCounts[i]} modules`
+                      : `${moduleCounts[i]} module${moduleCounts[i] === 1 ? "" : "s"}`}
                   </p>
                 </div>
               );
@@ -134,23 +162,47 @@ export function JourneyPreview({ className = "" }: { className?: string }) {
           <div className="border-t border-line bg-paper px-4 py-4 sm:px-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="spec text-ink-4">
-                Open module · Build — 02 Positioning
+                Open module · Build — Positioning
               </p>
               <span className="spec rounded-full border border-accent/30 bg-accent-soft px-2 py-0.5 text-accent-ink">
-                In progress
+                Step 1 of 3
               </span>
             </div>
             <p className="mt-2 text-[0.8125rem] font-medium text-ink">
               Say clearly what you&rsquo;re the best at
             </p>
+
+            {/* Progress hairline */}
+            <div className="mt-3 h-0.5 overflow-hidden rounded-full bg-line">
+              <div className="h-full w-1/3 rounded-full bg-accent/70" />
+            </div>
+
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {guidedSteps.map((step) => (
                 <span
-                  key={step}
-                  className="inline-flex items-center gap-2 rounded-sm border border-line bg-surface px-2.5 py-1.5 text-[0.6875rem] text-ink-2"
+                  key={step.label}
+                  className={`inline-flex items-center gap-2 rounded-sm border px-2.5 py-1.5 text-[0.6875rem] ${
+                    step.done
+                      ? "border-accent/25 bg-accent-soft/70 text-ink-2"
+                      : "border-line bg-surface text-ink-2"
+                  }`}
                 >
-                  <span className="h-2.5 w-2.5 rounded-xs border border-line-strong" />
-                  {step}
+                  {step.done ? (
+                    <svg
+                      viewBox="0 0 10 10"
+                      className="h-2.5 w-2.5 shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M1.5 5.5 4 8l4.5-6" />
+                    </svg>
+                  ) : (
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-xs border border-line-strong" />
+                  )}
+                  {step.label}
                 </span>
               ))}
               <span className="ml-auto hidden items-center gap-1.5 rounded-sm bg-ink px-2.5 py-1.5 text-[0.6875rem] font-medium text-paper sm:inline-flex">
@@ -158,6 +210,14 @@ export function JourneyPreview({ className = "" }: { className?: string }) {
                 <ArrowRightIcon className="h-2.5 w-2.5" />
               </span>
             </div>
+
+            {/* Footer — the local-first model, stated the way the app does */}
+            <p className="mt-3.5 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-line/70 pt-2.5 text-[0.625rem] leading-relaxed text-ink-4">
+              <span className="h-1 w-1 shrink-0 rounded-full bg-accent/60" />
+              Saved locally on this device
+              <span aria-hidden="true" className="text-line-strong">·</span>
+              Works offline after activation
+            </p>
           </div>
         </div>
       </div>

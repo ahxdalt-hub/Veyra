@@ -4,27 +4,25 @@ import { useState } from "react";
 import { useCart } from "@/components/cart/cart-context";
 import { Button } from "@/components/ui/button";
 import { CheckIcon } from "@/components/ui/icons";
-import { formatPrice } from "@/lib/site";
 
 /**
- * FoundingCta — the offer page's primary action.
+ * PurchaseCta — the product page's single primary purchase action.
  *
- * "Get the Client Growth System — $79". Uses the existing cart and
- * checkout architecture end to end: the slug enters the cart, the drawer
- * opens, and the amount is resolved by the catalog — the $79 shown here
- * is the same number the server charges.
+ * Enters the existing cart by slug (the cart validates against the
+ * catalog and opens the drawer); the amount charged is resolved
+ * server-side by the same pricing module the label displays. The price
+ * price is displayed by the surrounding section — resolved from the
+ * pricing module by the server page, never hardcoded at the call site.
  */
-export function FoundingCta({
+export function PurchaseCta({
   slug,
   name,
-  price,
   size = "lg",
   className = "",
 }: {
   slug: string;
   name: string;
-  price: number;
-  size?: "md" | "lg";
+  size?: "sm" | "md" | "lg";
   className?: string;
 }) {
   const { add, detailedLines } = useCart();
@@ -41,8 +39,6 @@ export function FoundingCta({
     <Button
       variant="accent"
       size={size}
-      // The founding label is long; on narrow cards it wraps instead of
-      // overflowing (whitespace-nowrap! beats the Button base's nowrap).
       className={`whitespace-normal! ${className}`}
       onClick={handleAdd}
     >
@@ -52,9 +48,9 @@ export function FoundingCta({
           {justAdded ? "Added — in your cart" : "In your cart — view"}
         </>
       ) : (
-        <>Get the {name} — {formatPrice(price)}</>
+        <>Get {name}</>
       )}
-      <span className="sr-only"> — founding customer price, one-time purchase</span>
+      <span className="sr-only"> — one-time purchase</span>
     </Button>
   );
 }
