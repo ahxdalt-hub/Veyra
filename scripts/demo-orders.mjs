@@ -48,8 +48,6 @@ const CLEAR = process.argv.includes("--clear");
 
 /* ---- Supabase management API (for --clear; mirrors delivery.e2e.mjs) -- */
 const { readFileSync, existsSync } = await import("node:fs");
-const { dirname } = await import("node:path");
-const here = dirname(new URL(import.meta.url).pathname.replace(/\\/g, "/"));
 const TOKEN = (() => {
   const p = new URL("./.sbp-token", import.meta.url);
   return existsSync(p) ? readFileSync(p, "utf8").trim() : process.env.SBP_TOKEN;

@@ -16,7 +16,8 @@ A Caelmont brand.
   order → entitlement → licence → receipt email → account download,
   fully automated and idempotent (see “Delivery automation” below)
 
-Veyra's flagship product, **Client Growth System** (₹9,999, one-time), is
+Veyra's flagship product, **Client Growth System** (USD $79 founding /
+$149 regular, one-time, per seat), is
 the only purchasable product. The rest of the collection (Client
 Acquisition OS, Offer OS, Sales OS, Client Operations OS, Agency Growth OS)
 is announced as coming-soon and cannot be added to a cart — enforced in the
@@ -59,7 +60,7 @@ src/
 ├── components/                      # ui / layout / home / product / cart / search
 ├── lib/
 │   ├── products.ts                  # CATALOG — single source of truth
-│   ├── site.ts                      # brand, nav, INR price formatting
+│   ├── site.ts                      # brand, nav, USD price formatting
 │   ├── razorpay.ts                  # server-only Razorpay REST + signature check
 │   └── orders.ts                    # order persistence (Supabase / dev store)
 └── supabase/migrations/
@@ -75,7 +76,7 @@ client.
 # Commerce architecture
 
 - **Server-side pricing** — `/api/checkout` accepts only slugs, quantities,
-  and an email. Amounts are computed from the catalog (`INR`, paise) and are
+  and an email. Amounts are computed from the catalog (`USD`, cents) and are
   the only numbers sent to Razorpay or stored in `orders`.
 - **Order creation** — a pending order row is recorded, then a Razorpay
   order is created server-side; the browser receives only public data
