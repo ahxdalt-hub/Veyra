@@ -103,18 +103,69 @@ export function CgsWorkflow({
                     >
                       {s.label}
                     </span>
-                    <span
-                      className="mt-auto flex items-center gap-1.5"
-                      aria-hidden="true"
-                    >
+                    {/* Connector — a gradient line with an arrowhead, so
+                        each stage visibly feeds the next. The active
+                        stage's connector carries a quiet travelling dot:
+                        the one place the rail shows motion. The final
+                        stage ends on a ringed amber diamond — a finish
+                        mark, not another arrow. */}
+                    <span className="mt-auto flex items-center" aria-hidden="true">
                       {i < stages.length - 1 ? (
                         <span
-                          className={`h-px w-6 transition-colors duration-200 ${
-                            active ? "bg-accent/60" : "bg-line-strong"
+                          className={`relative flex h-3 w-9 items-center transition-opacity duration-200 ${
+                            active ? "opacity-100" : "opacity-60"
                           }`}
-                        />
+                        >
+                          <span
+                            className={`h-px flex-1 bg-gradient-to-r ${
+                              active
+                                ? "from-accent/10 to-accent/70"
+                                : "from-line to-line-strong"
+                            }`}
+                          />
+                          <span
+                            className={`-ml-1 h-1.5 w-1.5 rotate-45 border-t border-r transition-colors duration-200 ${
+                              active ? "border-accent/80" : "border-line-strong"
+                            }`}
+                          />
+                          {active && !reduced ? (
+                            <motion.span
+                              className="absolute top-1/2 h-1 w-1 -translate-y-1/2 rounded-full bg-accent"
+                              initial={{ left: "0%", opacity: 0 }}
+                              animate={{
+                                left: ["0%", "100%"],
+                                opacity: [0, 1, 1, 0],
+                              }}
+                              transition={{
+                                duration: 2.4,
+                                repeat: Infinity,
+                                ease: "easeInOut",
+                                times: [0, 0.2, 0.8, 1],
+                              }}
+                            />
+                          ) : null}
+                        </span>
                       ) : (
-                        <span className="h-1.5 w-1.5 rounded-full bg-amber" />
+                        <span className="relative flex h-3 w-9 items-center justify-center">
+                          <AnimatePresence>
+                            {active && !reduced ? (
+                              <motion.span
+                                className="absolute h-2 w-2 rounded-full border border-amber/40"
+                                initial={{ scale: 0.4, opacity: 0.8 }}
+                                animate={{ scale: 1.9, opacity: 0 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 1.8, repeat: Infinity, ease: "easeOut" }}
+                              />
+                            ) : null}
+                          </AnimatePresence>
+                          <span
+                            className={`h-2 w-2 rotate-45 border transition-colors duration-200 ${
+                              active
+                                ? "border-amber bg-amber"
+                                : "border-line-strong bg-paper"
+                            }`}
+                          />
+                        </span>
                       )}
                     </span>
                   </button>

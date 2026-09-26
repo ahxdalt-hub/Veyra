@@ -154,11 +154,11 @@ export function CgsHero({
         </div>
 
         {/* ---------------------------------------------------------- */}
-        {/* Right — the product presentation. On 2xl, the grid lifts to
-            fill the 1920 viewport; this column keeps a stable design
-            width (~640–720px) so the preview never stretches past its
-            readable proportions. */}
-        <Rise delay={0.4} y={28} className="min-w-0 self-center lg:max-w-2xl 2xl:max-w-none">
+        {/* Right — the product presentation. On 2xl the lifted container
+            lets this column reach its full 760px design width so the
+            window is the dominant element at 1920; below that it is
+            capped and centered against the text column. */}
+        <Rise delay={0.4} y={28} className="min-w-0 w-full max-w-[760px] justify-self-center 2xl:justify-self-end">
           <JourneyPreview />
           <p className="mt-4 text-xs text-ink-4">
             Illustrative presentation of the application&rsquo;s journey
