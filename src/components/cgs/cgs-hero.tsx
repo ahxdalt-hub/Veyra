@@ -55,13 +55,12 @@ export function CgsHero({
         className="absolute inset-0 bg-blueprint-faint [mask-image:radial-gradient(ellipse_at_top_left,black_25%,transparent_70%)]"
       />
 
-      {/* Full-bleed two-column composition. On xl+ the preview column
-          hugs the viewport's right edge (negative right margin equal to
-          the container padding) so it anchors consistently across desktop
-          resolutions instead of floating inside the centered grid; the
-          text column keeps a stable reading measure. Top-aligned so both
-          columns share a clean reading baseline. */}
-      <div className="container-page relative grid max-w-none gap-14 py-16 sm:py-20 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.3fr)] lg:items-start lg:gap-16 lg:py-28">
+      {/* Two-column composition. The container-page grid is centered at
+          its 76rem cap on normal desktops, but on 2xl+ we lift the cap
+          and expand the width to ~86rem so the hero fills a 1920px
+          viewport instead of floating centered with huge gutters. The
+          preview column gets the larger share so it reads as the product. */}
+      <div className="relative mx-auto grid w-full max-w-[76rem] gap-14 px-5 py-16 sm:px-8 sm:py-20 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-center lg:gap-16 lg:px-10 lg:py-28 2xl:max-w-[86rem] 2xl:gap-24">
         {/* ---------------------------------------------------------- */}
         {/* Left — the promise and the purchase moment                   */}
         {/* ---------------------------------------------------------- */}
@@ -70,13 +69,13 @@ export function CgsHero({
             Veyra · {name}
           </Rise>
 
-          <Rise as="h1" delay={0.14} className="text-display-hero max-w-[18ch]">
+          <Rise as="h1" delay={0.14} className="text-display-hero max-w-[16ch]">
             Build a business that grows{" "}
             <span className="em-serif">beyond you.</span>
           </Rise>
 
           <Rise delay={0.26} className="mt-6">
-            <p className="max-w-lg text-lead">
+            <p className="max-w-md text-lead">
               From finding the right clients to closing deals, delivering
               great work, and building lasting relationships. {name} brings
               your entire client-growth workflow into one practical desktop
@@ -155,12 +154,11 @@ export function CgsHero({
         </div>
 
         {/* ---------------------------------------------------------- */}
-        {/* Right — the product presentation. The full-bleed grid puts
-            this column's right edge at the container edge (lg) or 2.5rem
-            from the viewport edge (xl+), so the window anchors to the
-            page instead of floating; vertically centered against the
-            text column for a composed desktop view. */}
-        <Rise delay={0.4} y={28} className="min-w-0 self-center">
+        {/* Right — the product presentation. On 2xl, the grid lifts to
+            fill the 1920 viewport; this column keeps a stable design
+            width (~640–720px) so the preview never stretches past its
+            readable proportions. */}
+        <Rise delay={0.4} y={28} className="min-w-0 self-center lg:max-w-2xl 2xl:max-w-none">
           <JourneyPreview />
           <p className="mt-4 text-xs text-ink-4">
             Illustrative presentation of the application&rsquo;s journey
