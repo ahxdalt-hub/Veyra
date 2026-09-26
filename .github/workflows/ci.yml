@@ -1,0 +1,40 @@
+name: CI
+
+# Runs the checks that catch regressions without needing any production
+# secrets: typecheck, lint, and the licensing suite (token crypto + the
+# activation engine, which runs on an in-memory PGlite database).
+#
+# The delivery / razorpay e2e suites are deliberately NOT wired here —
+# they need live test-mode credentials and a reachable gateway, so they
+# stay operator-run (`npm run test:delivery:e2e`, `test:razorpay:testmode`).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: Typecheck · lint · licensing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Licensing tests
+        run: npm run test:licensing

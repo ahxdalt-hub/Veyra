@@ -105,6 +105,23 @@ export function notifyPaymentFailed(input: {
   });
 }
 
+export function notifyRefund(input: {
+  orderId: string;
+  email: string;
+  productName: string;
+  amountMinor: number;
+  currency?: string;
+}): void {
+  void insert({
+    kind: "sale",
+    severity: "warning",
+    title: "Refund processed",
+    message: `${input.productName} — ${money(input.amountMinor, input.currency)} refunded · ${input.email}`,
+    related_entity: "orders",
+    related_id: input.orderId,
+  });
+}
+
 export function notifyLicenceEvent(input: {
   licenceId: string;
   email: string;

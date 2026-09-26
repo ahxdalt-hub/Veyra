@@ -102,8 +102,10 @@ client.
   receives only the public key id, served by the order-creation API, and
   nothing else.
 
-Order statuses: `pending → paid | failed | cancelled` (this stage),
-`refunded` reserved for the future refund flow.
+Order statuses: `pending → paid | failed | cancelled`, with
+`paid → refunded` driven by the Razorpay `refund.created` webhook — the
+refund revokes the entitlement, licence, seats, and activations and
+emails the customer (see `src/lib/refunds.ts`).
 
 # Environment
 

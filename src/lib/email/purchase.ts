@@ -276,3 +276,61 @@ function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
+
+/* ------------------------------------------------------------------ */
+/* Refund confirmation — the money-back, access-revoked email          */
+/* ------------------------------------------------------------------ */
+
+export type RefundEmailInput = {
+  toEmail: string;
+  productName: string;
+  orderId: string;
+  amountMinor: number;
+  currency: string;
+};
+
+/**
+ * Send the refund confirmation for an order — at most once per
+ * (order, 'refund_confirmation') via the same ledger as the receipt.
+ * Mirrors sendPurchaseEmail's discipline: never throws, and the webhook
+ * replay path can call it safely.
+ */
+export async function sendRefundEmail(input: RefundEmailInput): Promise<void> {
+  const { orderId, toEmail } = input;
+  if (!emailLedgerReady()) return;
+  try {
+    if (!(await beginSend(orderId, "refund_confirmation", toEmail))) return;
+
+    const orderRef = shortRef(orderId);
+    const subject = `Your refund is on its way — ${input.productName}`;
+    const text = [
+      `Your payment for ${input.productName} (order ${orderRef}) has been refunded`,
+      `${money(input.amountMinor, input.currency)}. Razorpay typically completes`,
+      `refunds to the original payment method within 5–10 business days.`,
+      ``,
+      `Access to the product has been closed: the licence is revoked and the`,
+      `download is no longer available from your account.`,
+      ``,
+      `If this refund wasn't expected, reply to this email and we'll sort it out.`,
+      ``,
+      `— Veyra`,
+    ].join("\n");
+
+    const html = `<div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;color:#17150f;line-height:1.6">
+  <p style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#8a8474">Veyra · Refund</p>
+  <h1 style="font-size:26px;margin:6px 0 14px">Your refund is on its way.</h1>
+  <p style="font-size:14px;margin:0 0 14px">We've refunded <b>${escapeHtml(money(input.amountMinor, input.currency))}</b> for <b>${escapeHtml(input.productName)}</b> (order ${escapeHtml(orderRef)}). Razorpay typically completes refunds to the original payment method within 5–10 business days.</p>
+  <p style="font-size:14px;margin:0 0 18px">Access to the product has been closed — the licence is revoked and downloads are no longer available from your account.</p>
+  <p style="font-size:13px;color:#6f6a5d">If this refund wasn't expected, just reply to this email and we'll sort it out.</p>
+  <p style="font-size:13px;color:#8a8474;margin-top:14px">— Veyra</p>
+</div>`;
+
+    const result = await deliver(toEmail, subject, html, text);
+    await finishSend(orderId, "refund_confirmation", result.ok, result.id, result.error);
+    if (!result.ok) {
+      console.error(`[email] refund send failed for ${orderId}: ${result.error}`);
+    }
+  } catch (err) {
+    console.error(`[email] refund send error for ${orderId}:`, err);
+  }
+}
