@@ -226,3 +226,18 @@ export const DotIcon = (p: IconProps) => (
     <circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none" />
   </Svg>
 );
+
+export const VolumeOnIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 9.5v5h3.5L12 19V5L7.5 9.5H4Z" />
+    <path d="M15.5 9a4.2 4.2 0 0 1 0 6" />
+    <path d="M18 6.5a8 8 0 0 1 0 11" />
+  </Svg>
+);
+
+export const VolumeOffIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 9.5v5h3.5L12 19V5L7.5 9.5H4Z" />
+    <path d="m16 9.5 5 5M21 9.5l-5 5" />
+  </Svg>
+);

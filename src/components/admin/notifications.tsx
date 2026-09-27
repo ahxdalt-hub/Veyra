@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
+import { attachAudioUnlock, cueForKind, playCue } from "@/lib/admin/sound";
 import type { AdminNotificationRow } from "@/lib/supabase/types";
 
 /**
@@ -49,10 +50,19 @@ type NotifCtx = {
 
 const Ctx = createContext<NotifCtx | null>(null);
 const TOAST_TTL_MS = 8000;
-/** Sale toasts are deliberately brief: slide in, hold ~2.5s, slide out. */
-const SALE_TTL_MS = 2500;
+/**
+ * Sales hold ~6s: long enough to actually watch the celebration card
+ * (amount, sheen, chime) before the stack reflows — 2.5s read as a
+ * flicker and the moment was gone before it registered.
+ */
+const SALE_TTL_MS = 6000;
 const TOAST_MAX = 4;
 const RESYNC_WINDOW_HOURS = 6;
+/** Safety-net poll cadence. Realtime is the primary pipe; this runs EVEN
+ *  when the socket reports SUBSCRIBED, so a silently stalled stream
+ *  (publication drift, proxy, network) still delivers every event within
+ *  one interval. Dedup by id makes double delivery harmless. */
+const SAFETY_NET_MS = 20_000;
 
 /** Where a notification links — derived from related_entity/id written
  *  by the server at event time. Always an admin route. */
@@ -99,6 +109,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       if (seenIds.current.has(row.id)) return;
       seenIds.current.add(row.id);
       setToasts((t) => [row, ...t].slice(0, TOAST_MAX));
+      // Sound rides the same instant the toast mounts — the cha-ching on
+      // a verified sale, a thud on a failure; everything else stays mute
+      // so the chime keeps its meaning.
+      const cue = cueForKind(row.kind);
+      if (cue) playCue(cue);
       const id = row.id;
       // Sales are a light "heads up" — slide in, breathe, slide out.
       // Operational toasts (failures etc.) stay longer.
@@ -151,6 +166,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const client = createBrowserClient(url, anon);
     loadCenter();
 
+    // Browsers refuse to emit audio until the user has interacted with
+    // the page — persistent listeners survive StrictMode remounts and
+    // re-unlock if the context ever suspends again.
+    const detachUnlock = attachAudioUnlock();
+
     const resync = () => {
       const since = new Date(Date.now() - RESYNC_WINDOW_HOURS * 3600_000).toISOString();
       void fetch(`/api/admin/notifications?since=${encodeURIComponent(since)}`, {
@@ -181,13 +201,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         if (subscribed && active) resync();
       });
 
-    const fallback = setInterval(() => {
-      if (active && !subscribed) resync();
-    }, 25_000);
+    const safetyNet = setInterval(() => {
+      if (active) resync();
+    }, SAFETY_NET_MS);
 
     return () => {
       active = false;
-      clearInterval(fallback);
+      clearInterval(safetyNet);
+      detachUnlock();
       void client.removeChannel(channel);
     };
   }, [pushToast, loadCenter]);

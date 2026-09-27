@@ -3,6 +3,7 @@ import { requireAdmin, adminAuthConfigured } from "@/lib/admin/auth";
 import { AdminShell } from "@/components/admin/shell";
 import { GlobalSearch } from "@/components/admin/global-search";
 import { NotificationCenter } from "@/components/admin/notification-center";
+import { SoundToggle } from "@/components/admin/sound-toggle";
 import { ToastStack } from "@/components/admin/toast-stack";
 import { NotificationProvider } from "@/components/admin/notifications";
 
@@ -41,6 +42,7 @@ function Topbar() {
         <GlobalSearch />
       </div>
       <NotificationCenter />
+      <SoundToggle />
     </div>
   );
 }
