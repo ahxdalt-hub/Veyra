@@ -104,12 +104,24 @@ export function ToastStack() {
               style={{
                 // Colour indication per event: champagne for paid, mint
                 // for free claims, and status-tinted for everything else
-                // (blue ordered, red failed, amber warnings).
-                backgroundColor: isSale
-                  ? isFree
-                    ? "var(--cc-success-dim)"
-                    : "var(--cc-accent-dim)"
-                  : tone.tint,
+                // (blue ordered, red failed, amber warnings). The tint is
+                // painted OVER an opaque --cc-surface base: the dim vars
+                // are low-alpha rgba, and without the base the toast
+                // reads as glass with page content bleeding through.
+                backgroundColor: "var(--cc-surface)",
+                backgroundImage: `linear-gradient(0deg, ${
+                  isSale
+                    ? isFree
+                      ? "var(--cc-success-dim)"
+                      : "var(--cc-accent-dim)"
+                    : tone.tint
+                }, ${
+                  isSale
+                    ? isFree
+                      ? "var(--cc-success-dim)"
+                      : "var(--cc-accent-dim)"
+                    : tone.tint
+                })`,
                 borderColor: isSale
                   ? isFree
                     ? "var(--cc-success)"
