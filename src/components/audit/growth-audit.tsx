@@ -7,7 +7,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type FormEvent,
 } from "react";
 import { PHASE_ORDER, phaseMeta } from "@/lib/products";
 import {
@@ -23,7 +22,6 @@ import { FOUNDING_PRICE, REGULAR_PRICE } from "@/lib/pricing";
 import { formatPrice } from "@/lib/site";
 import { useUiSounds } from "@/components/audit/use-sounds";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   CheckIcon,
   SoundOffIcon,
@@ -34,12 +32,15 @@ import {
 /**
  * GrowthAudit — the interactive score-your-business app.
  *
- * Four stages: intro → quiz (18 questions, one per screen) → score gate
- * (overall score free; full report behind email) → results. Answering
- * plays an ascending pentatonic step (src/lib/sound.ts), so a completed
- * quiz audibly walks a scale — the same rising-pitch feedback games use
- * for progress. Owners of the free product (claimed via /api/claim) skip
- * the gate entirely via the `unlocked` prop.
+ * Three stages: intro → quiz (18 questions, one per screen) → results.
+ * There is no email gate: the audit is a free *product*, and products are
+ * acquired through accounts — the /audit page itself renders only for
+ * signed-in owners with an active entitlement (see app/(site)/audit).
+ * A "gate" fallback stage exists purely defensively, pointing anyone who
+ * somehow reaches the flow without an entitlement to the claim page.
+ * Answering plays an ascending pentatonic step (src/lib/sound.ts), so a
+ * completed quiz audibly walks a scale — the same rising-pitch feedback
+ * games use for progress.
  *
  * Motion is CSS-only (animate-slide-in / animate-rise / transitions);
  * the global reduced-motion rule collapses everything to instant.
@@ -52,10 +53,6 @@ type Props = {
   unlocked?: boolean;
   /** The owner's licence reference, for the quiet "active" banner. */
   licenceReference?: string | null;
-  /** Signed in but hasn't claimed yet — the gate offers the better deal. */
-  signedIn?: boolean;
-  /** The signed-in account email, prefilled at the gate. */
-  accountEmail?: string | null;
 };
 
 const LETTERS = ["A", "B", "C", "D"] as const;
@@ -100,8 +97,6 @@ function useCountUp(target: number, active: boolean, reduced: boolean) {
 export function GrowthAudit({
   unlocked = false,
   licenceReference = null,
-  signedIn = false,
-  accountEmail = null,
 }: Props) {
   const { enabled: sfxOn, toggle: toggleSfx, hover, select, back, play } =
     useUiSounds();
@@ -113,11 +108,6 @@ export function GrowthAudit({
     () => Array<number | null>(AUDIT_TOTAL).fill(null)
   );
   const [result, setResult] = useState<AuditResult | null>(null);
-  const [email, setEmail] = useState(accountEmail ?? "");
-  const [emailStatus, setEmailStatus] = useState<
-    "idle" | "loading" | "error"
-  >("idle");
-  const [emailError, setEmailError] = useState<string | undefined>();
   const [barsShown, setBarsShown] = useState(false);
 
   const cardRef = useRef<HTMLDivElement>(null);
@@ -221,29 +211,6 @@ export function GrowthAudit({
     return () => cancelAnimationFrame(r);
   }, [stage]);
 
-  async function onGateSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (emailStatus === "loading") return;
-    setEmailStatus("loading");
-    setEmailError(undefined);
-    try {
-      const res = await fetch("/api/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, source: "growth-audit" }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string;
-      };
-      if (!res.ok) throw new Error(data.error ?? "Please try again.");
-      play("unlock");
-      setStage("results");
-    } catch (err) {
-      setEmailError(err instanceof Error ? err.message : "Please try again.");
-      setEmailStatus("error");
-    }
-  }
-
   function start() {
     play("unlock");
     setStage("quiz");
@@ -255,7 +222,6 @@ export function GrowthAudit({
     setIndex(0);
     setDir("fwd");
     setBarsShown(false);
-    setEmailStatus("idle");
     setStage("intro");
   }
 
@@ -282,20 +248,21 @@ export function GrowthAudit({
       {/* ------------------------------------------------------------ */}
       {stage === "intro" ? (
         <div className="mx-auto max-w-xl text-center">
-          <p className="text-eyebrow">Free · No signup to start</p>
+          <p className="text-eyebrow">Free · Active in your account</p>
           <h2 className="text-display-1 mt-4">
             How does your client growth actually run?
           </h2>
           <p className="mt-5 text-lead">
             18 questions, about three minutes, scored across the six phases of
-            client growth. You see your score before you give us anything.
+            client growth. Your full report is yours to keep — it lives in
+            your library with its own licence.
           </p>
 
           <dl className="mx-auto mt-8 grid max-w-md gap-px overflow-hidden rounded-md border border-line bg-line text-left sm:grid-cols-3">
             {[
               { t: "18 questions", d: "~3 minutes" },
               { t: "Six phases", d: "Build → Grow" },
-              { t: "Your score first", d: "Email only unlocks the report" },
+              { t: "Yours to keep", d: "Report + licence in your library" },
             ].map((row) => (
               <div key={row.t} className="bg-paper px-4 py-3.5">
                 <dt className="text-sm font-medium text-ink">{row.t}</dt>
@@ -444,7 +411,8 @@ export function GrowthAudit({
       ) : null}
 
       {/* ------------------------------------------------------------ */}
-      {/* GATE — score free, full report behind the email               */}
+      {/* GATE (defensive fallback) — an entitlement always skips this;  */}
+      {/* if one is ever missing, the fix is the claim, not an email.    */}
       {/* ------------------------------------------------------------ */}
       {stage === "gate" && result ? (
         <div className="mx-auto max-w-xl">
@@ -461,68 +429,24 @@ export function GrowthAudit({
             . {PHASE_FIX[result.gaps[0].phase].fix}
           </div>
 
-          <div className="mt-8">
+          <div className="mt-8 text-center">
             <h3 className="text-display-2 text-[1.25rem]">
-              Your full report
+              Keep the full report
             </h3>
-            <ul className="mt-4 space-y-2.5">
-              {[
-                "Per-phase scores across all six phases",
-                "Your two strongest phases — and why they hold",
-                "A fix-first priority list mapped to the exact modules",
-                "The one change to make this week",
-              ].map((line) => (
-                <li key={line} className="flex items-start gap-3 text-sm text-ink-2">
-                  <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-                  {line}
-                </li>
-              ))}
-            </ul>
-
-            <form onSubmit={onGateSubmit} className="mt-6 space-y-4">
-              <Input
-                type="email"
-                name="email"
-                autoComplete="email"
-                required
-                label="Email address"
-                placeholder="you@yourstudio.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                error={emailError}
-                disabled={emailStatus === "loading"}
-              />
-              <Button
-                type="submit"
-                variant="accent"
-                size="lg"
-                className="w-full"
-                disabled={emailStatus === "loading"}
-                onMouseEnter={hover}
-              >
-                {emailStatus === "loading"
-                  ? "Opening your report…"
-                  : "Send me my full report"}
-              </Button>
-            </form>
-            <p className="mt-3 text-center text-xs text-ink-4">
-              One email with your report link. No spam, no drip campaign,
-              unsubscribe anytime.
+            <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-ink-3">
+              The audit is a free product — claiming it into your account
+              gives you the phase-by-phase report, the fix-first priority
+              list, and a licence reference in your library. One claim per
+              account, no card, ever.
             </p>
-
-            {signedIn ? (
-              <p className="mt-5 border-t border-line pt-5 text-center text-xs leading-relaxed text-ink-3">
-                Already have a Veyra account?{" "}
-                <Link
-                  href="/products/growth-audit"
-                  className="font-medium text-accent underline-offset-2 hover:underline"
-                >
-                  Claim it free
-                </Link>{" "}
-                — it becomes a product in your library with its own licence,
-                and this page stops asking for email.
-              </p>
-            ) : null}
+            <div className="mt-6">
+              <Button href="/products/growth-audit" variant="accent" size="lg" arrow onMouseEnter={hover}>
+                Claim your free copy
+              </Button>
+            </div>
+            <p className="mt-5 text-xs text-ink-4">
+              Takes seconds — you&rsquo;ll be brought straight back here.
+            </p>
           </div>
         </div>
       ) : null}
@@ -735,10 +659,10 @@ function Results({
               See the Client Growth System
             </Button>
             <Link
-              href="/products/growth-audit"
+              href="/account/library/growth-audit"
               className="text-xs text-paper/70 underline-offset-4 hover:text-paper hover:underline"
             >
-              Keep the audit free in your library →
+              View it in your library — licence included →
             </Link>
           </div>
         </div>

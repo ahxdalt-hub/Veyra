@@ -49,7 +49,7 @@ export const footerNav = {
   support: [
     { label: "FAQ", href: "/#faq" },
     { label: "Resources", href: "/resources" },
-    { label: "Free Growth Audit", href: "/audit" },
+    { label: "Growth Audit — free", href: "/products/growth-audit" },
   ] as NavItem[],
   legal: [
     { label: "Privacy", href: "/privacy" },

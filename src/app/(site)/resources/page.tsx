@@ -40,7 +40,7 @@ export default function ResourcesPage() {
               <ul className="mt-6 space-y-2.5 text-sm text-ink-2">
                 {[
                   "Scored instantly, in your browser",
-                  "Your results before your email",
+                  "Free to claim — yours to keep in your library",
                   "Maps every gap to the module that fixes it",
                 ].map((t) => (
                   <li key={t} className="flex items-start gap-3">
@@ -57,8 +57,8 @@ export default function ResourcesPage() {
                 </h3>
                 <p className="mt-2 text-sm text-ink-3">
                   18 questions, six phases, one honest number. It&rsquo;s also
-                  a real product — claim it free into your library and keep
-                  the full report un-gated.
+                  a real product — claim it free into your account and keep
+                  the full report, licence included.
                 </p>
                 <div className="mt-6">
                   <Button
@@ -66,13 +66,13 @@ export default function ResourcesPage() {
                     size="lg"
                     className="w-full"
                     arrow
-                    href="/audit"
+                    href="/products/growth-audit"
                   >
-                    Start the audit — 3 minutes
+                    Claim the audit — 3 minutes
                   </Button>
                 </div>
                 <p className="mt-4 text-center text-xs text-ink-4">
-                  Free. No account, no card, no drip campaign.
+                  Free. Needs a Veyra account — no card, no drip campaign.
                 </p>
               </div>
             </Reveal>

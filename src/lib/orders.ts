@@ -198,6 +198,42 @@ export async function getOrderByRazorpayOrderId(
   return rows[0] ?? null;
 }
 
+/** The account's free-claim order for a slug, if one exists. Backs the
+ *  one-claim-per-account rule (0019 unique index): when an insert loses
+ *  that race, the claim route re-reads the winner here and heals
+ *  fulfillment on it instead of erroring. */
+export async function getFreeClaimOrder(
+  userId: string,
+  productSlug: string
+): Promise<Order | null> {
+  if (!supabaseConfigured()) {
+    for (const row of devStore.values()) {
+      if (
+        row.user_id === userId &&
+        row.product_slug === productSlug &&
+        row.provider === "free-claim"
+      )
+        return row;
+    }
+    return null;
+  }
+
+  const url =
+    `${supabaseUrl()}?user_id=eq.${encodeURIComponent(userId)}` +
+    `&product_slug=eq.${encodeURIComponent(productSlug)}` +
+    `&provider=eq.free-claim&select=*&limit=1`;
+  const res = await fetch(url, {
+    headers: supabaseHeaders(),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Order fetch failed (${res.status}): ${detail}`);
+  }
+  const rows = (await res.json()) as Order[];
+  return rows[0] ?? null;
+}
+
 /**
  * Transition an order's status. `expectedCurrent` (when provided) makes the
  * update conditional — e.g. cancellation only applies while still pending,

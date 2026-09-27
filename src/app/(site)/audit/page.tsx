@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { Reveal } from "@/components/motion/reveal";
 import { GrowthAudit } from "@/components/audit/growth-audit";
@@ -8,79 +9,98 @@ import { supabaseAuthConfigured } from "@/lib/supabase/config";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Free Growth Audit",
+  title: "Growth Audit",
   description:
-    "An 18-question audit of how your client growth actually runs — scored across six phases, free, with your results before you give us anything.",
-  alternates: { canonical: "/audit" },
-  openGraph: { title: "Free Growth Audit — Veyra", url: "/audit" },
+    "An 18-question audit of how your client growth actually runs — scored across six phases. Free to claim with a Veyra account; yours to keep in your library.",
+  alternates: { canonical: "/products/growth-audit" },
+  openGraph: { title: "Growth Audit — Veyra", url: "/audit" },
+  // Members' area — anonymous visitors are redirected to the claim page,
+  // so there's nothing here for search engines to index.
+  robots: { index: false, follow: false },
 };
+
+/** The claim entry — every non-owner path lands here so the free product
+ * is only ever acquired through the account claim flow, never tried
+ * anonymously. */
+const CLAIM_PATH = "/products/growth-audit";
 
 /**
  * The Growth Audit — an interactive web app (see growth-audit.tsx) on a
- * quiet editorial page. Ownership is resolved server-side through the
- * caller's session (RLS): anyone who claimed the free product lands on an
- * un-gated experience with their licence shown; everyone else meets the
- * honest gate — score first, email only for the written report.
+ * quiet editorial page. This is a members' area: the audit is a free
+ * product, and like every product it must be claimed into an account
+ * first (POST /api/claim → real order → entitlement). Anonymous visitors
+ * and signed-in non-owners are redirected to the product page, where the
+ * claim (and sign-in, for guests) happens; only an active entitlement
+ * renders the tool.
  */
 export default async function AuditPage() {
-  // Owner state is best-effort: the page must render for anonymous users
-  // exactly as well as for owners, so auth failures simply mean "locked".
-  let unlocked = false;
-  let signedIn = false;
-  let licenceReference: string | null = null;
-  let accountEmail: string | null = null;
-
-  if (supabaseAuthConfigured()) {
-    try {
-      const user = await getSessionUser();
-      if (user) {
-        signedIn = true;
-        accountEmail = user.email ?? null;
-        const supabase = await createSupabaseServerClient();
-        const { data: entitlement } = await supabase
-          .from("entitlements")
-          .select("id")
-          .eq("product_slug", "growth-audit")
-          .eq("status", "active")
-          .limit(1)
-          .maybeSingle();
-        if (entitlement) {
-          unlocked = true;
-          const { data: licence } = await supabase
-            .from("licences")
-            .select("licence_reference")
-            .eq("entitlement_id", entitlement.id)
-            .maybeSingle();
-          licenceReference = licence?.licence_reference ?? null;
-        }
-      }
-    } catch {
-      // Session/DB unavailable — render the locked experience.
-    }
+  // In development without Supabase configured there are no accounts to
+  // verify against — render the tool unlocked, like the claim routes
+  // treat the dev store as their source of truth.
+  if (!supabaseAuthConfigured()) {
+    return <AuditShell unlocked licenceReference={null} />;
   }
 
+  let user;
+  try {
+    user = await getSessionUser();
+  } catch {
+    user = null;
+  }
+  if (!user) redirect(CLAIM_PATH);
+
+  let entitlementId: string | null = null;
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: entitlement } = await supabase
+      .from("entitlements")
+      .select("id")
+      .eq("product_slug", "growth-audit")
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle(); // RLS scopes this to the caller
+    entitlementId = entitlement?.id ?? null;
+  } catch {
+    entitlementId = null;
+  }
+  // Signed in but hasn't claimed — send them to the product page, where
+  // ClaimFreeButton runs the one-claim-per-account flow.
+  if (!entitlementId) redirect(CLAIM_PATH);
+
+  const supabase = await createSupabaseServerClient();
+  const { data: licence } = await supabase
+    .from("licences")
+    .select("licence_reference")
+    .eq("entitlement_id", entitlementId)
+    .maybeSingle();
+
+  return <AuditShell unlocked licenceReference={licence?.licence_reference ?? null} />;
+}
+
+function AuditShell({
+  unlocked,
+  licenceReference,
+}: {
+  unlocked: boolean;
+  licenceReference: string | null;
+}) {
   return (
     <>
       <PageHeader
         breadcrumb={[
           { label: "Home", href: "/" },
-          { label: "Resources", href: "/resources" },
+          { label: "Products", href: "/shop" },
           { label: "Growth Audit" },
         ]}
-        eyebrow="Free tool"
+        eyebrow="Free tool · active in your account"
         title="Score your client-growth machine in three minutes."
-        lead="Eighteen questions across the six phases of client growth — Build, Acquire, Sell, Deliver, Retain, Grow. You see your score before we ask for anything."
+        lead="Eighteen questions across the six phases of client growth — Build, Acquire, Sell, Deliver, Retain, Grow. Claimed free into your account, kept in your library with its own licence."
       />
 
       <section className="bg-paper">
         <div className="container-page py-14 lg:py-20">
           <div className="mx-auto max-w-2xl">
-            <GrowthAudit
-              unlocked={unlocked}
-              signedIn={signedIn}
-              licenceReference={licenceReference}
-              accountEmail={accountEmail}
-            />
+            <GrowthAudit unlocked={unlocked} licenceReference={licenceReference} />
           </div>
 
           {/* Quiet trust strip */}
@@ -89,7 +109,7 @@ export default async function AuditPage() {
               {
                 Icon: ShieldIcon,
                 title: "Private by default",
-                body: "Your answers never leave the browser. Only your email — if you ask for the report — touches our server.",
+                body: "Your answers never leave the browser. The audit runs on your account — the same licence record any purchase gets, nothing else.",
               },
               {
                 Icon: ClockIcon,

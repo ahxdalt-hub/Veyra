@@ -26,6 +26,12 @@
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90cXVjcnFjZWZkeWNocGxiYnRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMjA3MDksImV4cCI6MjEwNDY5NjcwOX0.k4lAS0BTHEqpi6GgVEymZK0-XCjLxYIsStBLxeFIs9g",
     "SUPABASE_DELIVERY_BUCKET": "product-downloads",
     "RAZORPAY_MODE": "test",
+    // Sender for transactional email (checklist PDF, purchase receipts).
+    // Currently the Resend SANDBOX sender — Resend only delivers it to the
+    // account owner's inbox until a domain is verified at
+    // resend.com/domains. Once veyra.co is verified, switch to
+    // "Veyra <hello@veyra.co>" here and in .env.local.
+    "VEYRA_EMAIL_FROM": "Veyra <onboarding@resend.dev>",
     "VEYRA_LICENCE_PUBLIC_KEY_JWK": "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"f4HKyrMbMIxqXVwYwKnpEt39hbLVIS2sMvP7g8WIdzg\",\"y\":\"IWqaev8f4P_3z_f1qduNDlCIeS-In0en3RNvgdFAgk0\"}"
   }
 }

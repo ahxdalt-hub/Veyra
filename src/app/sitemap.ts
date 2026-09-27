@@ -16,7 +16,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/shop", priority: 0.9, changeFrequency: "weekly" as const },
     { path: "/about", priority: 0.5, changeFrequency: "monthly" as const },
     { path: "/resources", priority: 0.7, changeFrequency: "monthly" as const },
-    { path: "/audit", priority: 0.8, changeFrequency: "monthly" as const },
+    // /audit is intentionally absent: it's a members' area now — the tool
+    // renders only for accounts that claimed the free product. The claim
+    // entry (/products/growth-audit) is in the sitemap via the catalog.
     { path: "/contact", priority: 0.4, changeFrequency: "yearly" as const },
     { path: "/privacy", priority: 0.2, changeFrequency: "yearly" as const },
     { path: "/terms", priority: 0.2, changeFrequency: "yearly" as const },

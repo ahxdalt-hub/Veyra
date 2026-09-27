@@ -118,10 +118,10 @@ export function ProductCard({ product }: { product: Product }) {
                 <Button
                   variant="accent"
                   size="sm"
-                  href="/audit"
+                  href={`/products/${product.slug}`}
                   className="relative z-10"
                 >
-                  Try it now
+                  Claim free
                 </Button>
               </>
             ) : (

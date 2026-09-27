@@ -17,7 +17,7 @@ const auditPoints = [
   "An overall score and grade — leaky, patchy, structured, or systematized",
   "A per-phase breakdown showing exactly where leads, deals, or clients slip",
   "A fix-first priority list — the one change to make this week",
-  "No signup to start; email only unlocks the written report",
+  "Free to claim with an account — kept in your library with its own licence",
 ];
 
 export function LeadMagnet() {
@@ -62,8 +62,7 @@ export function LeadMagnet() {
             <p className="mt-5 max-w-lg text-lead">
               The Growth Audit asks 18 questions and scores your business
               across six phases — build, acquire, sell, deliver, retain, grow.
-              You see your score in about three minutes, before you give us
-              anything.
+              About three minutes, free to claim with your account.
             </p>
             <ul className="mt-8 space-y-3">
               {auditPoints.map((point) => (
@@ -97,9 +96,9 @@ export function LeadMagnet() {
                     size="lg"
                     className="w-full"
                     arrow
-                    href="/audit"
+                    href="/products/growth-audit"
                   >
-                    Start the free audit
+                    Claim the free audit
                   </Button>
                   <div className="my-6 flex items-center gap-4" aria-hidden="true">
                     <span className="h-px flex-1 bg-line" />
