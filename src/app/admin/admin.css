@@ -197,15 +197,22 @@ html.cc-html {
   color: var(--cc-text-3);
   font-weight: 500;
   text-align: left;
-  padding: 0 1rem 0.625rem;
+  vertical-align: middle;
+  padding: 0.625rem 1rem;
   border-bottom: 1px solid var(--cc-line-strong);
   white-space: nowrap;
 }
-/* Opt-in vertical centring of header text: the base th style puts all its
-   spacing on the bottom, so the label rides the top of the row. */
-.cc-table.cc-head-middle thead th {
-  vertical-align: middle;
-  padding-top: 0.625rem;
+/* Unlayered CSS beats Tailwind v4's layered utilities, so a `text-right`
+   class on a <th> loses to the base left-align above — the header drifted
+   left while its numeric cells stayed right. Re-assert the utilities the
+   tables actually use so heading and data always sit in one column. */
+.cc-table thead th.text-right,
+.cc-table tbody td.text-right {
+  text-align: right;
+}
+.cc-table thead th.text-center,
+.cc-table tbody td.text-center {
+  text-align: center;
 }
 .cc-table tbody td {
   padding: 0.75rem 1rem;

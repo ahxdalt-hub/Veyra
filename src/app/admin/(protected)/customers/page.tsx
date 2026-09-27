@@ -78,7 +78,7 @@ async function CustomerList({ search }: { search?: string }) {
   return (
     <Panel title={`Customers (${rows.length})`} padded={false}>
       <ScrollFadeX>
-        <table className="cc-table cc-head-middle min-w-full">
+        <table className="cc-table min-w-full">
           <thead>
             <tr>
               <th>Customer</th>
