@@ -114,7 +114,15 @@ export async function getMetrics(
     console.error("[cc] admin_metrics failed:", error.message);
     return null;
   }
-  return data as unknown as AdminMetrics;
+  const metrics = data as unknown as AdminMetrics;
+  // Free claims ($0 'free-claim' orders) are grants, not sales — pull
+  // them back out of the order counts so Revenue/Orders/AOV read paid
+  // only. Revenue itself is untouched (free claims are $0 by
+  // construction); the claim side is reported by getFreeClaims().
+  const free = await listFreeClaimOrders(from, to);
+  metrics.orders -= free.length;
+  metrics.paid_orders -= free.filter((r) => r.status === "paid").length;
+  return metrics;
 }
 
 export async function getTotals(): Promise<AdminTotals | null> {
@@ -173,7 +181,91 @@ export async function getProductBreakdown(
     p_to: to.toISOString(),
   });
   if (error) return [];
-  return (data ?? []) as unknown as ProductBreakdown[];
+  // Same rule as getMetrics: free claims are not sales. Decrement the
+  // claimed product's units/order counts (the Growth Audit row is
+  // usually free-claims only, so it drops out of "Products sold" and
+  // "Revenue by product" entirely); the claim side lives in
+  // getFreeClaims().
+  const free = await listFreeClaimOrders(from, to);
+  const freePaid = free.filter((r) => r.status === "paid");
+  if (freePaid.length === 0) return (data ?? []) as unknown as ProductBreakdown[];
+  const unitsBySlug = new Map<string, number>();
+  const ordersBySlug = new Map<string, number>();
+  for (const r of freePaid) {
+    unitsBySlug.set(r.product_slug, (unitsBySlug.get(r.product_slug) ?? 0) + r.quantity);
+    ordersBySlug.set(r.product_slug, (ordersBySlug.get(r.product_slug) ?? 0) + 1);
+  }
+  const rows = (data ?? []) as unknown as ProductBreakdown[];
+  return rows
+    .map((row) => {
+      const units = unitsBySlug.get(row.product_slug);
+      if (!units) return row;
+      return {
+        ...row,
+        units: row.units - units,
+        paid_orders: row.paid_orders - (ordersBySlug.get(row.product_slug) ?? 0),
+      };
+    })
+    .filter((row) => row.units > 0 || row.revenue > 0);
+}
+
+/* ------------------------------------------------------------------ */
+/* Free claims — the $0 Growth Audit grants                            */
+/* ------------------------------------------------------------------ */
+
+export type FreeClaimStats = {
+  /** Paid free-claim orders in the window. */
+  claims: number;
+  /** Distinct accounts that claimed (user_id, falling back to email). */
+  accounts: number;
+  /** Free units handed out (quantity summed). */
+  units: number;
+  product: string | null;
+  latest_email: string | null;
+  latest_at: string | null;
+};
+
+/** Bounded read of the window's free-claim orders. Claims are a trickle
+ *  (one per account, enforced by 0019's unique index), so 1000 rows
+ *  covers any real window. */
+async function listFreeClaimOrders(from: Date, to: Date): Promise<OrderRow[]> {
+  const { data, error } = await db()
+    .from("orders")
+    .select(
+      "id,email,user_id,product_slug,quantity,amount,status,provider,created_at"
+    )
+    .eq("provider", "free-claim")
+    .gte("created_at", from.toISOString())
+    .lt("created_at", to.toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1000);
+  if (error) {
+    console.error("[cc] free-claim orders failed:", error.message);
+    return [];
+  }
+  return (data ?? []) as unknown as OrderRow[];
+}
+
+/** How many accounts claimed the free product for free, in the window.
+ *  The overview's separate "Free claims" card reads this — the sales
+ *  metrics deliberately do not contain these orders. */
+export async function getFreeClaims(
+  range: RangeKey,
+  custom?: { from: Date; to: Date }
+): Promise<FreeClaimStats | null> {
+  if (!commandCenterConfigured()) return null;
+  const { from, to } = rangeBounds(range, custom);
+  const rows = await listFreeClaimOrders(from, to);
+  const paid = rows.filter((r) => r.status === "paid");
+  const accounts = new Set(paid.map((r) => r.user_id ?? r.email.toLowerCase()));
+  return {
+    claims: paid.length,
+    accounts: accounts.size,
+    units: paid.reduce((s, r) => s + r.quantity, 0),
+    product: paid[0] ? (getProduct(paid[0].product_slug)?.name ?? paid[0].product_slug) : null,
+    latest_email: paid[0]?.email ?? null,
+    latest_at: paid[0]?.created_at ?? null,
+  };
 }
 
 export async function getOrderStatusCounts(

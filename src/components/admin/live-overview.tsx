@@ -14,7 +14,12 @@ import type {
   AdminNotificationRow,
   OrderRow,
 } from "@/lib/supabase/types";
-import type { RangeKey, RevenuePoint, ProductBreakdown } from "@/lib/admin/data";
+import type {
+  RangeKey,
+  RevenuePoint,
+  ProductBreakdown,
+  FreeClaimStats,
+} from "@/lib/admin/data";
 
 /**
  * LiveOverview — the Overview page's data, kept fresh in place.
@@ -37,6 +42,7 @@ export type LiveOverviewData = {
   breakdown: ProductBreakdown[];
   orders: { rows: OrderRow[]; total: number } | null;
   notifications: AdminNotificationRow[];
+  freeClaims: FreeClaimStats | null;
 };
 
 const POLL_MS = 10_000;
@@ -87,7 +93,7 @@ export function LiveOverview({ initial }: { initial: LiveOverviewData }) {
     };
   }, [poll, range]);
 
-  const { metrics, totals, series, breakdown, orders, notifications, configured } = data;
+  const { metrics, totals, series, breakdown, orders, notifications, freeClaims, configured } = data;
 
   const aov =
     metrics && metrics.paid_orders > 0
@@ -179,6 +185,18 @@ export function LiveOverview({ initial }: { initial: LiveOverviewData }) {
             context={
               breakdown.length > 0
                 ? `${breakdown.length} product${breakdown.length === 1 ? "" : "s"}`
+                : "in period"
+            }
+          />
+          <MetricFigure
+            label="Free claims"
+            value={freeClaims ? freeClaims.accounts : null}
+            kind="number"
+            context={
+              freeClaims && freeClaims.claims > 0
+                ? `${freeClaims.claims} claim${freeClaims.claims === 1 ? "" : "s"}${
+                    freeClaims.product ? ` · ${freeClaims.product}` : ""
+                  }`
                 : "in period"
             }
           />

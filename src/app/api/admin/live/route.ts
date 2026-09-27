@@ -5,6 +5,7 @@ import {
   getMetrics,
   getRevenueSeries,
   getProductBreakdown,
+  getFreeClaims,
   getTotals,
   listNotifications,
   listOrders,
@@ -37,7 +38,7 @@ export async function GET(request: Request) {
     ? (sp.get("range") as RangeKey)
     : "30d";
 
-  const [metrics, totals, series, breakdown, orders, notifications] =
+  const [metrics, totals, series, breakdown, orders, notifications, freeClaims] =
     await Promise.all([
       getMetrics(range),
       getTotals(),
@@ -45,6 +46,7 @@ export async function GET(request: Request) {
       getProductBreakdown(range),
       listOrders({ limit: 8 }),
       listNotifications({ limit: 7 }),
+      getFreeClaims(range),
     ]);
 
   return NextResponse.json(
@@ -57,6 +59,7 @@ export async function GET(request: Request) {
       breakdown,
       orders,
       notifications,
+      freeClaims,
       updatedAt: new Date().toISOString(),
     },
     {

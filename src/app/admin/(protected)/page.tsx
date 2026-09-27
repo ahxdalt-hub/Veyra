@@ -6,6 +6,7 @@ import {
   getRevenueSeries,
   getTotals,
   getProductBreakdown,
+  getFreeClaims,
   listOrders,
   listNotifications,
   commandCenterConfigured,
@@ -40,7 +41,7 @@ export default async function OverviewPage({
     : "30d";
 
   const configured = commandCenterConfigured();
-  const [metrics, totals, series, breakdown, orders, notifications] =
+  const [metrics, totals, series, breakdown, orders, notifications, freeClaims] =
     await Promise.all([
       getMetrics(range),
       getTotals(),
@@ -48,6 +49,7 @@ export default async function OverviewPage({
       getProductBreakdown(range),
       listOrders({ limit: 8 }),
       listNotifications({ limit: 7 }),
+      getFreeClaims(range),
     ]);
 
   const initial: LiveOverviewData = {
@@ -59,6 +61,7 @@ export default async function OverviewPage({
     breakdown,
     orders,
     notifications: notifications ?? [],
+    freeClaims,
   };
 
   return <LiveOverview initial={initial} />;
