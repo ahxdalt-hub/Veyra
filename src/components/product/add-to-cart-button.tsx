@@ -9,13 +9,17 @@ import { CheckIcon } from "@/components/ui/icons";
  * AddToCartButton — with a brief "added" confirmation state.
  * Opens the cart drawer on add (via context) so the count visibly
  * updates — the micro-interaction confirms the action.
+ * Defaults to full width (cards, sticky bars); callers in horizontal
+ * button rows pass a narrower className.
  */
 export function AddToCartButton({
   slug,
   name,
+  className = "w-full",
 }: {
   slug: string;
   name: string;
+  className?: string;
 }) {
   const { add, detailedLines } = useCart();
   const [justAdded, setJustAdded] = useState(false);
@@ -31,7 +35,7 @@ export function AddToCartButton({
     <Button
       variant={inCart ? "outline" : "accent"}
       size="lg"
-      className="w-full"
+      className={className}
       onClick={handleAdd}
     >
       {inCart ? (

@@ -136,9 +136,15 @@ export function AccountDiscovery({
                     <p className="flex flex-wrap items-center gap-2.5 text-sm font-medium text-ink">
                       {product.name}
                       {available ? (
-                        <span className="tnum text-xs font-normal text-ink-3">
-                          {formatPrice(product.price!)}
-                        </span>
+                        product.free ? (
+                          <span className="text-xs font-normal text-accent-ink">
+                            Free
+                          </span>
+                        ) : (
+                          <span className="tnum text-xs font-normal text-ink-3">
+                            {formatPrice(product.price!)}
+                          </span>
+                        )
                       ) : (
                         <span className="rounded-xs border border-line-strong bg-surface px-2 py-0.5 text-xs font-normal text-ink-3">
                           Coming soon
@@ -309,9 +315,15 @@ function ProductQuickView({
               </p>
               <p className="mt-2 flex flex-wrap items-center gap-2.5">
                 {available ? (
-                  <span className="tnum text-sm font-medium text-ink">
-                    {formatPrice(product.price!)}
-                  </span>
+                  product.free ? (
+                    <span className="text-sm font-medium text-accent-ink">
+                      Free
+                    </span>
+                  ) : (
+                    <span className="tnum text-sm font-medium text-ink">
+                      {formatPrice(product.price!)}
+                    </span>
+                  )
                 ) : (
                   <span className="rounded-xs border border-line-strong bg-surface px-2 py-0.5 text-xs font-normal text-ink-3">
                     Coming soon
@@ -422,7 +434,7 @@ function ProductQuickView({
             {available ? (
               <>
                 <Button href={`/products/${product.slug}`} variant="accent" size="md" arrow>
-                  Get it — {formatPrice(product.price!)}
+                  {product.free ? "Claim free" : `Get it — ${formatPrice(product.price!)}`}
                 </Button>
                 <Link
                   href={`/products/${product.slug}`}

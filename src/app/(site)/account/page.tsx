@@ -9,7 +9,7 @@ import { describePgError } from "@/lib/supabase/errors";
 import { supabaseAuthConfigured } from "@/lib/supabase/config";
 import type { EntitlementRow, LicenceRow, OrderRow, ProfileRow } from "@/lib/supabase/types";
 import { getProduct } from "@/lib/products";
-import { formatPrice } from "@/lib/site";
+import { formatOrderAmount } from "@/lib/site";
 import { AccountShell, AccountCard } from "@/components/account/account-shell";
 import { AccountDiscovery } from "@/components/account/account-discovery";
 import { OrderStatusBadge, formatDate, shortOrderRef } from "@/components/account/account-format";
@@ -304,7 +304,7 @@ export default async function AccountPage() {
                         </p>
                         <div className="mt-2.5 flex items-center justify-between gap-3">
                           <span className="tnum text-sm font-medium text-ink">
-                            {formatPrice(order.amount / 100)}
+                            {formatOrderAmount(order.amount)}
                           </span>
                           <OrderStatusBadge status={order.status} />
                         </div>

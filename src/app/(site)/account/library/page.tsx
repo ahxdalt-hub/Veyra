@@ -80,9 +80,10 @@ export default async function LibraryPage() {
           </span>
           <p className="mt-3 text-sm font-medium text-ink">No products yet</p>
           <p className="mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-ink-3">
-            Products appear here automatically once your payment is confirmed.
-            Purchased with a different email before accounts existed? Sign in
-            with that email and your purchase will be waiting.
+            Products appear here automatically — paid ones once payment is
+            confirmed, free tools the moment you claim them. Purchased with a
+            different email before accounts existed? Sign in with that email
+            and your purchase will be waiting.
           </p>
           <div className="mt-4">
             <Button href="/shop" variant="outline" size="sm" arrow>
@@ -119,7 +120,7 @@ export default async function LibraryPage() {
                         {product?.shortDescription ?? ""}
                       </p>
                       <p className="mt-2.5 spec text-ink-4">
-                        Purchased
+                        {product?.free ? "Claimed" : "Purchased"}
                         {` · ${seats} ${seats === 1 ? "seat" : "seats"}`}
                         {` · Licence active`}
                         {product?.version ? ` · Version ${product.version}` : ""}
@@ -137,34 +138,52 @@ export default async function LibraryPage() {
                   {/* The delivery actions — download, licence, quick start,
                       order. Delivery center holds the full detail. */}
                   <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-line pt-5">
-                    <DownloadButton
-                      slug={entitlement.product_slug}
-                      productName={name}
-                      variant="outline"
-                    />
+                    {product?.free ? (
+                      <Button
+                        href={product.slug === "growth-audit" ? "/audit" : "/account/library"}
+                        variant="outline"
+                        size="sm"
+                        arrow
+                      >
+                        Open the app
+                      </Button>
+                    ) : (
+                      <DownloadButton
+                        slug={entitlement.product_slug}
+                        productName={name}
+                        variant="outline"
+                      />
+                    )}
                     <Link
                       href="/account/licences"
                       className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
                     >
                       View Licence
                     </Link>
-                    <Link
-                      href="/account/quick-start"
-                      className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
-                    >
-                      Quick Start
-                    </Link>
+                    {product?.free ? null : (
+                      <Link
+                        href="/account/quick-start"
+                        className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
+                      >
+                        Quick Start
+                      </Link>
+                    )}
                     <Link
                       href={`/account/library/${entitlement.product_slug}`}
                       className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
                     >
-                      Order Details & Delivery Center →
+                      {product?.free
+                        ? "Order Details & Licence →"
+                        : "Order Details & Delivery Center →"}
                     </Link>
                   </div>
                   {licence ? (
                     <p className="mt-3 text-xs text-ink-4">
                       Licence <span className="spec">{licence.licence_reference}</span>{" "}
-                      · one-time purchase · every future revision included
+                      · {product?.free ? "free licence" : "one-time purchase"} ·{" "}
+                      {product?.free
+                        ? "yours to keep"
+                        : "every future revision included"}
                     </p>
                   ) : (
                     <p className="mt-3 text-xs leading-relaxed text-ink-4">

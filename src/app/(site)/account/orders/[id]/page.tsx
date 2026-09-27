@@ -89,8 +89,12 @@ export default async function OrderDetailPage({
             <Row label="Payment">
               <span className={order.status === "paid" ? "font-medium text-ink" : "text-ink-2"}>
                 {order.status === "paid"
-                  ? `Paid — ${formatPrice(order.amount / 100)}`
-                  : formatPrice(order.amount / 100)}
+                  ? order.amount === 0
+                    ? "Claimed — free"
+                    : `Paid — ${formatPrice(order.amount / 100)}`
+                  : order.amount === 0
+                    ? "Free"
+                    : formatPrice(order.amount / 100)}
               </span>
             </Row>
             <Row label="Currency">

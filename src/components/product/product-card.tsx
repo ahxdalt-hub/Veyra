@@ -7,7 +7,7 @@ import { phaseMeta } from "@/lib/products";
 import { FoundingPrice } from "@/components/product/founding-price";
 import { useCart } from "@/components/cart/cart-context";
 import { Button } from "@/components/ui/button";
-import { PlusIcon } from "@/components/ui/icons";
+import { CheckIcon, PlusIcon } from "@/components/ui/icons";
 
 /**
  * ProductCard — editorial list-row card, not a rounded tile.
@@ -16,10 +16,12 @@ import { PlusIcon } from "@/components/ui/icons";
  * visibly not purchasable — label only, no button, no price.
  */
 export function ProductCard({ product }: { product: Product }) {
-  const { add } = useCart();
+  const { add, lines } = useCart();
   const reduced = useReducedMotion();
+  const inCart = lines.some((l) => l.slug === product.slug);
 
   const phases = [...new Set(product.modules.map((m) => m.phase))];
+  const isFree = product.free === true;
   const available = product.status === "available" && product.price !== null;
 
   return (
@@ -36,7 +38,11 @@ export function ProductCard({ product }: { product: Product }) {
       <div className="relative w-full shrink-0 border-b border-line bg-accent-soft/40 p-5 sm:w-52 sm:border-b-0 sm:border-r">
         <div className="flex items-center justify-between">
           <span className="spec text-accent-ink">
-            {available ? phaseMeta[phases[0] ?? "build"].label : "Coming soon"}
+            {!available
+              ? "Coming soon"
+              : isFree
+                ? "Free tool"
+                : phaseMeta[phases[0] ?? "build"].label}
           </span>
           {available ? null : (
             <span
@@ -60,7 +66,9 @@ export function ProductCard({ product }: { product: Product }) {
         </div>
         {available ? (
           <p className="mt-4 text-[0.6875rem] font-medium text-accent-ink/80">
-            {product.modules.length} modules · {phases.length} phases
+            {isFree
+              ? "18 questions · live score"
+              : `${product.modules.length} modules · ${phases.length} phases`}
           </p>
         ) : null}
       </div>
@@ -80,12 +88,18 @@ export function ProductCard({ product }: { product: Product }) {
         </p>
         <p className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-ink-4">
           <span className="spec">
-            {available ? "One-time purchase" : "In development"}
+            {!available
+              ? "In development"
+              : isFree
+                ? "Free tool"
+                : "One-time purchase"}
           </span>
           {available ? (
             <>
               <span className="text-line-strong" aria-hidden="true">·</span>
-              <span>Instant digital delivery</span>
+              <span>
+                {isFree ? "Runs in your browser" : "Instant digital delivery"}
+              </span>
             </>
           ) : null}
         </p>
@@ -93,18 +107,46 @@ export function ProductCard({ product }: { product: Product }) {
         {/* Price + CTA row */}
         <div className="mt-5 flex items-end justify-between gap-4 border-t border-line pt-4">
           {available ? (
-            <>
-              <FoundingPrice price={product.price!} size="sm" note="one-time" />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => add(product.slug)}
-                className="relative z-10"
-              >
-                <PlusIcon className="h-3.5 w-3.5" />
-                Add to cart
-              </Button>
-            </>
+            isFree ? (
+              <>
+                <span className="text-lg font-medium text-ink">
+                  Free
+                  <span className="ml-1.5 text-xs font-normal text-ink-4">
+                    · $0
+                  </span>
+                </span>
+                <Button
+                  variant="accent"
+                  size="sm"
+                  href="/audit"
+                  className="relative z-10"
+                >
+                  Try it now
+                </Button>
+              </>
+            ) : (
+              <>
+                <FoundingPrice price={product.price!} size="sm" note="one-time" />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => add(product.slug)}
+                  className="relative z-10"
+                >
+                  {inCart ? (
+                    <>
+                      <CheckIcon className="h-3.5 w-3.5" />
+                      In cart
+                    </>
+                  ) : (
+                    <>
+                      <PlusIcon className="h-3.5 w-3.5" />
+                      Add to cart
+                    </>
+                  )}
+                </Button>
+              </>
+            )
           ) : (
             <>
               <span className="spec pt-1 text-ink-4">Coming soon</span>

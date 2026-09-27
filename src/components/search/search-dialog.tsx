@@ -127,9 +127,11 @@ function SearchDialog() {
                       </span>
                     </span>
                     <span className="spec shrink-0 text-ink-3 tnum">
-                      {p.status === "available" && p.price !== null
-                        ? formatPrice(p.price)
-                        : "Coming soon"}
+                      {p.free
+                        ? "Free"
+                        : p.status === "available" && p.price !== null
+                          ? formatPrice(p.price)
+                          : "Coming soon"}
                     </span>
                   </button>
                 </li>

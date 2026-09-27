@@ -94,6 +94,8 @@ export default async function LibraryProductPage({
   const licensedSeats = entitlement.seats;
 
   const name = product?.name ?? entitlement.product_slug;
+  const isFree = product?.free === true;
+  const appHref = isFree && product?.slug === "growth-audit" ? "/audit" : null;
 
   return (
     <AccountShell
@@ -140,7 +142,13 @@ export default async function LibraryProductPage({
           </div>
 
           <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-line pt-5">
-            <DownloadButton slug={slug} productName={name} />
+            {appHref ? (
+              <Button href={appHref} arrow>
+                Open the Growth Audit
+              </Button>
+            ) : (
+              <DownloadButton slug={slug} productName={name} />
+            )}
             <Link
               href="/account/licences"
               className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
@@ -153,40 +161,53 @@ export default async function LibraryProductPage({
             >
               Manage Activations
             </Link>
-            <Link
-              href="/account/quick-start"
-              className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
-            >
-              Quick Start Guide
-            </Link>
-            <Link
-              href="/account/quick-start#installation"
-              className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
-            >
-              Installation Guide
-            </Link>
+            {isFree ? null : (
+              <>
+                <Link
+                  href="/account/quick-start"
+                  className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
+                >
+                  Quick Start Guide
+                </Link>
+                <Link
+                  href="/account/quick-start#installation"
+                  className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
+                >
+                  Installation Guide
+                </Link>
+              </>
+            )}
           </div>
           <p className="mt-3 max-w-md text-xs leading-relaxed text-ink-4">
-            Every future revision is included — download the latest version
-            here whenever it ships. Windows, signed in with your Veyra
-            account.
+            {isFree
+              ? "Runs in your browser — no download, no install. Your licence keeps it yours for good."
+              : "Every future revision is included — download the latest version here whenever it ships. Windows, signed in with your Veyra account."}
           </p>
         </AccountCard>
 
         {/* Quick start — the next step after delivery */}
         <AccountCard className="border-accent/25 bg-accent-soft/40">
-          <h2 className="text-eyebrow">Next: Quick Start</h2>
+          <h2 className="text-eyebrow">
+            {isFree ? "Next: run it" : "Next: Quick Start"}
+          </h2>
           <p className="mt-3 max-w-lg text-sm leading-relaxed text-ink-2">
-            Your system is ready. Start by building the foundation, then move
-            through acquisition, sales, delivery, retention, and growth.
+            {isFree
+              ? "Open the audit, answer 18 questions, and get the scored report — the full experience, un-gated, for as long as your licence is yours."
+              : "Your system is ready. Start by building the foundation, then move through acquisition, sales, delivery, retention, and growth."}
           </p>
           <p className="mt-3 spec text-ink-4" aria-hidden="true">
             Build → Acquire → Sell → Deliver → Retain → Grow
           </p>
           <div className="mt-4">
-            <Button href="/account/quick-start" variant="accent" size="sm" arrow>
-              Open Quick Start
-            </Button>
+            {appHref ? (
+              <Button href={appHref} variant="accent" size="sm" arrow>
+                Open the Growth Audit
+              </Button>
+            ) : (
+              <Button href="/account/quick-start" variant="accent" size="sm" arrow>
+                Open Quick Start
+              </Button>
+            )}
           </div>
         </AccountCard>
 
@@ -201,7 +222,8 @@ export default async function LibraryProductPage({
               <>
                 <p className="mt-3 text-sm font-medium text-ink">
                   Active — {licensedSeats}{" "}
-                  {licensedSeats === 1 ? "seat" : "seats"}, one-time purchase
+                  {licensedSeats === 1 ? "seat" : "seats"},{" "}
+                  {isFree ? "free licence" : "one-time purchase"}
                 </p>
                 <p className="mt-1 spec text-ink-4">
                   {licence.licence_reference}
@@ -237,7 +259,7 @@ export default async function LibraryProductPage({
                   {order.quantity > 1 ? ` · ${order.quantity} seats` : ""}
                 </p>
                 <p className="mt-1 text-xs text-ink-3">
-                  Purchased {formatDate(order.created_at)} · #
+                  {isFree ? "Claimed" : "Purchased"} {formatDate(order.created_at)} · #
                   {shortOrderRef(order.id)}
                 </p>
                 <Link

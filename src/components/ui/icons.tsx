@@ -223,6 +223,25 @@ export function SettingsIcon(props: IconProps) {
   );
 }
 
+/** Sound toggle — speaker with waves (on) and speaker with an x (off). */
+export function SoundOnIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M2 6h2.5L8 3v10L4.5 10H2V6Z" />
+      <path d="M10.5 6.2a2.6 2.6 0 0 1 0 3.6M12.4 4.4a5.2 5.2 0 0 1 0 7.2" />
+    </Icon>
+  );
+}
+
+export function SoundOffIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M2 6h2.5L8 3v10L4.5 10H2V6Z" />
+      <path d="m10.8 6.2 3.7 3.6M14.5 6.2l-3.7 3.6" />
+    </Icon>
+  );
+}
+
 /** Spark — a four-point star for "coming soon" / announcement moments. */
 export function SparkIcon(props: IconProps) {
   return (

@@ -106,7 +106,11 @@ export default async function ProductsPage({
                     </td>
                     <td><StatusPill status={p.status === "available" ? "available" : "coming-soon"} /></td>
                     <td className="tnum">
-                      {p.price !== null ? `$${p.price} · founding $${FOUNDING_PRICE}` : "—"}
+                      {p.free
+                        ? "Free · claim"
+                        : p.price !== null
+                          ? `$${p.price} · founding $${FOUNDING_PRICE}`
+                          : "—"}
                     </td>
                     <td className="text-right tnum">{s?.units ?? 0}</td>
                     <td className="text-right font-medium tnum" style={{ color: "var(--cc-text)" }}>

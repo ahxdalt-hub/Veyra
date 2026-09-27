@@ -14,10 +14,10 @@ import { CheckIcon } from "@/components/ui/icons";
  */
 
 const auditPoints = [
-  "Where your leads currently leak out of the funnel",
-  "Which follow-ups are missing and what to send instead",
-  "How your pipeline stages should map to your services",
-  "The onboarding steps most service businesses skip",
+  "An overall score and grade — leaky, patchy, structured, or systematized",
+  "A per-phase breakdown showing exactly where leads, deals, or clients slip",
+  "A fix-first priority list — the one change to make this week",
+  "No signup to start; email only unlocks the written report",
 ];
 
 export function LeadMagnet() {
@@ -55,14 +55,15 @@ export function LeadMagnet() {
       <div className="container-page py-20 sm:py-24 lg:py-28">
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-20">
           <Reveal>
-            <p className="text-eyebrow mb-4">Free resource</p>
+            <p className="text-eyebrow mb-4">Free tool</p>
             <h2 className="text-display-1">
-              The 25-Point Client Acquisition Audit
+              How does your client growth actually run?
             </h2>
             <p className="mt-5 max-w-lg text-lead">
-              A one-page checklist for diagnosing your current setup — where
-              leads leak, which follow-ups are missing, and what to fix first.
-              Takes about 20 minutes to complete honestly.
+              The Growth Audit asks 18 questions and scores your business
+              across six phases — build, acquire, sell, deliver, retain, grow.
+              You see your score in about three minutes, before you give us
+              anything.
             </p>
             <ul className="mt-8 space-y-3">
               {auditPoints.map((point) => (
@@ -91,8 +92,22 @@ export function LeadMagnet() {
                 </div>
               ) : (
                 <>
+                  <Button
+                    variant="accent"
+                    size="lg"
+                    className="w-full"
+                    arrow
+                    href="/audit"
+                  >
+                    Start the free audit
+                  </Button>
+                  <div className="my-6 flex items-center gap-4" aria-hidden="true">
+                    <span className="h-px flex-1 bg-line" />
+                    <span className="spec text-ink-4">or get the PDF checklist</span>
+                    <span className="h-px flex-1 bg-line" />
+                  </div>
                   <h3 className="text-display-2 text-[1.25rem]">
-                    Get the audit
+                    Get the 25-point checklist
                   </h3>
                   <p className="mt-2 text-sm text-ink-3">
                     One email with the PDF. That&rsquo;s the whole arrangement.

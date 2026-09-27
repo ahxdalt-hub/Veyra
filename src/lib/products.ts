@@ -44,6 +44,13 @@ export type Product = {
    *  (founding price, seat tiers, checkout totals) resolves through
    *  src/lib/pricing.ts — never from this field. */
   price: number | null;
+  /** True for free tools that are delivered without payment — claimed via
+   *  /api/claim and NEVER via cart or checkout (resolvePurchasableProduct
+   *  excludes them so the seat-tier pricing machinery is never consulted).
+   *  Free products still walk the real fulfillment chain: $0 order → paid
+   *  → entitlement → licence, and appear in the account library like any
+   *  other purchase. Implies price === 0. */
+  free?: boolean;
   /** Current published version of the deliverable. The account library
    *  and re-delivery flow reference this as the authoritative version —
    *  update it here when a new revision ships. */
@@ -270,6 +277,39 @@ export const products: Product[] = [
     featured: true,
   },
 
+  /* ---------------- Free tools — claimed, not purchased ---------------- */
+
+  {
+    slug: "growth-audit",
+    name: "The Growth Audit",
+    status: "available",
+    free: true,
+    price: 0,
+    version: "1.0",
+    tagline: "Eighteen questions. A score for every phase. A fix-first list.",
+    shortDescription:
+      "A free interactive audit of how your client growth actually runs — scored live across the six phases of the Client Growth System, with a prioritized list of what to fix first.",
+    cardDescription:
+      "Answer 18 honest questions and get a live score across build, acquire, sell, deliver, retain, and grow — plus the one change to make this week.",
+    audience:
+      "For freelancers, consultants, service businesses, and small agencies who want to see exactly where their client pipeline leaks — before they buy anything.",
+    outcome:
+      "A scored map of your client-growth operation — phase by phase — with your strengths, your gaps, and one concrete action worth taking this week.",
+    problem:
+      "You can't fix what you can't see. Most service businesses run growth on instinct and discover the leak only when the pipeline empties. The audit makes the state of your system visible in three minutes.",
+    description:
+      "The Growth Audit is Veyra's free diagnostic tool: 18 multiple-choice questions mapped one-to-one onto the six phases of the Client Growth System. Answer them and the tool scores each phase in your browser, grades your overall operation, and writes a personalized report — your strengths, your two weakest phases, the modules that fix them, and the single change worth making this week. Claiming it links a licence to your account like every Veyra product: it costs nothing, runs in your browser, and the model behind it is the same one the paid systems are built on.",
+    workflow: [],
+    modules: [],
+    specs: [
+      { label: "Format", value: "Interactive web app — runs in your browser" },
+      { label: "Cost", value: "Free — no card, ever" },
+      { label: "Output", value: "A scored six-phase report with a fix-first list" },
+      { label: "Licence", value: "One seat · yours to keep" },
+    ],
+    featured: false,
+  },
+
   /* ---------------- Coming soon — not purchasable ---------------- */
 
   {
@@ -407,16 +447,28 @@ export function getComingSoonProducts(): Product[] {
   return products.filter((p) => p.status === "coming-soon");
 }
 
+/** True when a product is a free tool (claimed via /api/claim, never sold). */
+export function isFreeProduct(product: Product): boolean {
+  return product.free === true;
+}
+
 /**
  * Server-side price resolution — the only sanctioned way to turn a cart
  * line into an amount. Returns null for anything that isn't currently
- * purchasable, so the checkout API can reject it.
+ * purchasable, so the checkout API can reject it. Free tools are excluded
+ * by design: they are claimed through /api/claim and must never enter the
+ * seat-tier pricing path.
  */
 export function resolvePurchasableProduct(
   slug: string
 ): (Product & { price: number }) | undefined {
   const product = getProduct(slug);
-  if (!product || product.status !== "available" || product.price === null) {
+  if (
+    !product ||
+    product.status !== "available" ||
+    product.price === null ||
+    isFreeProduct(product)
+  ) {
     return undefined;
   }
   return product as Product & { price: number };

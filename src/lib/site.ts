@@ -49,6 +49,7 @@ export const footerNav = {
   support: [
     { label: "FAQ", href: "/#faq" },
     { label: "Resources", href: "/resources" },
+    { label: "Free Growth Audit", href: "/audit" },
   ] as NavItem[],
   legal: [
     { label: "Privacy", href: "/privacy" },
@@ -78,4 +79,9 @@ export function formatPrice(value: number): string {
     currency: CURRENCY,
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+/** Amount label for order surfaces: free claims read "Free", not "$0". */
+export function formatOrderAmount(amountMinor: number): string {
+  return amountMinor === 0 ? "Free" : formatPrice(amountMinor / 100);
 }
