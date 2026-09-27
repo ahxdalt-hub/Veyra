@@ -11,7 +11,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
-import { attachAudioUnlock, cueForKind, playCue } from "@/lib/admin/sound";
+import { attachAudioUnlock, playCue } from "@/lib/admin/sound";
 import type { AdminNotificationRow } from "@/lib/supabase/types";
 
 /**
@@ -49,7 +49,6 @@ type NotifCtx = {
 };
 
 const Ctx = createContext<NotifCtx | null>(null);
-const TOAST_TTL_MS = 8000;
 /**
  * Sales hold ~6s: long enough to actually watch the celebration card
  * (amount, sheen, chime) before the stack reflows — 2.5s read as a
@@ -63,6 +62,20 @@ const RESYNC_WINDOW_HOURS = 6;
  *  (publication drift, proxy, network) still delivers every event within
  *  one interval. Dedup by id makes double delivery harmless. */
 const SAFETY_NET_MS = 20_000;
+
+/** Paid-sale toast gate. Money events slide a toast (and chime); every
+ *  other event — licence issued, delivery, coupons, failures — lands in
+ *  the notification center without interrupting the admin. Refunds are
+ *  kind "sale" but severity "warning", so they stay silent too; free
+ *  claims are $0 and the user asked for paid-and-amount only. */
+const AMOUNT_RE = /[$€₹]\s?[\d,]+(?:\.\d{1,2})?/;
+function isPaidSale(row: AdminNotificationRow): boolean {
+  if (row.kind !== "sale" || row.severity !== "success") return false;
+  const match = row.message.match(AMOUNT_RE);
+  if (!match) return false;
+  const amount = Number(match[0].replace(/[^\d.]/g, ""));
+  return Number.isFinite(amount) && amount > 0;
+}
 
 /** Where a notification links — derived from related_entity/id written
  *  by the server at event time. Always an admin route. */
@@ -108,27 +121,27 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     (row: AdminNotificationRow) => {
       if (seenIds.current.has(row.id)) return;
       seenIds.current.add(row.id);
-      setToasts((t) => [row, ...t].slice(0, TOAST_MAX));
-      // Sound rides the same instant the toast mounts — the cha-ching on
-      // a verified sale, a thud on a failure; everything else stays mute
-      // so the chime keeps its meaning.
-      const cue = cueForKind(row.kind);
-      if (cue) playCue(cue);
-      const id = row.id;
-      // Sales are a light "heads up" — slide in, breathe, slide out.
-      // Operational toasts (failures etc.) stay longer.
-      const ttl = row.kind === "sale" ? SALE_TTL_MS : TOAST_TTL_MS;
-      const timer = setTimeout(() => {
-        setToasts((t) => t.filter((x) => x.id !== id));
-        timers.current.delete(id);
-      }, ttl);
-      timers.current.set(id, timer);
+      // Bookkeeping (center feed + unread badge) happens for every event;
+      // only PAID sales get the toast + chime treatment.
       setRecent((r) => [row, ...r].slice(0, 40));
       if (!row.read_at) {
         unreadIds.current.add(row.id);
         unreadBase.current += 1;
         setUnread(unreadBase.current);
       }
+      if (!isPaidSale(row)) return;
+      setToasts((t) => [row, ...t].slice(0, TOAST_MAX));
+      // Sound rides the same instant the toast mounts — the Shopify
+      // cha-ching on a verified sale. Nothing else makes a noise, so the
+      // chime keeps its meaning: it ONLY means money arrived.
+      playCue("sale");
+      const id = row.id;
+      // Sales are a light "heads up" — slide in, breathe, slide out.
+      const timer = setTimeout(() => {
+        setToasts((t) => t.filter((x) => x.id !== id));
+        timers.current.delete(id);
+      }, SALE_TTL_MS);
+      timers.current.set(id, timer);
     },
     []
   );
