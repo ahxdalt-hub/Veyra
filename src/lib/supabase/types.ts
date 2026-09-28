@@ -11,8 +11,10 @@ import type { OrderStatus } from "@/lib/orders";
 
 export type OrderRow = {
   id: string;
-  razorpay_order_id: string | null;
-  razorpay_payment_id: string | null;
+  /** Lemon Squeezy human order id, stamped at confirmation (0020). */
+  lemon_squeezy_order_id: string | null;
+  /** Lemon Squeezy order uuid — the provider payment reference. */
+  lemon_squeezy_payment_id: string | null;
   email: string;
   user_id: string | null;
   product_slug: string;

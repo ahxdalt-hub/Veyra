@@ -42,9 +42,10 @@ export default function PrivacyPage() {
             <>
               <p>
                 <strong>Order information.</strong> When you purchase, our
-                payment processor, Razorpay, collects what checkout requires —
-                your email address and payment details. Card numbers are handled
-                entirely by Razorpay and never touch our servers. We receive and
+                payment processor, Lemon Squeezy, collects what checkout
+                requires — your name, billing address, and payment details.
+                Card numbers are handled entirely by Lemon Squeezy and never
+                touch our servers. We receive and
                 store your email, the product purchased, the amount paid, and
                 the order&rsquo;s status, so we can deliver your licence and
                 files.
@@ -123,7 +124,8 @@ export default function PrivacyPage() {
                   file storage for accounts, orders, licences, and downloads
                 </li>
                 <li>
-                  <strong>Razorpay</strong> — payment processing at checkout
+                  <strong>Lemon Squeezy</strong> — payment processing at
+                  checkout
                 </li>
                 <li>
                   <strong>Resend</strong> — transactional email delivery

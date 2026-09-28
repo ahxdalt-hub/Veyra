@@ -11,10 +11,10 @@ import { Button } from "@/components/ui/button";
  *
  * The status comes from GET /api/orders/[id], which reads the orders
  * table — never from anything the browser received during payment. While
- * verification is still pending (e.g. Razorpay's API was slow to confirm),
- * the page polls briefly and communicates honestly that confirmation is
- * in flight. Razorpay webhooks resolve pending orders durably even if
- * this page is never opened again.
+ * confirmation is still pending (e.g. the Lemon Squeezy webhook hasn't
+ * landed yet), the page polls briefly and communicates honestly that
+ * confirmation is in flight. Lemon Squeezy webhooks resolve pending orders
+ * durably even if this page is never opened again.
  */
 
 type OrderStatus = "pending" | "paid" | "failed" | "cancelled" | "refunded";

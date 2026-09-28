@@ -94,11 +94,13 @@ export default function TermsPage() {
           heading: "Payment and pricing",
           body: (
             <p>
-              Checkout is processed by Razorpay. We see your email, the order
-              amount, and its status — never your card details. Prices may
+              Checkout is processed by Lemon Squeezy, our merchant of record.
+              We see your email, the order
+              amount, and its status — never your card details. Lemon Squeezy
+              calculates and remits any applicable sales tax or VAT at
+              checkout. Prices may
               change between offers, but a change never affects a purchase
-              you&rsquo;ve already made. You&rsquo;re responsible for any taxes
-              that apply to you as the purchaser.
+              you&rsquo;ve already made.
             </p>
           ),
         },

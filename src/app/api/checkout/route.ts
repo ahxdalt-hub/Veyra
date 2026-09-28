@@ -4,13 +4,11 @@ import { resolvePurchasableProduct } from "@/lib/products";
 import { checkoutAmountMinor, MAX_SEATS, seatTier } from "@/lib/pricing";
 import { CURRENCY } from "@/lib/site";
 import {
-  createRazorpayOrder,
-  razorpayConfigured,
-  razorpayConfigProblem,
-  razorpayKeyId,
-  razorpayMode,
-  razorpayUsesLocalGateway,
-} from "@/lib/razorpay";
+  createLemonSqueezyCheckout,
+  lemonSqueezyConfigured,
+  lemonSqueezyMode,
+} from "@/lib/lemon-squeezy";
+import { site } from "@/lib/site";
 import { insertOrder, updateOrderStatus } from "@/lib/orders";
 import type { Order } from "@/lib/orders";
 import { grantPurchaseForOrder } from "@/lib/fulfillment";
@@ -20,16 +18,19 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { supabaseAuthConfigured } from "@/lib/supabase/config";
 
 /**
- * POST /api/checkout — create a payment order.
+ * POST /api/checkout — create a payment order + hosted Lemon Squeezy checkout.
  *
  * Security model:
  *  - The client sends ONLY slugs, quantities, and an email. No prices,
  *    no totals — the amount is computed here from the catalog and is the
- *    sole number trusted by Razorpay and the orders table.
+ *    sole number passed to Lemon Squeezy as custom_price, and the sole
+ *    number trusted by the orders table.
  *  - Products must be currently purchasable (coming-soon slugs are
- *    rejected) and Stage 02 supports a single distinct product per order.
- *  - The Razorpay order is created server-side; the response exposes only
- *    public data (key id, razorpay order id, amount, currency).
+ *    rejected) and a single distinct product per order is supported.
+ *  - The response exposes the hosted checkout URL only. The API key never
+ *    leaves the server. Confirmation happens exclusively via the signed
+ *    /api/webhooks/lemonsqueezy order_created event — the browser's return
+ *    redirect is decoration, never proof.
  */
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -185,8 +186,8 @@ export async function POST(request: Request) {
     const rawDiscountMinor = verdict.discount_dollars * 100;
     freeOrder = rawDiscountMinor >= subtotalMinor;
     // Free orders take the full discount (nothing is charged). Partial
-    // discounts keep the ≥1-cent floor Razorpay's gateway requires —
-    // a $0.00 charge would be rejected by Razorpay, so a fully-covered
+    // discounts keep the ≥1-cent floor payment gateways require —
+    // a $0.00 charge would be rejected by Lemon Squeezy, so a fully-covered
     // order must skip the gateway rather than send it one cent.
     const discountMinor = freeOrder
       ? subtotalMinor
@@ -224,8 +225,8 @@ export async function POST(request: Request) {
     try {
       const order = await insertOrder({
         id: orderId,
-        razorpay_order_id: null,
-        razorpay_payment_id: null,
+        lemon_squeezy_order_id: null,
+        lemon_squeezy_payment_id: null,
         email,
         user_id: userId,
         product_slug: line.slug,
@@ -274,8 +275,8 @@ export async function POST(request: Request) {
         orderId: order.id,
         status: "paid",
         free: true,
-        mode: razorpayMode(),
-        gateway: razorpayUsesLocalGateway() ? "local-test-gateway" : "razorpay",
+        mode: lemonSqueezyMode(),
+        gateway: "lemon-squeezy",
         productName: line.name,
         quantity: line.qty,
         seats: tier.seats,
@@ -304,44 +305,36 @@ export async function POST(request: Request) {
   }
 
   // --- Guard: payments must be configured and usable --------------------
-  // razorpayConfigured() fails closed when the credentials are missing OR
-  // when the configuration is refused (e.g. LIVE keys in this test-mode
-  // deployment — see razorpayConfigProblem). Nothing is charged either way.
-  const keyId = razorpayKeyId();
-  if (!razorpayConfigured() || !keyId) {
-    const reason = razorpayConfigProblem();
-    if (reason) console.error(`[checkout] refusing to charge: ${reason}`);
+  // lemonSqueezyConfigured(slug) fails closed when the API key, store id,
+  // or the variant mapping for this product is missing. Nothing is charged
+  // either way.
+  if (!lemonSqueezyConfigured(line.slug)) {
+    console.error(
+      "[checkout] refusing to charge: Lemon Squeezy is not configured for " +
+        `product "${line.slug}" (LEMONSQUEEZY_API_KEY / LEMONSQUEEZY_STORE_ID / ` +
+        "LEMONSQUEEZY_VARIANT_ID_… missing)."
+    );
     return NextResponse.json(
       {
         error:
           "Payments are not configured on this deployment yet. Nothing was charged.",
         code: "payments_not_configured",
-        // Safe, secret-free diagnostics for operators (never shown to
-        // customers in the UI, which only reads `code`).
-        ...(reason ? { reason } : {}),
       },
       { status: 503 }
     );
   }
 
-  // --- Create the Razorpay order, then record ours ----------------------
+  // --- Create our order record, then the Lemon Squeezy checkout ---------
+  // The order is inserted FIRST (pending) so the checkout's custom data can
+  // carry our order id: the webhook resolves the payment back to this row
+  // even if the customer never returns to the site.
   const orderId = randomUUID();
 
   try {
-    const rzpOrder = await createRazorpayOrder({
-      amountMinor,
-      currency: CURRENCY,
-      receipt: orderId,
-      notes: {
-        internal_order_id: orderId,
-        product_slug: line.slug,
-      },
-    });
-
     const order = await insertOrder({
       id: orderId,
-      razorpay_order_id: rzpOrder.id,
-      razorpay_payment_id: null,
+      lemon_squeezy_order_id: null,
+      lemon_squeezy_payment_id: null,
       email,
       user_id: userId,
       product_slug: line.slug,
@@ -349,6 +342,7 @@ export async function POST(request: Request) {
       amount: amountMinor,
       currency: CURRENCY,
       status: "pending",
+      provider: "lemon-squeezy",
       // Coupon trail — cents, alongside the charged amount. used_count is
       // maintained by the DB's pending→paid trigger, never here.
       ...(couponApplied
@@ -361,18 +355,27 @@ export async function POST(request: Request) {
         : {}),
     });
 
+    const checkout = await createLemonSqueezyCheckout({
+      productSlug: line.slug,
+      amountMinor,
+      email,
+      internalOrderId: orderId,
+      productName: line.name,
+      redirectUrl: `${site.url}/checkout/complete?order=${orderId}`,
+    });
+
     return NextResponse.json({
       orderId: order.id,
-      razorpayOrderId: rzpOrder.id,
-      amount: rzpOrder.amount,
-      currency: rzpOrder.currency,
-      // Public identifier only — the key SECRET never leaves the server.
-      keyId,
-      // Safe public configuration: the resolved mode (test/live) and
-      // whether the server-side flow is running against local test
-      // infrastructure. Both are display-only facts, never credentials.
-      mode: razorpayMode(),
-      gateway: razorpayUsesLocalGateway() ? "local-test-gateway" : "razorpay",
+      // The hosted Lemon Squeezy checkout the browser is redirected to.
+      // The URL is public by design (signed, expiring) — the API key never
+      // leaves the server.
+      checkoutUrl: checkout.url,
+      amount: amountMinor,
+      currency: CURRENCY,
+      // Safe public configuration: the resolved store mode. Display-only
+      // fact, never a credential.
+      mode: lemonSqueezyMode(),
+      gateway: "lemon-squeezy",
       productName: line.name,
       quantity: line.qty,
       // Server-resolved team pricing, for display only.

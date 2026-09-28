@@ -1,27 +1,34 @@
 /**
- * Stage 8 E2E — the purchase-to-delivery pipeline.
+ * Stage 8 E2E — the purchase-to-delivery pipeline, Lemon Squeezy edition.
  *
- * Drives the REAL flow against a running Veyra dev server pointed at the
- * fake Razorpay gateway (scripts/fake-razorpay.mjs) and the live Supabase
- * project, then cleans up every row and the test auth user it creates.
+ * Lemon Squeezy's confirmation is webhook-only (there is no browser-side
+ * signature to verify), so this test drives the durable path directly:
+ * it seeds a pending order exactly as /api/checkout would, then delivers
+ * SIGNED order_created / order_refunded webhook payloads to
+ * /api/webhooks/lemonsqueezy — the same HMAC scheme Lemon Squeezy uses —
+ * and checks fulfillment, idempotency, revocation, downloads, and
+ * activation. The live Supabase project is cleaned up at the end.
  *
- *   node scripts/fake-razorpay.mjs &                  # gateway on :7272
  *   node supabase/test/delivery.e2e.mjs [http://localhost:3000]
  *
  * The Veyra server must run with (inline env, dotenv never overrides):
- *   RAZORPAY_KEY_ID=rzp_test_fake RAZORPAY_KEY_SECRET=test_key_secret_zzz
- *   RAZORPAY_WEBHOOK_SECRET=test_webhook_secret_zzz
- *   RAZORPAY_API_BASE=http://127.0.0.1:7272/v1
+ *   LEMONSQUEEZY_WEBHOOK_SECRET=test_webhook_secret_zzz
  *   SUPABASE_DELIVERY_BUCKET=<bucket with a published release>
+ * plus the normal Supabase vars.
  *
- * Covers the test-mode matrix from the stage brief:
- *   1 successful purchase   2 failed payment    3 cancelled payment
- *   4 duplicate webhook     5 delayed webhook   6 refresh after payment
- *   7 customer account      8 licence creation  9 download authorization
- *  10 activation after purchase (+ tamper: forged verify signature)
+ * Covers:
+ *   1 successful webhook confirmation (+entitlement/licence/seat/receipt)
+ *   2 duplicate webhook delivery is a no-op (idempotent grant + email)
+ *   3 tamper attempts: bad signature → rejected; amount mismatch → not paid
+ *   4 late authoritative webhook reconciles an abandoned (cancelled) order
+ *   5 refund webhook revokes access end to end
+ *   6 result-page polling (owner session vs guest uuid)
+ *   7 account area renders the licence
+ *   9 download authorization
+ *  10 activation + revalidation + deactivation after purchase
  */
 
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, randomUUID } from "node:fs";
 import { createHash, createHmac } from "node:crypto";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -41,8 +48,8 @@ if (existsSync(envPath)) {
 const SUPA_URL = ENV.NEXT_PUBLIC_SUPABASE_URL;
 const ANON = ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const SERVICE = ENV.SUPABASE_SERVICE_ROLE_KEY;
+// The dev server must be started with this same secret inline.
 const WEBHOOK_SECRET = "test_webhook_secret_zzz";
-const FAKE_BASE = "http://127.0.0.1:7272/v1";
 const REF = new URL(SUPA_URL).hostname.split(".")[0];
 const TOKEN =
   process.env.SBP_TOKEN ??
@@ -52,10 +59,10 @@ if (!SUPA_URL || !ANON || !SERVICE) {
   process.exit(2);
 }
 
-// Razorpay's schemes are hex HMAC-SHA256, identical for checkout
-// signatures (key secret) and webhook signatures (webhook secret).
+/* Lemon Squeezy signs webhooks with HMAC-SHA256, hex digest, over the
+ * raw body. Same scheme we verify server-side. */
 const hmacHex = (key, data) =>
-  Promise.resolve(createHmac("sha256", key).update(data).digest("hex"));
+  createHmac("sha256", key).update(data).digest("hex");
 
 /* ---- Supabase management API (seed/verify/teardown SQL) ----------- */
 async function sql(query) {
@@ -139,51 +146,76 @@ async function signIn(email, password) {
   };
 }
 
-/* ---- checkout helpers --------------------------------------------- */
-async function createCheckoutOrder({ email, qty = 1, cookie }) {
-  const res = await veyra("/api/checkout", {
+/* ---- order + webhook helpers --------------------------------------- */
+/**
+ * Seed a pending order exactly as /api/checkout would (the checkout API
+ * itself needs real Lemon Squeezy credentials; the confirmation logic we
+ * test lives entirely in the webhook path). Amounts mirror
+ * src/lib/pricing.ts seat tiers: 1 seat → $79, 2 seats → $77/seat.
+ */
+async function seedPendingOrder({ email, qty, userId = null, status = "pending" }) {
+  const perSeat = [79, 77, 75, 73, 71][qty - 1];
+  const amount = perSeat * qty * 100;
+  const id = randomUUID();
+  const res = await jfetch(`${SUPA_URL}/rest/v1/orders`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(cookie ? { cookie } : {}),
+    headers: { ...svcHeaders, Prefer: "return=representation" },
+    body: JSON.stringify([
+      {
+        id,
+        email,
+        user_id: userId,
+        product_slug: "client-growth-system",
+        quantity: qty,
+        amount,
+        currency: "USD",
+        status,
+        provider: "lemon-squeezy",
+      },
+    ]),
+  });
+  if (!res.json?.[0]?.id) throw new Error(`seed order failed: ${res.status} ${res.text.slice(0, 200)}`);
+  return { orderId: id, amount, currency: "USD", qty };
+}
+
+/** Build + deliver a signed Lemon Squeezy order webhook. */
+async function lsWebhook({
+  eventName,
+  veyraOrderId,
+  subtotal,
+  currency = "USD",
+  status = "paid",
+  orderIdLabel,
+  badSignature = false,
+}) {
+  const body = JSON.stringify({
+    meta: { event_name: eventName },
+    data: {
+      id: randomUUID(),
+      type: "orders",
+      meta: {
+        event_name: eventName,
+        custom_event_data: { veyra_order_id: veyraOrderId },
+      },
+      attributes: {
+        order_id: orderIdLabel ?? `E2E-${veyraOrderId.slice(0, 6).toUpperCase()}`,
+        status,
+        subtotal,
+        discount_total: 0,
+        tax: 0,
+        total: subtotal,
+        currency,
+        user_email: "e2e@veyra.test",
+        created_at: new Date().toISOString(),
+      },
     },
-    body: JSON.stringify({ email, items: [{ slug: "client-growth-system", qty }] }),
   });
-  if (!res.json?.orderId) {
-    throw new Error(`checkout failed: ${res.status} ${JSON.stringify(res.json)}`);
-  }
-  return res.json; // { orderId, razorpayOrderId, amount, currency, keyId }
-}
-
-async function fakeCapture(razorpayOrderId) {
-  const r = await jfetch(`${FAKE_BASE}/_test/${razorpayOrderId}/capture`, {
+  const sig = badSignature ? "0".repeat(64) : hmacHex(WEBHOOK_SECRET, body);
+  return veyra("/api/webhooks/lemonsqueezy", {
     method: "POST",
-    headers: { Authorization: "Basic ZmFrZTpmYWtl" },
+    headers: { "Content-Type": "application/json", "X-Signature": sig },
+    body,
   });
-  return r.json; // payment entity + signature
-}
-async function fakeFail(razorpayOrderId) {
-  const r = await jfetch(`${FAKE_BASE}/_test/${razorpayOrderId}/fail`, {
-    method: "POST",
-    headers: { Authorization: "Basic ZmFrZTpmYWtl" },
-  });
-  return r.json;
-}
-
-async function webhook(event, paymentId) {
-  const built = await jfetch(`${FAKE_BASE}/_test/webhook/${event}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: "Basic ZmFrZTpmYWtl" },
-    body: JSON.stringify({ payment_id: paymentId }),
-  });
-  if (!built.json?.body) throw new Error("webhook build failed");
-  const sig = await hmacHex(WEBHOOK_SECRET, built.json.body);
-  const res = await veyra("/api/webhooks/razorpay", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-razorpay-signature": sig },
-    body: built.json.body,
-  });
-  return res;
 }
 
 const counts = async (email) =>
@@ -200,40 +232,48 @@ async function main() {
   if (ping.status === 404 || ping.status === 422) {
     console.log(`server reachable at ${BASE}`);
   } else {
-    throw new Error(`Veyra server not answering at ${BASE} (${ping.status}) — start it with the fake-gateway env`);
+    throw new Error(`Veyra server not answering at ${BASE} (${ping.status}) — start it with LEMONSQUEEZY_WEBHOOK_SECRET=test_webhook_secret_zzz`);
   }
-  await jfetch(`${FAKE_BASE}/payments/nope`, { headers: { Authorization: "Basic ZmFrZTpmYWtl" } });
+  // The webhook endpoint must be live (503 = server started without the
+  // webhook secret; the whole test depends on it).
+  const probe = await veyra("/api/webhooks/lemonsqueezy", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Signature": "probe" },
+    body: "{}",
+  });
+  if (probe.status === 503) {
+    throw new Error("webhook endpoint answers 503 — restart the server with LEMONSQUEEZY_WEBHOOK_SECRET=test_webhook_secret_zzz");
+  }
 
   const salt = Math.random().toString(16).slice(2, 8);
   const buyerEmail = `stage8-buyer-${salt}@veyra.test`;
   const guestEmail = `stage8-guest-${salt}@veyra.test`;
-  const failEmail = `stage8-fail-${salt}@veyra.test`;
   const tamperEmail = `stage8-tamper-${salt}@veyra.test`;
+  const refundEmail = `stage8-refund-${salt}@veyra.test`;
   const password = `Stage8!${salt}${createHash("sha256").update(salt).digest("hex").slice(0, 8)}`;
   const userId = await createAuthUser(buyerEmail, password);
   const { cookie } = await signIn(buyerEmail, password);
   console.log(`auth user ${userId.slice(0, 8)}… created + signed in\n`);
 
-  let orderA, orderB, orderC, orderD;
+  let orderA, orderB, orderD, orderE;
 
   try {
-    /* === 1. successful purchase (signed-in customer, verify route) === */
-    orderA = await createCheckoutOrder({ email: buyerEmail, qty: 2, cookie });
-    check("checkout creates pending order + razorpay order", Boolean(orderA.orderId && orderA.razorpayOrderId), `amount ${orderA.amount} ${orderA.currency}`);
-    const capA = await fakeCapture(orderA.razorpayOrderId);
-    const vA = await veyra("/api/checkout/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", cookie },
-      body: JSON.stringify({
-        orderId: orderA.orderId,
-        razorpay_order_id: orderA.razorpayOrderId,
-        razorpay_payment_id: capA.id,
-        razorpay_signature: capA.signature,
-      }),
+    /* === 1. successful purchase (signed-in customer, order_created) === */
+    orderA = await seedPendingOrder({ email: buyerEmail, qty: 2, userId });
+    check("pending order seeded (2 seats, tier price)", Boolean(orderA.orderId) && orderA.amount === 15400, `amount ${orderA.amount}`);
+    const whA = await lsWebhook({
+      eventName: "order_created",
+      veyraOrderId: orderA.orderId,
+      subtotal: orderA.amount,
     });
-    check("valid signature + captured payment → paid", vA.status === 200 && vA.json?.status === "paid", JSON.stringify(vA.json));
+    check("signed order_created webhook → acknowledged 200", whA.status === 200, JSON.stringify(whA.json));
 
     await wait(300); // fulfillment is awaited inline; give the ledger write a beat
+    const stA = await sql(`select status from orders where id='${orderA.orderId}'`);
+    check("order flipped to paid", stA[0]?.status === "paid");
+    const idsA = await sql(`select lemon_squeezy_order_id, lemon_squeezy_payment_id, paid_at from orders where id='${orderA.orderId}'`);
+    check("provider references stamped at confirmation",
+      Boolean(idsA[0]?.lemon_squeezy_order_id) && Boolean(idsA[0]?.lemon_squeezy_payment_id) && Boolean(idsA[0]?.paid_at));
     const cA = await counts(buyerEmail);
     check("entitlement created (1)", cA[0].entitlements === 1);
     check("licence created (1)", cA[0].licences === 1);
@@ -246,9 +286,9 @@ async function main() {
     check("receipt email claimed+sent exactly once in ledger",
       ledgerA.length === 1 && ledgerA[0].status === "sent", JSON.stringify(ledgerA));
 
-    /* === 4. duplicate webhook delivery === */
-    const wh1 = await webhook("payment.captured", capA.id);
-    const wh2 = await webhook("payment.captured", capA.id); // exact replay
+    /* === 2. duplicate webhook delivery === */
+    const wh1 = await lsWebhook({ eventName: "order_created", veyraOrderId: orderA.orderId, subtotal: orderA.amount });
+    const wh2 = await lsWebhook({ eventName: "order_created", veyraOrderId: orderA.orderId, subtotal: orderA.amount }); // exact replay
     check("duplicate webhook deliveries acknowledged (200)", wh1.status === 200 && wh2.status === 200);
     const cA2 = await counts(buyerEmail);
     check("replay created no duplicate order/entitlement/licence/seat",
@@ -257,38 +297,35 @@ async function main() {
     check("replay did NOT re-send the receipt (single ledger row, still sent)",
       ledgerA2[0].n === 1 && ledgerA2[0].s === "sent");
 
-    /* forged signature attempt (never trust the browser claim) */
-    const orderD2 = await createCheckoutOrder({ email: tamperEmail, qty: 1, cookie });
-    orderD = orderD2;
-    const capD = await fakeCapture(orderD2.razorpayOrderId);
-    const forged = await veyra("/api/checkout/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", cookie },
-      body: JSON.stringify({
-        orderId: orderD2.orderId,
-        razorpay_order_id: orderD2.razorpayOrderId,
-        razorpay_payment_id: capD.id,
-        razorpay_signature: "0".repeat(64),
-      }),
+    /* === 3. tamper attempts === */
+    // Unsigned/forged signature → 400, order untouched.
+    orderD = await seedPendingOrder({ email: tamperEmail, qty: 1 });
+    const forged = await lsWebhook({
+      eventName: "order_created",
+      veyraOrderId: orderD.orderId,
+      subtotal: orderD.amount,
+      badSignature: true,
     });
-    check("forged verify signature rejected (400) + order failed, no licence",
-      forged.status === 400 && forged.json?.error, JSON.stringify(forged.json));
+    check("forged webhook signature rejected (400)", forged.status === 400, JSON.stringify(forged.json));
+    // Valid signature but the amount DOESN'T match what we priced →
+    // never paid (custom_price is the contract).
+    const mismatch = await lsWebhook({
+      eventName: "order_created",
+      veyraOrderId: orderD.orderId,
+      subtotal: 1, // one cent for a $79 order
+    });
+    check("amount-mismatch webhook acknowledged but NOT applied", mismatch.status === 200);
+    const stD = await sql(`select status from orders where id='${orderD.orderId}'`);
     const cD = await sql(`select (select count(*)::int from entitlements e join orders o on o.id=e.order_id where o.email='${tamperEmail}') as ent`);
-    check("tampered order never granted an entitlement", cD[0].ent === 0);
+    check("tampered order stayed pending, no entitlement", stD[0]?.status === "pending" && cD[0].ent === 0);
 
-    /* === 3. cancelled payment, then 5. delayed/authoritative webhook === */
-    orderB = await createCheckoutOrder({ email: guestEmail, qty: 1 });
-    const canc = await veyra("/api/checkout/cancel", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderId: orderB.orderId }),
-    });
-    check("modal dismissal → cancelled", canc.status === 200 && canc.json?.status === "cancelled", JSON.stringify(canc.json));
-    // Browser paid at Razorpay anyway (dismissed too early); the webhook is
-    // the authoritative confirmation and must reconcile cancelled → paid.
-    const capB = await fakeCapture(orderB.razorpayOrderId);
-    const whB = await webhook("payment.captured", capB.id);
-    check("delayed webhook reconciles cancelled → paid", whB.status === 200);
+    /* === 4. abandoned (cancelled) order, then late authoritative webhook === */
+    orderB = await seedPendingOrder({ email: guestEmail, qty: 1, status: "cancelled" });
+    // The customer completed payment on the hosted page after walking away
+    // client-side; the signed webhook is authoritative and must reconcile
+    // cancelled → paid.
+    const whB = await lsWebhook({ eventName: "order_created", veyraOrderId: orderB.orderId, subtotal: orderB.amount });
+    check("late webhook reconciles cancelled → paid", whB.status === 200);
     const cB = await sql(`select status from orders where id='${orderB.orderId}'`);
     const cbCounts = await counts(guestEmail);
     check("guest reconciled purchase fully delivered (paid + entitlement + licence)",
@@ -296,19 +333,22 @@ async function main() {
     const ledgerB = await sql(`select status from email_events where order_id='${orderB.orderId}'`);
     check("guest receipt email sent once", ledgerB.length === 1 && ledgerB[0].status === "sent");
 
-    /* === 2. failed payment === */
-    orderC = await createCheckoutOrder({ email: failEmail, qty: 1 });
-    const failP = await fakeFail(orderC.razorpayOrderId);
-    const whC = await webhook("payment.failed", failP.id);
-    const cC = await sql(`select status from orders where id='${orderC.orderId}'`);
-    const ccCounts = await counts(failEmail);
-    check("payment.failed webhook → order failed", whC.status === 200 && cC[0]?.status === "failed");
-    check("failed payment grants nothing (no entitlement/licence/email)",
-      ccCounts[0].entitlements === 0 && ccCounts[0].licences === 0);
-    // A late 'captured' event after a failed attempt must NOT resurrect… it
-    // is a different payment; but a captured event for THIS order should
-    // reconcile (money moved). We only check the guard: nothing granted yet.
-    check("failed order has no ledger email", !(await sql(`select * from email_events where order_id='${orderC.orderId}'`)).length);
+    /* === 5. refund webhook revokes access === */
+    orderE = await seedPendingOrder({ email: refundEmail, qty: 1 });
+    await lsWebhook({ eventName: "order_created", veyraOrderId: orderE.orderId, subtotal: orderE.amount });
+    const paidE = await sql(`select status from orders where id='${orderE.orderId}'`);
+    check("refund-scenario order confirmed paid first", paidE[0]?.status === "paid");
+    const whR = await lsWebhook({ eventName: "order_refunded", veyraOrderId: orderE.orderId, subtotal: orderE.amount });
+    check("order_refunded webhook acknowledged", whR.status === 200);
+    const refunded = await sql(`select o.status, e.status as ent_status from orders o left join entitlements e on e.order_id=o.id where o.id='${orderE.orderId}'`);
+    check("refund flips order to refunded + revokes entitlement",
+      refunded[0]?.status === "refunded" && refunded[0]?.ent_status === "revoked",
+      JSON.stringify(refunded[0]));
+    const seatsE = await sql(`select count(*)::int as n from seat_assignments s join entitlements e on e.id=s.entitlement_id where e.order_id='${orderE.orderId}'`);
+    check("refund deletes the seat pool", seatsE[0]?.n === 0);
+    const ledgerE = await sql(`select email_type, status from email_events where order_id='${orderE.orderId}'`);
+    check("refund confirmation email recorded", ledgerE.some((r) => r.email_type === "refund_confirmation" && r.status === "sent"),
+      JSON.stringify(ledgerE));
 
     /* === 6. refresh after payment (result-page polling) === */
     const poll = await veyra(`/api/orders/${orderA.orderId}`, { headers: { cookie } });
@@ -379,14 +419,23 @@ async function main() {
     check("deactivation frees the seat", deact.status === 200 && deact.json?.ok === true);
   } finally {
     /* ---- teardown ---- */
-    await sql(`delete from email_events where order_id in ('${orderA?.orderId ?? "x"}','${orderB?.orderId ?? "x"}','${orderC?.orderId ?? "x"}','${orderD?.orderId ?? "x"}')`).catch((e) => console.log("teardown email_events:", e.message));
-    for (const o of [orderA, orderB, orderC, orderD]) {
-      if (o?.orderId) await sql(`delete from orders where id='${o.orderId}'`).catch(() => null);
+    const ids = [orderA, orderB, orderD, orderE].map((o) => o?.orderId).filter(Boolean);
+    for (const id of ids) {
+      await sql(`delete from email_events where order_id='${id}'`).catch(() => null);
+    }
+    // entitlements/licences/seats/activations cascade or key on the order
+    // chain — clear them explicitly before the orders themselves.
+    if (ids.length) {
+      await sql(`delete from licence_activations where entitlement_id in (select id from entitlements where order_id in (${ids.map((i) => `'${i}'`).join(",")}))`).catch(() => null);
+      await sql(`delete from seat_assignments where entitlement_id in (select id from entitlements where order_id in (${ids.map((i) => `'${i}'`).join(",")}))`).catch(() => null);
+      await sql(`delete from licences where entitlement_id in (select id from entitlements where order_id in (${ids.map((i) => `'${i}'`).join(",")}))`).catch(() => null);
+      await sql(`delete from entitlements where order_id in (${ids.map((i) => `'${i}'`).join(",")})`).catch(() => null);
+      await sql(`delete from orders where id in (${ids.map((i) => `'${i}'`).join(",")})`).catch(() => null);
     }
     await sql(`delete from download_events where email like 'stage8-%'`).catch(() => null);
     await sql(`delete from licence_activations where activated_email like 'stage8-%'`).catch(() => null);
     // The fulfillment/webhook paths insert admin notifications (sale, licence,
-    // payment_failed, new customer). The referenced rows above are gone after
+    // refund, new customer). The referenced rows above are gone after
     // teardown, so remove the notifications too — otherwise the command center
     // accumulates orphans referencing deleted orders/licences/profiles.
     await sql(`delete from admin_notifications where message ilike '%@veyra.test%'`).catch((e) => console.log("teardown admin_notifications:", e.message));

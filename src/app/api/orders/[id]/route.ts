@@ -6,8 +6,8 @@ import { getSessionUser } from "@/lib/supabase/server";
 /**
  * GET /api/orders/[id] — order status for client polling.
  *
- * Returns a safe projection (no Razorpay identifiers). Used by the result
- * page while an order's verification is still pending.
+ * Returns a safe projection (no provider identifiers). Used by the result
+ * page while an order's confirmation is still pending.
  *
  * Ownership: guest orders (user_id null) are pollable by anyone holding
  * the order's unguessable uuid — that is the guest receipt mechanism the

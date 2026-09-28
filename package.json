@@ -13,10 +13,9 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test:licensing": "node --test src/lib/licensing/token.test.ts && node --test supabase/test/activation.engine.test.mjs",
-    "test:fake-gateway": "node scripts/fake-razorpay.mjs",
     "test:delivery:e2e": "node supabase/test/delivery.e2e.mjs",
-    "test:razorpay:config": "node scripts/check-razorpay-test-mode.mjs --config-only",
-    "test:razorpay:testmode": "node scripts/check-razorpay-test-mode.mjs"
+    "test:payments:config": "node scripts/check-lemon-squeezy-config.mjs",
+    "test:payments:live": "node scripts/check-lemon-squeezy-config.mjs --live"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.20.6",

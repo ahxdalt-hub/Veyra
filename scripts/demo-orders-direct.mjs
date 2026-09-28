@@ -2,9 +2,7 @@
 /**
  * DEMO ONLY — direct-insert traffic generator for the admin panel.
  *
- * The sibling scripts/demo-orders.mjs walks the REAL checkout pipeline
- * but needs the dev server restarted with the fake-gateway env block.
- * This one needs nothing: it inserts straight into Supabase with the
+ * It needs nothing: it inserts straight into Supabase with the
  * service key, and the command center reacts exactly as it would to a
  * real sale, because the reaction is driven by the SAME two things —
  *
@@ -22,7 +20,7 @@
  *   node scripts/demo-orders-direct.mjs --interval=4000 --count=999
  *   node scripts/demo-orders-direct.mjs --cleanup      # wipe all demo rows
  *
- * Demo rows are tagged (demo+…@veyra.test emails, order_DEMO ids) so
+ * Demo rows are tagged (demo+…@veyra.test emails, chk_DEMO ids) so
  * --cleanup deletes every trace. No fulfillment is run — licences,
  * emails and download records are deliberately NOT created.
  */
@@ -113,7 +111,7 @@ async function simulateOneCustomer(seq) {
   const { data: order, error } = await supabase
     .from("orders")
     .insert({
-      razorpay_order_id: `order_DEMO${rnd()}`,
+      lemon_squeezy_order_id: `chk_DEMO${rnd()}`,
       email,
       product_slug: product.slug,
       quantity: 1,
@@ -149,8 +147,8 @@ async function simulateOneCustomer(seq) {
         .from("orders")
         .update({
           status: "paid",
-          razorpay_payment_id: `pay_DEMO${rnd()}`,
-          provider: "razorpay",
+          lemon_squeezy_payment_id: `pay_DEMO${rnd()}`,
+          provider: "lemon-squeezy",
           paid_at: stamp,
           updated_at: stamp,
         })
@@ -191,7 +189,7 @@ async function cleanup() {
   const { data: orders, error } = await supabase
     .from("orders")
     .select("id")
-    .like("razorpay_order_id", "order_DEMO%");
+    .like("lemon_squeezy_order_id", "chk_DEMO%");
   if (error) throw new Error(error.message);
   const ids = (orders ?? []).map((o) => o.id);
   // Every notification this script writes embeds a demo email, so one
@@ -208,7 +206,7 @@ async function cleanup() {
   const { error: e2 } = await supabase
     .from("orders")
     .delete()
-    .like("razorpay_order_id", "order_DEMO%");
+    .like("lemon_squeezy_order_id", "chk_DEMO%");
   if (e2) throw new Error(e2.message);
   console.log(`Removed ${ids.length} demo order(s) and their notifications.`);
 }

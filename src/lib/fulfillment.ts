@@ -19,8 +19,9 @@ import { currentRelease } from "@/lib/registry";
  * granted strictly after an order reaches status 'paid', and only for
  * slugs the catalog currently sells; the unique constraint on
  * entitlements.order_id (and licences.entitlement_id) makes every grant
- * idempotent, so the verify route, the Razorpay webhook, and the claim
- * routine can all call this safely and at most one row ever exists.
+ * idempotent, so the Lemon Squeezy webhook, the free-order branch of the
+ * checkout route, and the claim routine can all call this safely and at
+ * most one row ever exists.
  *
  * Guest purchases: rows carry the purchase email with user_id null. When
  * the customer signs in/up, claimPurchasesForUser links them — keyed on

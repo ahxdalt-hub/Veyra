@@ -14,10 +14,10 @@ import { sendRefundEmail } from "@/lib/email/purchase";
 /**
  * Refunds — the paid → refunded half of the lifecycle.
  *
- * A refund can be issued from the Razorpay dashboard (and the API), so the
- * ONLY durable signal Veyra gets is the `refund.created` / `refund.processed`
- * webhook. This module is what makes the advertised refund window honest:
- * when money comes back, access goes away in the same breath.
+ * A refund can be issued from the Lemon Squeezy dashboard (and the API), so
+ * the ONLY durable signal Veyra gets is the `order_refunded` webhook. This
+ * module is what makes the advertised refund window honest: when money comes
+ * back, access goes away in the same breath.
  *
  * Revocation order matters (all server-side, service role):
  *   1. licence_activations → 'deactivated' (reason 'revoked') — releases the

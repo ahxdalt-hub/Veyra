@@ -18,14 +18,16 @@
   // identifier (NEXT_PUBLIC_* values are shipped to browsers on purpose and
   // are protected by Supabase RLS) or a display-only mode flag. Anything
   // sensitive — SUPABASE_SERVICE_ROLE_KEY, VEYRA_LICENCE_SIGNING_KEY,
-  // RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET, RESEND_API_KEY — is set
-  // with `wrangler secret put` / `wrangler secret bulk` and never committed.
+  // LEMONSQUEEZY_API_KEY, LEMONSQUEEZY_WEBHOOK_SECRET, RESEND_API_KEY — is
+  // set with `wrangler secret put` / `wrangler secret bulk` and never
+  // committed.
   "vars": {
     "NEXT_PUBLIC_SITE_URL": "https://veyra.ahxd.workers.dev",
     "NEXT_PUBLIC_SUPABASE_URL": "https://otqucrqcefdychplbbtq.supabase.co",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90cXVjcnFjZWZkeWNocGxiYnRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMjA3MDksImV4cCI6MjEwNDY5NjcwOX0.k4lAS0BTHEqpi6GgVEymZK0-XCjLxYIsStBLxeFIs9g",
     "SUPABASE_DELIVERY_BUCKET": "product-downloads",
-    "RAZORPAY_MODE": "test",
+    "LEMONSQUEEZY_MODE": "test",
+    "LEMONSQUEEZY_STORE_ID": "470989",
     // Sender for transactional email (checklist PDF, purchase receipts).
     // Currently the Resend SANDBOX sender — Resend only delivers it to the
     // account owner's inbox until a domain is verified at

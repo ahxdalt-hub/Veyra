@@ -10,63 +10,43 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CheckIcon } from "@/components/ui/icons";
 import { AnimatedNumber } from "@/components/motion/animated-number";
-import type { RazorpayOptions, RazorpayErrorResponse } from "@/lib/razorpay-client";
 
 /**
  * Checkout (client) — one page, one email field, one payment action.
  *
  * Flow:
  *   1. POST /api/checkout with slugs + email ONLY. The server resolves the
- *      amount from the catalog and creates the Razorpay order.
- *   2. Razorpay's checkout.js modal opens; the customer pays there.
- *   3. On success, POST /api/checkout/verify lets the server authenticate
- *      the result (signature + Razorpay payment state) before the UI ever
- *      says "confirmed".
+ *      amount from the catalog and creates a hosted Lemon Squeezy checkout.
+ *   2. The browser is redirected to that checkout; the customer pays there.
+ *   3. Lemon Squeezy redirects back to /checkout/complete?order=<id>, where
+ *      the result page polls the ORDERS TABLE. Confirmation comes only from
+ *      the signed order_created webhook — the redirect back here is
+ *      decoration, never proof.
  *
- * UI states: idle → creating → paying → verifying → redirect on success;
- * failed / cancelled / not-configured are explicit, recoverable states.
+ * UI states: idle → creating → redirecting on success; failed / cancelled /
+ * not-configured are explicit, recoverable states.
  *
- * `razorpayMode` / `gateway` are resolved SERVER-SIDE (page.tsx) from env
+ * `mode` / `configured` are resolved SERVER-SIDE (page.tsx) from env
  * presence only — no credential ever crosses into this component. They are
  * display facts so a test-mode deployment says so honestly.
  */
 
 type CheckoutProps = {
-  /** Resolved payment mode ("unconfigured" when keys are missing/refused). */
-  razorpayMode: "test" | "live" | "unconfigured";
-  /** Where the SERVER sends payment calls: Razorpay's API, or local test
-   *  infrastructure (RAZORPAY_API_BASE — test only). */
-  gateway: "razorpay" | "local-test-gateway";
+  /** Resolved store mode this deployment is wired to. */
+  mode: "test" | "live";
+  /** Whether Lemon Squeezy credentials + variant mappings exist. When
+   *  false the page states plainly that payments aren't enabled yet. */
+  configured: boolean;
 };
 
 type Phase =
   | "idle"
   | "creating"
-  | "paying"
-  | "verifying"
+  | "redirecting"
   | "failed"
-  | "cancelled"
   | "not-configured";
 
-function loadRazorpay(): Promise<NonNullable<Window["Razorpay"]>> {
-  if (window.Razorpay) return Promise.resolve(window.Razorpay);
-  return new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.async = true;
-    script.onload = () => {
-      if (window.Razorpay) resolve(window.Razorpay);
-      else reject(new Error("Razorpay checkout failed to load."));
-    };
-    script.onerror = () => reject(new Error("Razorpay checkout failed to load."));
-    document.body.appendChild(script);
-  });
-}
-
-export default function CheckoutClient({
-  razorpayMode,
-  gateway,
-}: CheckoutProps) {
+export default function CheckoutClient({ mode, configured }: CheckoutProps) {
   const router = useRouter();
   const { detailedLines } = useCart();
 
@@ -127,7 +107,7 @@ export default function CheckoutClient({
     }
   }
 
-  const busy = phase === "creating" || phase === "paying" || phase === "verifying";
+  const busy = phase === "creating" || phase === "redirecting";
 
   async function onPay(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -137,7 +117,7 @@ export default function CheckoutClient({
     setPhase("creating");
 
     try {
-      // 1. Server creates the order — we send no prices.
+      // 1. Server creates the order + hosted checkout — we send no prices.
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -151,10 +131,9 @@ export default function CheckoutClient({
         error?: string;
         code?: string;
         orderId?: string;
-        razorpayOrderId?: string;
+        checkoutUrl?: string;
         amount?: number;
         currency?: string;
-        keyId?: string;
         productName?: string;
         free?: boolean;
         status?: string;
@@ -167,113 +146,27 @@ export default function CheckoutClient({
 
       // Free checkout — the coupon covered the full amount, so the server
       // has ALREADY confirmed the order and granted the licence. There is
-      // no payment window to open: go straight to the result page, which
+      // no payment page to open: go straight to the result page, which
       // links into the account where the product and licence appear.
       if (res.ok && data.free && data.orderId && data.status === "paid") {
-        setPhase("verifying");
         router.replace(`/checkout/complete?order=${data.orderId}`);
         return;
       }
-      if (
-        !res.ok ||
-        !data.orderId ||
-        !data.razorpayOrderId ||
-        !data.keyId ||
-        typeof data.amount !== "number" ||
-        !data.currency
-      ) {
+      if (!res.ok || !data.orderId || !data.checkoutUrl) {
         throw new Error(data.error ?? "We couldn't start your payment.");
       }
 
-      // 2. Open Razorpay's checkout.
-      const Razorpay = await loadRazorpay();
-      setPhase("paying");
-
-      const options: RazorpayOptions = {
-        key: data.keyId,
-        order_id: data.razorpayOrderId,
-        amount: data.amount,
-        currency: data.currency,
-        name: "Veyra",
-        description: data.productName,
-        prefill: { email },
-        theme: { color: "#17150f" },
-        modal: {
-          ondismiss: () => {
-            // Customer closed the modal — no charge was made.
-            setPhase("cancelled");
-            fetch("/api/checkout/cancel", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ orderId: data.orderId }),
-            }).catch(() => null);
-          },
-        },
-        handler: (response) => {
-          // 3. The browser's response is a claim — the server decides.
-          void confirmPayment(data.orderId!, response);
-        },
-      };
-
-      const rzp = new Razorpay(options);
-      rzp.on("payment.error", (arg: never) => {
-        const err = arg as unknown as RazorpayErrorResponse;
-        setPhase("failed");
-        setError(
-          err?.description ??
-            "The payment didn't go through. You have not been charged."
-        );
-      });
-      rzp.open();
+      // 2. Hand the customer over to Lemon Squeezy's hosted checkout.
+      //    Confirmation is NOT this page's job — the webhook confirms, and
+      //    /checkout/complete reads the orders table.
+      setPhase("redirecting");
+      window.location.assign(data.checkoutUrl);
     } catch (err) {
       setPhase("failed");
       setError(
         err instanceof Error
           ? err.message
           : "We couldn't start your payment. Please try again."
-      );
-    }
-  }
-
-  async function confirmPayment(
-    orderId: string,
-    response: {
-      razorpay_order_id: string;
-      razorpay_payment_id: string;
-      razorpay_signature: string;
-    }
-  ) {
-    setPhase("verifying");
-    try {
-      const res = await fetch("/api/checkout/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, ...response }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        status?: string;
-        error?: string;
-      };
-
-      if (res.ok && data.status === "paid") {
-        // Server-confirmed — only now show the purchase as complete.
-        router.replace(`/checkout/complete?order=${orderId}`);
-        return;
-      }
-
-      if (data.status === "pending") {
-        // Signature valid, confirmation still in flight. The result page
-        // polls the order status — the UI never fakes confirmation.
-        router.replace(`/checkout/complete?order=${orderId}`);
-        return;
-      }
-
-      setPhase("failed");
-      setError(data.error ?? "Payment could not be verified.");
-    } catch {
-      setPhase("failed");
-      setError(
-        "We lost the connection while verifying your payment. Check the result page in a moment, or contact us if you were charged."
       );
     }
   }
@@ -346,13 +239,13 @@ export default function CheckoutClient({
                   One product, one payment, delivered digitally. You&rsquo;re
                   buying licences for{" "}
                   {tier.seats === 1 ? "1 seat" : `${tier.seats} seats`} —
-                  confirm the amount in Razorpay&rsquo;s secure window before
-                  anything is charged.
+                  confirm the amount in Lemon Squeezy&rsquo;s secure checkout
+                  before anything is charged.
                 </>
               )}
             </p>
 
-            {phase === "not-configured" ? (
+            {phase === "not-configured" || !configured ? (
               <div
                 role="status"
                 className="mt-8 rounded-md border border-dashed border-line-strong bg-surface p-6"
@@ -394,34 +287,24 @@ export default function CheckoutClient({
                   disabled={busy}
                 >
                   {phase === "creating" && "Preparing your payment…"}
-                  {phase === "paying" && "Complete payment in the secure window…"}
-                  {phase === "verifying" && "Verifying your payment…"}
+                  {phase === "redirecting" && "Opening secure checkout…"}
                   {phase === "idle" &&
                     (payable === 0 && couponState.status === "applied"
                       ? "Complete your free order"
                       : `Pay ${formatPrice(payable)} securely`)}
-                  {(phase === "failed" || phase === "cancelled") &&
+                  {phase === "failed" &&
                     `Try again — pay ${formatPrice(payable)}`}
                 </Button>
 
                 <p className="mt-3 text-center text-xs text-ink-4">
-                  Processed by Razorpay · {REFUND_WINDOW_LABEL}
+                  Processed by Lemon Squeezy · {REFUND_WINDOW_LABEL}
                 </p>
 
-                {razorpayMode === "test" ? (
+                {mode === "test" ? (
                   <p className="mt-4 rounded-sm border border-line bg-paper px-3 py-2 text-center text-xs leading-relaxed text-ink-3">
                     <span className="font-medium text-ink-2">Test mode.</span>{" "}
-                    This deployment runs Razorpay&rsquo;s test checkout — no
-                    real money moves and live cards are never accepted.
-                  </p>
-                ) : null}
-                {gateway === "local-test-gateway" ? (
-                  <p className="mt-3 rounded-sm border border-line bg-paper px-3 py-2 text-center text-xs leading-relaxed text-ink-3">
-                    <span className="font-medium text-ink-2">
-                      Local test gateway.
-                    </span>{" "}
-                    Server-side payment calls are pointed at test
-                    infrastructure, not Razorpay&rsquo;s API.
+                    This deployment runs Lemon Squeezy&rsquo;s test checkout —
+                    no real money moves and live cards are never accepted.
                   </p>
                 ) : null}
 
@@ -486,21 +369,6 @@ export default function CheckoutClient({
                 </div>
               </form>
             )}
-
-            {phase === "cancelled" ? (
-              <div
-                role="status"
-                className="mt-6 max-w-md rounded-md border border-line bg-surface p-4"
-              >
-                <p className="text-sm font-medium text-ink">
-                  Payment cancelled.
-                </p>
-                <p className="mt-1 text-sm text-ink-3">
-                  The payment window was closed before completion — no charge
-                  was made. You can retry whenever you&rsquo;re ready.
-                </p>
-              </div>
-            ) : null}
 
             {phase === "failed" && error ? (
               <div

@@ -2,12 +2,10 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/admin/auth";
 import {
-  razorpayConfigured,
-  razorpayConfigProblem,
-  razorpayMode,
-  razorpayUsesLocalGateway,
-  razorpayWebhookConfigured,
-} from "@/lib/razorpay";
+  lemonSqueezyConfigured,
+  lemonSqueezyMode,
+  lemonSqueezyWebhookConfigured,
+} from "@/lib/lemon-squeezy";
 import {
   supabaseAdminConfigured,
   supabaseAuthConfigured,
@@ -82,40 +80,25 @@ export default async function SettingsPage() {
         </Panel>
 
         {/* Payments */}
-        <Panel title="Payments · Razorpay">
+        <Panel title="Payments · Lemon Squeezy">
           <div className="space-y-0">
-            <KV k="API keys" v={<StatusPill status={razorpayConfigured() ? "connected" : "pending-config"} />} />
-            <KV k="Webhook verification" v={<StatusPill status={razorpayWebhookConfigured() ? "connected" : "pending-config"} />} />
+            <KV k="API credentials" v={<StatusPill status={lemonSqueezyConfigured() ? "connected" : "pending-config"} />} />
+            <KV k="Webhook verification" v={<StatusPill status={lemonSqueezyWebhookConfigured() ? "connected" : "pending-config"} />} />
             <KV
               k="Mode"
               v={
-                razorpayMode() === "test"
+                lemonSqueezyMode() === "test"
                   ? "Test mode — no real money moves"
-                  : razorpayMode() === "live"
-                    ? "Live mode"
-                    : "Not configured"
+                  : "Live mode"
               }
             />
-            <KV
-              k="Live-key guard"
-              v={
-                razorpayMode() === "live"
-                  ? "RAZORPAY_MODE=live — live charging enabled"
-                  : "TEST ONLY — rzp_live_ keys are refused"
-              }
-            />
-            <KV
-              k="Gateway"
-              v={razorpayUsesLocalGateway() ? "Local test gateway (RAZORPAY_API_BASE)" : "Razorpay API"}
-            />
-            <KV k="Webhook endpoint" v={<code className="font-mono text-xs" style={{ color: "var(--cc-text-3)" }}>{site.url}/api/webhooks/razorpay</code>} />
+            <KV k="Checkout style" v="Hosted Lemon Squeezy checkout; Veyra sets the price (custom_price)" />
+            <KV k="Webhook endpoint" v={<code className="font-mono text-xs" style={{ color: "var(--cc-text-3)" }}>{site.url}/api/webhooks/lemonsqueezy</code>} />
+            <KV k="Events required" v="Order created · Order refunded" />
             <KV k="Key handling" v="Secrets live server-side only; card data never touches Veyra" />
           </div>
-          {!razorpayConfigured() ? (
-            <Note>Razorpay keys are set in .env.local (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET). Values are never displayed here — only whether they exist.</Note>
-          ) : null}
-          {razorpayConfigProblem() ? (
-            <Note>Configuration refused: {razorpayConfigProblem()}</Note>
+          {!lemonSqueezyConfigured() ? (
+            <Note>Lemon Squeezy credentials are set in .env.local (LEMONSQUEEZY_API_KEY / LEMONSQUEEZY_STORE_ID / LEMONSQUEEZY_VARIANT_ID_*). Values are never displayed here — only whether they exist.</Note>
           ) : null}
         </Panel>
 

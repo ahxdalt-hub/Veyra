@@ -2,9 +2,10 @@
  * Stage 8 — customer email (Resend), with an at-most-once send ledger.
  *
  * The purchase path has THREE callers that can all finish the same order:
- * the checkout verify route, the Razorpay webhook (which retries, so the
- * same event arrives repeatedly), and the sign-in claim routine. A naive
- * "send receipt" call in each would triple-email customers. So every send
+ * the checkout route (free orders), the Lemon Squeezy webhook (which retries,
+ * so the same event arrives repeatedly), and the sign-in claim routine. A
+ * naive "send receipt" call in each would triple-email customers. So every
+ * send
  * first consults public.email_events (0016) — unique on (order_id,
  * email_type): a row already 'sent' is final and never re-sent; a 'failed'
  * or abandoned-in-flight row is retryable. Because the three callers of
@@ -305,7 +306,7 @@ export async function sendRefundEmail(input: RefundEmailInput): Promise<void> {
     const subject = `Your refund is on its way — ${input.productName}`;
     const text = [
       `Your payment for ${input.productName} (order ${orderRef}) has been refunded`,
-      `${money(input.amountMinor, input.currency)}. Razorpay typically completes`,
+      `${money(input.amountMinor, input.currency)}. Lemon Squeezy typically completes`,
       `refunds to the original payment method within 5–10 business days.`,
       ``,
       `Access to the product has been closed: the licence is revoked and the`,
@@ -319,7 +320,7 @@ export async function sendRefundEmail(input: RefundEmailInput): Promise<void> {
     const html = `<div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;color:#17150f;line-height:1.6">
   <p style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#8a8474">Veyra · Refund</p>
   <h1 style="font-size:26px;margin:6px 0 14px">Your refund is on its way.</h1>
-  <p style="font-size:14px;margin:0 0 14px">We've refunded <b>${escapeHtml(money(input.amountMinor, input.currency))}</b> for <b>${escapeHtml(input.productName)}</b> (order ${escapeHtml(orderRef)}). Razorpay typically completes refunds to the original payment method within 5–10 business days.</p>
+  <p style="font-size:14px;margin:0 0 14px">We've refunded <b>${escapeHtml(money(input.amountMinor, input.currency))}</b> for <b>${escapeHtml(input.productName)}</b> (order ${escapeHtml(orderRef)}). Lemon Squeezy typically completes refunds to the original payment method within 5–10 business days.</p>
   <p style="font-size:14px;margin:0 0 18px">Access to the product has been closed — the licence is revoked and downloads are no longer available from your account.</p>
   <p style="font-size:13px;color:#6f6a5d">If this refund wasn't expected, just reply to this email and we'll sort it out.</p>
   <p style="font-size:13px;color:#8a8474;margin-top:14px">— Veyra</p>
