@@ -32,10 +32,11 @@ if (existsSync(envPath)) {
   }
 }
 
-/* Purchasable catalog entries (status "available" in src/lib/products.ts).
-   Kept in sync manually — a new product must be added here and get a
-   variant env var before checkout will charge for it. */
-const PURCHASABLE_SLUGS = ["client-growth-system", "growth-audit"];
+/* Purchasable catalog entries (status "available" AND not free in
+   src/lib/products.ts). Kept in sync manually — a new paid product must be
+   added here and get a variant env var before checkout will charge for it.
+   The Growth Audit is claimed free via /api/claim, so it needs no variant. */
+const PURCHASABLE_SLUGS = ["client-growth-system"];
 const variantEnvKey = (slug) =>
   `LEMONSQUEEZY_VARIANT_ID_${slug.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}`;
 
