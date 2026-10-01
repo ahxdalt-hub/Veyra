@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { footerNav, site } from "@/lib/site";
 import { MailIcon } from "@/components/ui/icons";
+import { AdminDoor } from "@/components/layout/admin-door";
 
 /**
  * Footer — professional, quiet, four link groups + brand block.
@@ -48,8 +49,9 @@ export function Footer() {
 
         {/* Lower: hairline bar */}
         <div className="flex flex-col items-start justify-between gap-4 border-t border-line py-8 sm:flex-row sm:items-center">
-          <p className="text-xs text-ink-4">
+          <p className="flex items-center gap-1 text-xs text-ink-4">
             © {year} {site.name}. All rights reserved.
+            <AdminDoor />
           </p>
           <p className="text-xs text-ink-4">
             Built for people who bill for their expertise.

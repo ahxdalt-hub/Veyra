@@ -97,10 +97,10 @@ export default async function AccountPage() {
             We&rsquo;re having trouble loading your account right now. Please
             try again in a moment — if it persists, write to{" "}
             <a
-              href="mailto:hello@veyra.co"
+              href="mailto:Caelmontholdings@gmail.com"
               className="font-medium text-accent underline-offset-2 hover:underline"
             >
-              hello@veyra.co
+              Caelmontholdings@gmail.com
             </a>
             .
           </p>

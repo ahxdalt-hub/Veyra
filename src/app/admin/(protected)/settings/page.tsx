@@ -163,7 +163,7 @@ export default async function SettingsPage() {
           <div className="space-y-0">
             <KV k="Application" v="Veyra — Next.js 16 (App Router, Turbopack)" />
             <KV k="Environment" v={process.env.NODE_ENV === "production" ? "Production" : "Development"} />
-            <KV k="Site URL" v={process.env.NEXT_PUBLIC_SITE_URL ? "configured" : "defaults to veyra.co"} />
+            <KV k="Site URL" v={process.env.NEXT_PUBLIC_SITE_URL ? "configured" : "defaults to veyra.caelmont.in"} />
             <KV k="Migrations" v="0001 → 0015 applied (supabase/migrations)" />
             <KV k="Last health check" v={new Date().toLocaleString("en-US", { timeZone: "UTC", hour12: false }) + " UTC"} />
           </div>

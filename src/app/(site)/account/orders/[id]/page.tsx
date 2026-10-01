@@ -129,10 +129,10 @@ export default async function OrderDetailPage({
             <p className="mt-4 text-xs leading-relaxed text-ink-4">
               For receipt questions, contact{" "}
               <a
-                href="mailto:hello@veyra.co"
+                href="mailto:Caelmontholdings@gmail.com"
                 className="font-medium text-accent underline-offset-2 hover:underline"
               >
-                hello@veyra.co
+                Caelmontholdings@gmail.com
               </a>{" "}
               with the order and payment references above.
             </p>

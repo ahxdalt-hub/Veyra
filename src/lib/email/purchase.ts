@@ -41,7 +41,7 @@ export function siteUrl(): string {
 }
 
 function fromAddress(): string {
-  return process.env.VEYRA_EMAIL_FROM || "Veyra <hello@veyra.co>";
+  return process.env.VEYRA_EMAIL_FROM || "Veyra <Caelmontholdings@gmail.com>";
 }
 
 const emailLedgerReady = () => Boolean(supabaseUrl() && supabaseServiceRoleKey());

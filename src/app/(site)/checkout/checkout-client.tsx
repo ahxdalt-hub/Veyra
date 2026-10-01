@@ -256,10 +256,10 @@ export default function CheckoutClient({ mode, configured }: CheckoutProps) {
                   so checkout can&rsquo;t start. Nothing has been charged —
                   write to{" "}
                   <a
-                    href="mailto:hello@veyra.co"
+                    href="mailto:Caelmontholdings@gmail.com"
                     className="font-medium text-accent underline-offset-2 hover:underline"
                   >
-                    hello@veyra.co
+                    Caelmontholdings@gmail.com
                   </a>{" "}
                   and we&rsquo;ll arrange your purchase directly.
                 </p>
@@ -380,10 +380,10 @@ export default function CheckoutClient({ mode, configured }: CheckoutProps) {
                   {error} If money left your account but this message
                   appeared, contact{" "}
                   <a
-                    href="mailto:hello@veyra.co"
+                    href="mailto:Caelmontholdings@gmail.com"
                     className="font-medium text-accent underline-offset-2 hover:underline"
                   >
-                    hello@veyra.co
+                    Caelmontholdings@gmail.com
                   </a>{" "}
                   and we&rsquo;ll sort it out.
                 </p>

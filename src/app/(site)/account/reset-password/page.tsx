@@ -27,10 +27,10 @@ export default function ResetPasswordPage() {
                 Customer accounts aren&rsquo;t enabled on this deployment yet.
                 Write to{" "}
                 <a
-                  href="mailto:hello@veyra.co"
+                  href="mailto:Caelmontholdings@gmail.com"
                   className="font-medium text-accent underline-offset-2 hover:underline"
                 >
-                  hello@veyra.co
+                  Caelmontholdings@gmail.com
                 </a>{" "}
                 about your account.
               </p>

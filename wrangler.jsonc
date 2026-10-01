@@ -11,6 +11,31 @@
   "observability": {
     "enabled": true
   },
+  /*
+   * Public hostname — https://veyra.caelmont.in.
+   *
+   * `custom_domain: true` makes this Worker the origin for that hostname:
+   * Cloudflare creates and owns both the DNS record and the TLS certificate,
+   * and re-attaching an already-attached hostname is a no-op — so this is safe
+   * to leave in permanently and a deploy can never detach it by accident.
+   *
+   * `veyra.ahxd.workers.dev` is deliberately left serving as well: Lemon
+   * Squeezy delivers payment webhooks to a URL configured in their dashboard,
+   * and any existing links keep resolving. Retire it only after those have
+   * been moved over.
+   */
+  "routes": [
+    { "pattern": "veyra.caelmont.in", "custom_domain": true }
+  ],
+  /*
+   * MUST stay `true`. Wrangler disables the workers.dev subdomain by default
+   * when this key is absent, which silently 404s `veyra.ahxd.workers.dev` —
+   * that is the origin Lemon Squeezy delivers payment webhooks to, so
+   * disabling it drops orders. Only set this to `false` once the webhook URL
+   * in the Lemon Squeezy dashboard has been repointed at veyra.caelmont.in.
+   */
+  "workers_dev": true,
+  "preview_urls": false,
   // Never drop bindings that were created outside this file (the worker's
   // secrets live in Cloudflare, not in the repo).
   "keep_vars": true,
@@ -22,17 +47,17 @@
   // set with `wrangler secret put` / `wrangler secret bulk` and never
   // committed.
   "vars": {
-    "NEXT_PUBLIC_SITE_URL": "https://veyra.ahxd.workers.dev",
+    "NEXT_PUBLIC_SITE_URL": "https://veyra.caelmont.in",
     "NEXT_PUBLIC_SUPABASE_URL": "https://otqucrqcefdychplbbtq.supabase.co",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90cXVjcnFjZWZkeWNocGxiYnRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMjA3MDksImV4cCI6MjEwNDY5NjcwOX0.k4lAS0BTHEqpi6GgVEymZK0-XCjLxYIsStBLxeFIs9g",
     "SUPABASE_DELIVERY_BUCKET": "product-downloads",
     "LEMONSQUEEZY_MODE": "test",
-    "LEMONSQUEEZY_STORE_ID": "470989",
+    "LEMONSQUEEZY_STORE_ID": "485404",
     // Sender for transactional email (checklist PDF, purchase receipts).
     // Currently the Resend SANDBOX sender — Resend only delivers it to the
-    // account owner's inbox until a domain is verified at
-    // resend.com/domains. Once veyra.co is verified, switch to
-    // "Veyra <hello@veyra.co>" here and in .env.local.
+    // account owner's inbox until a sending domain is verified at
+    // resend.com/domains. Contact email is Caelmontholdings@gmail.com;
+    // set VEYRA_EMAIL_FROM to whatever sender Resend has verified.
     "VEYRA_EMAIL_FROM": "Veyra <onboarding@resend.dev>",
     "VEYRA_LICENCE_PUBLIC_KEY_JWK": "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"f4HKyrMbMIxqXVwYwKnpEt39hbLVIS2sMvP7g8WIdzg\",\"y\":\"IWqaev8f4P_3z_f1qduNDlCIeS-In0en3RNvgdFAgk0\"}"
   }

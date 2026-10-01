@@ -120,10 +120,10 @@ export default async function OrdersPage() {
       <p className="mt-8 max-w-md text-xs leading-relaxed text-ink-4">
         Questions about an order? Write to{" "}
         <a
-          href="mailto:hello@veyra.co"
+          href="mailto:Caelmontholdings@gmail.com"
           className="font-medium text-accent underline-offset-2 hover:underline"
         >
-          hello@veyra.co
+          Caelmontholdings@gmail.com
         </a>{" "}
         with the order reference.
       </p>

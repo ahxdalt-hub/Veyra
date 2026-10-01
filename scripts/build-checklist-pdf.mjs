@@ -331,8 +331,8 @@ draw(
   10.5, serifItalic, C.ink3, { leading: 14 }
 );
 space(2);
-text("veyra.co/audit", M, 13, serifBold, C.accent);
-const fine = "Veyra - no spam, no drip campaign. veyra.co";
+text("veyra.caelmont.in/audit", M, 13, serifBold, C.accent);
+const fine = "Veyra - no spam, no drip campaign. veyra.caelmont.in";
 page.drawText(sanitize(fine), { x: PAGE.w - M - sans.widthOfTextAtSize(fine, 8), y, size: 8, font: sans, color: C.muted });
 
 /* ------------------------------------------------------------------ */

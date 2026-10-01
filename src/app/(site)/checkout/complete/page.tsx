@@ -258,10 +258,10 @@ function PaidOrder({ order }: { order: PublicOrder }) {
       <p className="mx-auto mt-8 max-w-md text-center text-xs leading-relaxed text-ink-4">
         Questions about your order? Write to{" "}
         <a
-          href="mailto:hello@veyra.co"
+          href="mailto:Caelmontholdings@gmail.com"
           className="font-medium text-accent underline-offset-2 hover:underline"
         >
-          hello@veyra.co
+          Caelmontholdings@gmail.com
         </a>{" "}
         with your order reference.
       </p>

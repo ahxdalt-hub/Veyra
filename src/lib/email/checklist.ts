@@ -22,7 +22,7 @@ import {
 import { siteUrl } from "@/lib/email/purchase";
 
 function fromAddress(): string {
-  return process.env.VEYRA_EMAIL_FROM || "Veyra <hello@veyra.co>";
+  return process.env.VEYRA_EMAIL_FROM || "Veyra <Caelmontholdings@gmail.com>";
 }
 
 export type ChecklistSendResult = { ok: boolean; error: string | null };

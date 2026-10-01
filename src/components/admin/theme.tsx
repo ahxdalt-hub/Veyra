@@ -13,27 +13,27 @@ import { useLocalStorageState } from "@/lib/use-local-storage";
 /**
  * Command-center theme.
  *
- * Dark is the default — the control-room register the whole system is
- * designed for; light is the warm-ivory variant. The preference lives
- * in localStorage (a personal workspace setting, deliberately not in
- * the database), read through useSyncExternalStore so there are no
- * hydration mismatches or effect cascades. The .cc class carries the
- * CSS custom properties (src/app/admin/admin.css); toggling .cc-light
- * switches registers, and the html element carries the matching class
- * so overscroll areas stay in theme.
+ * Light is the default — the warm-ivory register; dark is the
+ * control-room variant. The preference lives in localStorage (a
+ * personal workspace setting, deliberately not in the database), read
+ * through useSyncExternalStore so there are no hydration mismatches or
+ * effect cascades. The .cc class carries the CSS custom properties
+ * (src/app/admin/admin.css); toggling .cc-light switches registers, and
+ * the html element carries the matching class so overscroll areas stay
+ * in theme.
  */
 
 export type CcTheme = "dark" | "light";
 const STORAGE_KEY = "veyra-cc-theme";
 
 const ThemeCtx = createContext<{ theme: CcTheme; toggle: () => void }>({
-  theme: "dark",
+  theme: "light",
   toggle: () => undefined,
 });
 
 export function CcThemeProvider({ children }: { children: ReactNode }) {
-  const [raw, setRaw] = useLocalStorageState(STORAGE_KEY, "dark");
-  const theme: CcTheme = raw === "light" ? "light" : "dark";
+  const [raw, setRaw] = useLocalStorageState(STORAGE_KEY, "light");
+  const theme: CcTheme = raw === "dark" ? "dark" : "light";
 
   // The html element mirrors the theme for background bleed (overscroll,
   // dialogs' backdrop). DOM sync in an effect is the correct use here.

@@ -72,10 +72,10 @@ export default async function SettingsPage() {
             Your email is tied to your purchases and licences. To change it,
             write to{" "}
             <a
-              href="mailto:hello@veyra.co"
+              href="mailto:Caelmontholdings@gmail.com"
               className="font-medium text-accent underline-offset-2 hover:underline"
             >
-              hello@veyra.co
+              Caelmontholdings@gmail.com
             </a>{" "}
             and we&rsquo;ll take care of it.
           </p>

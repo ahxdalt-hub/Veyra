@@ -133,7 +133,7 @@ export default function OgImage() {
               textTransform: "uppercase",
             }}
           >
-            veyra.co
+            veyra.caelmont.in
           </div>
         </div>
       </div>

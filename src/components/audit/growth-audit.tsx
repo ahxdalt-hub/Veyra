@@ -76,8 +76,11 @@ function useCountUp(target: number, active: boolean, reduced: boolean) {
   useEffect(() => {
     if (!active) return;
     if (reduced) {
-      setValue(target);
-      return;
+      // Keep the settled value in state (so later renders still show it),
+      // deferred to the frame callback — never synchronous setState in the
+      // effect body (react-hooks/set-state-in-effect).
+      const id = requestAnimationFrame(() => setValue(target));
+      return () => cancelAnimationFrame(id);
     }
     let raf = 0;
     const t0 = performance.now();
@@ -91,7 +94,9 @@ function useCountUp(target: number, active: boolean, reduced: boolean) {
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [active, target, reduced]);
-  return value;
+  // Reduced motion settles at render time (derived) — the final score is
+  // visible on the same paint that reveals it, no frame at zero.
+  return active && reduced ? target : value;
 }
 
 export function GrowthAudit({

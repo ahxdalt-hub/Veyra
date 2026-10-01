@@ -372,3 +372,343 @@ html.cc-html {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* ============================================================
+   SIGN-IN SCENE — the command center's front door. One
+   orchestrated intro (emblem → eyebrow → typed heading →
+   form rise) plus two endless ambient loops: a radar sweep
+   crossing the viewport and the emblem ring breathing.
+   Everything sits inside the theme register: hairlines and
+   champagne, no glow heavier than a breath.
+   ============================================================ */
+
+/* Radar sweep — a champagne hairline with a soft trailing wash
+   drifting down the viewport every 9s. */
+@keyframes cc-sweep {
+  0%   { transform: translateY(-8vh); opacity: 0; }
+  8%   { opacity: 1; }
+  46%  { opacity: 1; }
+  55%  { transform: translateY(108vh); opacity: 0; }
+  100% { transform: translateY(108vh); opacity: 0; }
+}
+.cc .cc-sweep {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 22vh;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    var(--cc-accent-dim) 78%,
+    var(--cc-accent-line) 96%,
+    transparent 100%
+  );
+  animation: cc-sweep 9s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Emblem ring — slow breathing halo behind the V monogram. */
+@keyframes cc-ring-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50%      { transform: scale(1.18); opacity: 0.14; }
+}
+.cc .cc-ring-breathe {
+  animation: cc-ring-breathe 4.5s ease-in-out infinite;
+}
+
+/* Caret — the typed heading's cursor. */
+@keyframes cc-caret {
+  0%, 45%  { opacity: 1; }
+  50%, 95% { opacity: 0; }
+}
+.cc .cc-caret {
+  animation: cc-caret 1.05s steps(1) infinite;
+}
+
+/* Grid drift — the background grid slowly recedes, a parallax
+   floor rather than a static texture. */
+@keyframes cc-grid-drift {
+  from { background-position: 0 0; }
+  to   { background-position: 0 96px; }
+}
+.cc .cc-grid-drift {
+  animation: cc-grid-drift 14s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc .cc-sweep,
+  .cc .cc-ring-breathe,
+  .cc .cc-caret,
+  .cc .cc-grid-drift {
+    animation: none !important;
+  }
+  .cc .cc-sweep { display: none; }
+}
+
+/* Intro choreography — CSS-driven (compositor-owned) so the sequence
+   can never freeze at its initial state the way a rAF-driven loop can.
+   Both-fill delays stage the reveal: emblem → eyebrow → form. */
+@keyframes cc-emblem-in {
+  from { opacity: 0; transform: scale(0.82); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.cc .cc-emblem-in {
+  animation: cc-emblem-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes cc-fade-x {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+.cc .cc-fade-x {
+  animation: cc-fade-x 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.55s both;
+}
+@keyframes cc-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+.cc .cc-rise {
+  animation: cc-rise 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc .cc-emblem-in,
+  .cc .cc-fade-x,
+  .cc .cc-rise {
+    animation: none !important;
+  }
+}
+
+/* ============================================================
+   THE VAULT — stage two of the sign-in. A circular safe door
+   in 3D perspective: a rotating tick dial (90° per entered
+   digit), four bolts that light around the rim, and an open
+   swing that hands the room to the operator. Metal reads as
+   charcoal surfaces and champagne hairlines — machined, not
+   chrome-heavy.
+   ============================================================ */
+
+.cc-vault-scene {
+  perspective: 1100px;
+  perspective-origin: 50% 42%;
+}
+
+/* The door — idle at a slight tilt so the metal has depth. */
+.cc-vault {
+  --vault-size: 264px;
+  position: relative;
+  width: var(--vault-size);
+  height: var(--vault-size);
+  border-radius: 50%;
+  transform: rotateX(9deg);
+  transform-style: preserve-3d;
+  transform-origin: 18% center;
+  transition: transform 1.15s cubic-bezier(0.6, 0, 0.2, 1);
+  background:
+    radial-gradient(circle at 32% 26%, var(--cc-surface-2) 0%, var(--cc-bg-2) 58%, #0c0b09 100%);
+  border: 1px solid var(--cc-line-strong);
+  box-shadow:
+    var(--cc-shadow),
+    inset 0 0 0 5px var(--cc-bg),
+    inset 0 0 0 6px var(--cc-line),
+    inset 0 14px 34px rgba(0, 0, 0, 0.4);
+  animation: cc-vault-in 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.cc .cc-vault.open {
+  transform: rotateX(9deg) rotateY(-102deg);
+}
+
+@keyframes cc-vault-in {
+  from {
+    opacity: 0;
+    transform: rotateX(16deg) translateY(26px) scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: rotateX(9deg) translateY(0) scale(1);
+  }
+}
+
+/* Machined rim — fine radial knurling between two hairlines. */
+.cc-vault::before {
+  content: "";
+  position: absolute;
+  inset: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--cc-line);
+  background: repeating-conic-gradient(
+    from 0deg,
+    var(--cc-line) 0deg 0.6deg,
+    transparent 0.6deg 9deg
+  );
+  -webkit-mask: radial-gradient(circle, transparent 91%, #000 92%);
+  mask: radial-gradient(circle, transparent 91%, #000 92%);
+  pointer-events: none;
+}
+
+/* Rivets — six machined heads around the rim. */
+.cc-vault .cc-rivet {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px;
+  border-radius: 50%;
+  background: var(--cc-surface-2);
+  border: 1px solid var(--cc-line-strong);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+/* The dial — a tick ring that rotates 90° per digit, a hub and
+   handle bar riding on it. */
+.cc-vault .cc-dial {
+  --dial-rot: 0deg;
+  position: absolute;
+  inset: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--cc-line-strong);
+  background:
+    repeating-conic-gradient(
+      from 0deg,
+      var(--cc-accent-line) 0deg 1.2deg,
+      transparent 1.2deg 15deg
+    );
+  transform: rotate(var(--dial-rot));
+  transition: transform 0.55s cubic-bezier(0.3, 1.3, 0.4, 1);
+  box-shadow:
+    inset 0 0 0 10px var(--cc-bg-2),
+    inset 0 0 0 11px var(--cc-line),
+    0 6px 18px rgba(0, 0, 0, 0.35);
+}
+.cc-vault .cc-dial::after {
+  /* hub */
+  content: "";
+  position: absolute;
+  inset: 30%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 30%, var(--cc-surface-2), var(--cc-bg-2) 72%);
+  border: 1px solid var(--cc-line-strong);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+.cc-vault .cc-dial .cc-handle {
+  /* handle bar across the hub */
+  position: absolute;
+  top: 50%;
+  left: 14%;
+  right: 14%;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: 3px;
+  background: linear-gradient(to bottom, var(--cc-accent-ink), var(--cc-accent));
+  opacity: 0.85;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+
+/* Bolts — four squares on the rim, lighting champagne as the
+   code fills. The "locked" state carries a faint error tint. */
+.cc-vault .cc-bolt {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 13px;
+  height: 13px;
+  margin: -6.5px;
+  border-radius: 2px;
+  background: var(--cc-bg);
+  border: 1px solid var(--cc-line-strong);
+  transition: background-color 0.25s ease, border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+.cc-vault .cc-bolt.lit {
+  background: var(--cc-accent);
+  border-color: var(--cc-accent-line);
+  box-shadow: 0 0 10px rgba(201, 164, 92, 0.45);
+}
+.cc-vault.wrong .cc-bolt {
+  background: var(--cc-error);
+  border-color: var(--cc-error-dim);
+  box-shadow: 0 0 8px rgba(210, 109, 90, 0.3);
+}
+
+/* Door open → the room shows through the swung panel. */
+.cc-vault.open .cc-dial,
+.cc-vault.open .cc-bolt {
+  opacity: 0;
+  transition: opacity 0.3s ease 0.25s;
+}
+
+/* Pin slots — mono bullets under the door. */
+.cc .cc-pin-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 52px;
+  border-radius: 3px;
+  border: 1px solid var(--cc-line-strong);
+  background: var(--cc-bg-2);
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+  color: var(--cc-accent-ink);
+  transition: border-color 0.2s ease, background-color 0.2s ease,
+    transform 0.2s cubic-bezier(0.3, 1.3, 0.4, 1);
+}
+.cc .cc-pin-slot.filled {
+  border-color: var(--cc-accent-line);
+  background: var(--cc-surface);
+  transform: translateY(-2px);
+}
+.cc-vault-scene.wrong .cc-pin-slot {
+  border-color: var(--cc-error);
+  animation: cc-vault-shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+.cc-vault-scene.open .cc-pin-slot {
+  border-color: var(--cc-success);
+  color: var(--cc-success);
+}
+
+@keyframes cc-vault-shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+}
+
+/* Stage exits — the credential form giving way to the vault. */
+@keyframes cc-exit-up {
+  to {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.98);
+  }
+}
+.cc .cc-exit {
+  animation: cc-exit-up 0.36s cubic-bezier(0.4, 0, 1, 1) both;
+  pointer-events: none;
+}
+
+/* Hidden-but-focusable pin capture field. */
+.cc .cc-pin-capture {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  border: 0;
+  padding: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc .cc-vault,
+  .cc .cc-vault .cc-dial,
+  .cc .cc-pin-slot {
+    transition: none !important;
+  }
+  .cc .cc-vault,
+  .cc .cc-exit {
+    animation: none !important;
+  }
+  .cc .cc-vault-scene.wrong .cc-pin-slot {
+    animation: none !important;
+  }
+}

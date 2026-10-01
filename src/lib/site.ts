@@ -8,14 +8,14 @@ export const site = {
   /** Parent brand. */
   parent: "Caelmont",
   /** Canonical production origin — override with NEXT_PUBLIC_SITE_URL. */
-  url: process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://veyra.co",
+  url: process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://veyra.caelmont.in",
   tagline: "Practical business systems you can actually run.",
   description:
     "Veyra turns important business processes into structured systems for freelancers, consultants, service businesses, and small agencies — packaged so you can put them to work, not just read them.",
   positioning:
     "Veyra, a Caelmont brand, builds practical business systems for freelancers, consultants, service businesses, and small agencies — structured so the work actually gets run, not just documented.",
   contact: {
-    email: "hello@veyra.co",
+    email: "Caelmontholdings@gmail.com",
   },
 } as const;
 

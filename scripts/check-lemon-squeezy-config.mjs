@@ -4,7 +4,7 @@
  *
  *   npm run test:payments:config          # env audit only (no network)
  *   npm run test:payments:live            # + verifies the API key works
- *                                          against Lemon Squeezy's GET /user
+ *                                          against Lemon Squeezy's GET /stores
  *
  * What it asserts:
  *   - LEMONSQUEEZY_API_KEY present, looks like an LS API key (JWT: three
@@ -71,9 +71,12 @@ const mode = (env.LEMONSQUEEZY_MODE ?? "test").toLowerCase();
 if (mode === "live") notes.push("LEMONSQUEEZY_MODE=live — this deployment is declared LIVE. Real money moves if the key is a live key.");
 else if (mode !== "test") problems.push(`LEMONSQUEEZY_MODE="${mode}" is neither "test" nor "live".`);
 
-/* ---- network verification (GET /v1/user) --------------------------- */
+/* ---- network verification (GET /v1/stores) ------------------------- */
 async function verifyApiKey() {
-  const res = await fetch("https://api.lemonsqueezy.com/v1/user", {
+  // GET /v1/stores: a key-scoped endpoint that proves the credential is
+  // accepted AND reports which store it belongs to. (GET /v1/user is gone
+  // from the API — it answers 404 for every key, valid or not.)
+  const res = await fetch("https://api.lemonsqueezy.com/v1/stores", {
     headers: { Accept: "application/vnd.api+json", Authorization: `Bearer ${key}` },
   });
   if (res.status === 401) {
@@ -81,12 +84,19 @@ async function verifyApiKey() {
     return;
   }
   if (!res.ok) {
-    problems.push(`Lemon Squeezy GET /user answered ${res.status}: ${(await res.text()).slice(0, 160)}`);
+    problems.push(`Lemon Squeezy GET /stores answered ${res.status}: ${(await res.text()).slice(0, 160)}`);
     return;
   }
-  const me = await res.json();
-  const email = me?.data?.attributes?.email;
-  notes.push(`API key valid — authenticated as ${email ?? "the store owner"}.`);
+  const body = await res.json();
+  const stores = body?.data ?? [];
+  const names = stores.map((s) => `${s?.attributes?.name ?? "?"} (#${s?.id})`).join(", ");
+  notes.push(`API key valid — access to ${stores.length} store(s): ${names || "none"}.`);
+  const ids = stores.map((s) => String(s?.id));
+  if (store && !ids.includes(store)) {
+    problems.push(
+      `LEMONSQUEEZY_STORE_ID=${store} is not among the stores this key can reach (${ids.join(", ")}) — checkout would fail closed.`
+    );
+  }
 }
 
 const wantsLive = process.argv.includes("--live");

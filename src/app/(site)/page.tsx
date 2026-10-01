@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Hero } from "@/components/home/hero";
 import { Problem } from "@/components/home/problem";
 import { Featured } from "@/components/home/featured";
@@ -15,6 +16,16 @@ import { site } from "@/lib/site";
  * Hero → Problem → Product → What's inside → How → Why → Collection →
  * Lead magnet → FAQ → Final CTA.
  */
+
+export const metadata: Metadata = {
+  title: {
+    absolute:
+      "Veyra | Client Growth System for Freelancers & Service Businesses",
+  },
+  description:
+    "Veyra is a practical client growth system for freelancers, consultants, and service businesses to organize client acquisition, sales, delivery, retention, and growth.",
+  alternates: { canonical: "/" },
+};
 
 export default function Home() {
   const websiteJsonLd = {

@@ -29,10 +29,10 @@ export default function SignUpPage() {
                 Customer accounts aren&rsquo;t enabled on this deployment yet.
                 Purchases currently deliver by email — write to{" "}
                 <a
-                  href="mailto:hello@veyra.co"
+                  href="mailto:Caelmontholdings@gmail.com"
                   className="font-medium text-accent underline-offset-2 hover:underline"
                 >
-                  hello@veyra.co
+                  Caelmontholdings@gmail.com
                 </a>{" "}
                 about an existing order.
               </p>

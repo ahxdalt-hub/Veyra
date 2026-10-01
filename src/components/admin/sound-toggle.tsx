@@ -1,12 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  isSoundMuted,
-  playCue,
-  setSoundMuted,
-  unlockAudio,
-} from "@/lib/admin/sound";
+import { playCue, unlockAudio, useSoundMutedState } from "@/lib/admin/sound";
 import { VolumeOffIcon, VolumeOnIcon } from "@/components/admin/icons";
 
 /**
@@ -16,15 +10,12 @@ import { VolumeOffIcon, VolumeOnIcon } from "@/components/admin/icons";
  * click itself doubles as the autoplay-policy unlock).
  */
 export function SoundToggle() {
-  const [muted, setMuted] = useState(true); // SSR-safe default; synced on mount
-
-  useEffect(() => {
-    setMuted(isSoundMuted());
-  }, []);
+  // localStorage-backed preference (useSyncExternalStore) — hydration-safe
+  // via a fixed server snapshot; no setState-in-effect.
+  const [muted, setMuted] = useSoundMutedState();
 
   const toggle = () => {
     const next = !muted;
-    setSoundMuted(next);
     setMuted(next);
     if (!next) {
       unlockAudio();

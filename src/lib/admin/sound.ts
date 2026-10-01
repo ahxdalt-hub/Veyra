@@ -22,6 +22,7 @@
 export type Cue = "sale" | "failed" | "tick";
 
 import { SALE_CHIME_SRC } from "@/lib/admin/sound-asset";
+import { useLocalStorageState } from "@/lib/use-local-storage";
 
 const MUTE_KEY = "cc:sound";
 const MIN_GAP_MS = 450;
@@ -40,6 +41,17 @@ export function isSoundMuted(): boolean {
 export function setSoundMuted(muted: boolean): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(MUTE_KEY, muted ? "off" : "on");
+}
+
+/** React view of the mute preference — the house localStorage pattern
+ *  (useSyncExternalStore): hydration-safe via a fixed server snapshot,
+ *  no setState-in-effect, same-tab updates propagate to every subscriber.
+ *  Returns [muted, setMuted]. The server snapshot AND the unset value are
+ *  both "on" — sound is armed by default, exactly like isSoundMuted() on
+ *  a fresh browser. */
+export function useSoundMutedState(): [boolean, (muted: boolean) => void] {
+  const [flag, setFlag] = useLocalStorageState(MUTE_KEY, "on");
+  return [flag === "off", (muted: boolean) => setFlag(muted ? "off" : "on")];
 }
 
 /** Create/resume the shared AudioContext and prewarm the sale chime.

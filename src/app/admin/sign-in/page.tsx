@@ -20,7 +20,7 @@ export default async function AdminSignInPage() {
   if (admin) redirect("/admin");
 
   return (
-    <div className="cc-bg-grid flex min-h-screen items-center justify-center px-6">
+    <div className="cc-bg-grid cc-grid-drift flex min-h-screen items-center justify-center px-6">
       <AdminSignInForm />
     </div>
   );
