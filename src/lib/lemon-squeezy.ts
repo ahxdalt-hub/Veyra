@@ -113,6 +113,8 @@ export async function createLemonSqueezyCheckout(params: {
   /** Where Lemon Squeezy sends the customer after paying. */
   redirectUrl: string;
   productName: string;
+  /** Opaque Caelmont partner marker; round-trips via meta.custom_event_data. */
+  cmRef?: string | null;
 }): Promise<LemonSqueezyCheckout> {
   const key = apiKey();
   const store = storeId();
@@ -141,6 +143,10 @@ export async function createLemonSqueezyCheckout(params: {
               veyra_order_id: params.internalOrderId,
               veyra_product_slug: params.productSlug,
               veyra_product_name: params.productName,
+              // Opaque Caelmont partner marker (only present on partner-
+              // referred traffic). Rides through the checkout and comes back
+              // on meta.custom_event_data so the webhook can credit Caelmont.
+              ...(params.cmRef ? { cm_ref: params.cmRef } : {}),
             },
           },
           product_options: {

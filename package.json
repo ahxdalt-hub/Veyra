@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "deploy": "node scripts/deploy.mjs",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "lint": "eslint",
@@ -17,7 +17,8 @@
     "test:payments:config": "node scripts/check-lemon-squeezy-config.mjs",
     "test:payments:live": "node scripts/check-lemon-squeezy-config.mjs --live",
     "test:email:config": "node scripts/check-email-config.mjs",
-    "test:security:live": "node supabase/test/security.live.mjs"
+    "test:security:live": "node supabase/test/security.live.mjs",
+    "test:attribution": "node --test supabase/test/partner.attribution.test.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",

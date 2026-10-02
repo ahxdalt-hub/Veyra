@@ -7,6 +7,7 @@ import {
   createLemonSqueezyCheckout,
   lemonSqueezyMode,
 } from "@/lib/lemon-squeezy";
+import { readReferralToken } from "@/lib/partner-attribution";
 import {
   createRazorpayOrder,
   razorpayMode,
@@ -415,6 +416,7 @@ export async function POST(request: Request) {
       internalOrderId: orderId,
       productName: line.name,
       redirectUrl: `${site.url}/checkout/complete?order=${orderId}`,
+      cmRef: readReferralToken(request.headers),
     });
 
     return NextResponse.json({

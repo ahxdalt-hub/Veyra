@@ -43,12 +43,20 @@
   // identifier (NEXT_PUBLIC_* values are shipped to browsers on purpose and
   // are protected by Supabase RLS) or a display-only mode flag. Anything
   // sensitive — SUPABASE_SERVICE_ROLE_KEY, VEYRA_LICENCE_SIGNING_KEY,
-  // LEMONSQUEEZY_API_KEY, LEMONSQUEEZY_WEBHOOK_SECRET, RESEND_API_KEY, and
+  // LEMONSQUEEZY_API_KEY, LEMONSQUEEZY_WEBHOOK_SECRET, RESEND_API_KEY,
+  // PARTNER_WEBHOOK_SECRET (shared with Caelmont's /api/partners/webhook —
+  // MUST equal the value on caelmont.in or signed attribution events are
+  // rejected with 401), and
   // the command-center vault set (VEYRA_ADMIN_USERNAME, VEYRA_ADMIN_PASSWORD,
   // VEYRA_ADMIN_EMAIL, VEYRA_ADMIN_PIN, VEYRA_ADMIN_SESSION_SECRET) — is
   // set with `wrangler secret put` / `wrangler secret bulk` and never
   // committed.
   "vars": {
+    // Public Caelmont seam that receives signed order.paid/order.refunded
+    // events for partner commissions (src/lib/partner-attribution.ts). Not a
+    // secret — it is a public URL; the authentication is the HMAC signature.
+    // Overridable per environment; the code defaults to production caelmont.in.
+    "CAELMONT_WEBHOOK_URL": "https://caelmont.in/api/partners/webhook",
     "NEXT_PUBLIC_SITE_URL": "https://veyra.caelmont.in",
     "NEXT_PUBLIC_SUPABASE_URL": "https://otqucrqcefdychplbbtq.supabase.co",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90cXVjcnFjZWZkeWNocGxiYnRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMjA3MDksImV4cCI6MjEwNDY5NjcwOX0.k4lAS0BTHEqpi6GgVEymZK0-XCjLxYIsStBLxeFIs9g",

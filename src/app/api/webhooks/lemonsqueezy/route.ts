@@ -9,6 +9,11 @@ import {
 import { grantPurchaseForOrder } from "@/lib/fulfillment";
 import { revokeAccessForOrder } from "@/lib/refunds";
 import { notifyNewSale } from "@/lib/admin/notifications";
+import {
+  notifyOrderPaid,
+  notifyOrderRefunded,
+  parseReferralToken,
+} from "@/lib/partner-attribution";
 
 /**
  * POST /api/webhooks/lemonsqueezy — durable payment confirmation.
@@ -79,6 +84,11 @@ export async function POST(request: Request) {
   const custom = (meta?.custom_event_data ?? {}) as Record<string, unknown>;
   const veyraOrderId =
     typeof custom.veyra_order_id === "string" ? custom.veyra_order_id : null;
+  // Opaque Caelmont partner marker, if this checkout was entered through a
+  // partner link. Veyra never decodes it — it just hands it back, signed, so
+  // Caelmont can verify the HMAC and credit the right partner. Absent for
+  // every direct buyer, which is the normal case.
+  const cmRef = parseReferralToken(custom.cm_ref);
 
   if (eventName !== "order_created" && eventName !== "order_refunded") {
     // Acknowledge so Lemon Squeezy stops retrying; nothing to do yet.
@@ -126,6 +136,18 @@ export async function POST(request: Request) {
         return NextResponse.json({ received: true });
       }
       const revoked = await revokeAccessForOrder(order);
+      // Reflect the refund into the partner ledger so commission on a
+      // clawed-back sale is not paid out. Keyed on the same order_id as the
+      // credit; Caelmont voids a PENDING/HELD conversion and flags a PAID one
+      // for manual recovery. No-op (200) if this sale was never credited.
+      if (cmRef && lsOrderId !== "unknown") {
+        try {
+          const outcome = await notifyOrderRefunded({ lsOrderId, token: cmRef });
+          console.log(`[ls-webhook] partner refund void ${lsOrderId}: ${outcome}`);
+        } catch (err) {
+          console.error(`[ls-webhook] partner refund void threw for ${lsOrderId}:`, err);
+        }
+      }
       console.log(
         `[ls-webhook] refund ${lsOrderId} for order ${order.id} — ` +
           `${revoked ? "access revoked" : "already handled (no-op)"}`
@@ -185,6 +207,26 @@ export async function POST(request: Request) {
         `(order was ${order.status} before this delivery)`
     );
     await grantPurchaseForOrder({ ...order, status: "paid" });
+    // Partner attribution — best-effort, AFTER the sale is durably fulfilled.
+    // Fired on every paid delivery (not just the one that flipped pending→
+    // paid) so a credit that failed to reach Caelmont is healed by a later
+    // replay; Caelmont dedupes on order_id, so repeats can never double-pay.
+    // Wrapped so a dead/slow Caelmont can never fail this webhook or hold up
+    // the customer's delivery — the worst case is a missing commission that
+    // the next retry (or a manual admin conversion) recovers.
+    if (cmRef && lsOrderId !== "unknown") {
+      try {
+        const outcome = await notifyOrderPaid({
+          lsOrderId,
+          token: cmRef,
+          amountMinor: order.amount,
+          currency: order.currency,
+        });
+        console.log(`[ls-webhook] partner attribution ${lsOrderId}: ${outcome}`);
+      } catch (err) {
+        console.error(`[ls-webhook] partner attribution POST threw for ${lsOrderId}:`, err);
+      }
+    }
     // Command-center toast — only when THIS delivery made the flip
     // (a null row from the conditional update means an earlier delivery
     // already confirmed it and notified).
