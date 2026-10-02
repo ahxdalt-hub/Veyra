@@ -47,8 +47,8 @@ export default async function OverviewPage({
       getTotals(),
       getRevenueSeries(range),
       getProductBreakdown(range),
-      listOrders({ limit: 8 }),
-      listNotifications({ limit: 7 }),
+      listOrders({ limit: 14 }),
+      listNotifications({ limit: 12 }),
       getFreeClaims(range),
     ]);
 

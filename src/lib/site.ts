@@ -9,6 +9,9 @@ export const site = {
   parent: "Caelmont",
   /** Canonical production origin — override with NEXT_PUBLIC_SITE_URL. */
   url: process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://veyra.caelmont.in",
+  /** Parent company origin (Caelmont) — override with NEXT_PUBLIC_PARENT_SITE_URL. */
+  parentUrl:
+    process.env.NEXT_PUBLIC_PARENT_SITE_URL?.replace(/\/$/, "") ?? "https://caelmont.in",
   tagline: "Practical business systems you can actually run.",
   description:
     "Veyra turns important business processes into structured systems for freelancers, consultants, service businesses, and small agencies — packaged so you can put them to work, not just read them.",
@@ -23,7 +26,12 @@ export type NavItem = {
   label: string;
   href: string;
   description?: string;
+  /** Renders as a new-tab external link (e.g. the parent company site). */
+  external?: boolean;
 };
+
+/** The Caelmont Partner Program, scoped to Veyra referrals. */
+export const partnersUrl = `${site.parentUrl}/partners?product=veyra`;
 
 /** Primary navigation — mirrored in header, mobile drawer, and footer. */
 export const primaryNav: NavItem[] = [
@@ -45,6 +53,7 @@ export const footerNav = {
   company: [
     { label: "About Veyra", href: "/about" },
     { label: "Contact", href: "/contact" },
+    { label: "Partners", href: partnersUrl, external: true },
   ] as NavItem[],
   support: [
     { label: "FAQ", href: "/#faq" },

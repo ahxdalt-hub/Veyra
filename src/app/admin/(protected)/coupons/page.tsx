@@ -54,7 +54,7 @@ export default async function CouponsPage({
               body="Create a code and it works at checkout immediately — with real usage limits and tracking."
             />
           ) : (
-            <ScrollFadeX>
+            <ScrollFadeX maxY={520}>
               <table className="cc-table min-w-full">
                 <thead>
                   <tr>

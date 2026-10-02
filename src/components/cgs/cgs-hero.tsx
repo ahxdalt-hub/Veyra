@@ -25,7 +25,7 @@ import { formatPrice } from "@/lib/site";
 
 const supportPoints = [
   "One-time purchase",
-  "Windows desktop application",
+  "Windows & macOS desktop application",
   "Local-first business workspace",
   "Designed for freelancers, consultants, and small service businesses",
 ];

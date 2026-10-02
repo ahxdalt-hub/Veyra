@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
+import { twMerge } from "tailwind-merge";
 
 /**
  * Button — the single source of button styling.
@@ -60,6 +61,8 @@ type ButtonProps = {
   variant?: ButtonVariant;
   size?: ButtonSize;
   href?: string;
+  /** With `href`: open in a new tab as an external link. */
+  external?: boolean;
   arrow?: boolean;
   onClick?: () => void;
   children: ReactNode;
@@ -69,13 +72,31 @@ export function Button({
   variant = "primary",
   size = "md",
   href,
+  external = false,
   arrow = false,
   onClick,
   children,
   className = "",
   ...rest
 }: ButtonProps) {
-  const classes = `${base} ${variants[variant]} ${sizes[size]} ${className}`;
+  const classes = twMerge(
+    `${base} ${variants[variant]} ${sizes[size]} ${className}`
+  );
+
+  if (href && external) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={classes}
+        onClick={onClick}
+      >
+        {children}
+        {arrow ? <ButtonArrow /> : null}
+      </a>
+    );
+  }
 
   if (href) {
     return (

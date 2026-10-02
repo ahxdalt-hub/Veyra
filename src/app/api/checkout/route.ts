@@ -5,9 +5,13 @@ import { checkoutAmountMinor, MAX_SEATS, seatTier } from "@/lib/pricing";
 import { CURRENCY } from "@/lib/site";
 import {
   createLemonSqueezyCheckout,
-  lemonSqueezyConfigured,
   lemonSqueezyMode,
 } from "@/lib/lemon-squeezy";
+import {
+  createRazorpayOrder,
+  razorpayMode,
+} from "@/lib/razorpay";
+import { selectCheckoutProvider } from "@/lib/payments/provider";
 import { site } from "@/lib/site";
 import { insertOrder, updateOrderStatus } from "@/lib/orders";
 import type { Order } from "@/lib/orders";
@@ -227,6 +231,8 @@ export async function POST(request: Request) {
         id: orderId,
         lemon_squeezy_order_id: null,
         lemon_squeezy_payment_id: null,
+        razorpay_order_id: null,
+        razorpay_payment_id: null,
         email,
         user_id: userId,
         product_slug: line.slug,
@@ -304,30 +310,31 @@ export async function POST(request: Request) {
     }
   }
 
-  // --- Guard: payments must be configured and usable --------------------
-  // lemonSqueezyConfigured(slug) fails closed when the API key, store id,
-  // or the variant mapping for this product is missing. Nothing is charged
-  // either way.
-  if (!lemonSqueezyConfigured(line.slug)) {
-    console.error(
-      "[checkout] refusing to charge: Lemon Squeezy is not configured for " +
-        `product "${line.slug}" (LEMONSQUEEZY_API_KEY / LEMONSQUEEZY_STORE_ID / ` +
-        "LEMONSQUEEZY_VARIANT_ID_… missing)."
-    );
+  // --- Guard: the declared payment provider must be configured ------------
+  // Provider selection is EXPLICIT: PAYMENT_PROVIDER decides, never the
+  // mere presence of Razorpay keys (see src/lib/payments/provider.ts).
+  // Fails closed either way — nothing is charged unless the declared
+  // provider is fully configured.
+  const selected = selectCheckoutProvider(line.slug);
+  if (!selected.ok) {
+    console.error(`[checkout] refusing to charge: ${selected.message}`);
     return NextResponse.json(
       {
         error:
-          "Payments are not configured on this deployment yet. Nothing was charged.",
-        code: "payments_not_configured",
+          selected.code === "payment_provider_invalid"
+            ? "Payments are misconfigured on this deployment. Nothing was charged."
+            : "Payments are not configured on this deployment yet. Nothing was charged.",
+        code: selected.code,
       },
-      { status: 503 }
+      { status: selected.code === "payment_provider_invalid" ? 500 : 503 }
     );
   }
+  const useRazorpay = selected.provider === "razorpay";
 
-  // --- Create our order record, then the Lemon Squeezy checkout ---------
-  // The order is inserted FIRST (pending) so the checkout's custom data can
-  // carry our order id: the webhook resolves the payment back to this row
-  // even if the customer never returns to the site.
+  // --- Create our order record, then the provider checkout --------------
+  // The order is inserted FIRST (pending) so the provider confirmation can
+  // resolve the payment back to this row even if the customer never
+  // returns to the site.
   const orderId = randomUUID();
 
   try {
@@ -335,6 +342,8 @@ export async function POST(request: Request) {
       id: orderId,
       lemon_squeezy_order_id: null,
       lemon_squeezy_payment_id: null,
+      razorpay_order_id: null,
+      razorpay_payment_id: null,
       email,
       user_id: userId,
       product_slug: line.slug,
@@ -342,7 +351,7 @@ export async function POST(request: Request) {
       amount: amountMinor,
       currency: CURRENCY,
       status: "pending",
-      provider: "lemon-squeezy",
+      provider: useRazorpay ? "razorpay" : "lemon-squeezy",
       // Coupon trail — cents, alongside the charged amount. used_count is
       // maintained by the DB's pending→paid trigger, never here.
       ...(couponApplied
@@ -354,6 +363,50 @@ export async function POST(request: Request) {
           }
         : {}),
     });
+
+    // --- Razorpay test path (0022) --------------------------------------
+    // Server creates the Razorpay order (receipt = our order id), stores
+    // the provider reference, and returns only PUBLIC data: the key id,
+    // the amount, and the razorpay order id. Confirmation is never the
+    // browser's word — /api/checkout/razorpay/verify re-checks the
+    // signature AND the payment itself against the Payments API.
+    if (useRazorpay) {
+      const rpOrder = await createRazorpayOrder({
+        amountMinor,
+        currency: CURRENCY,
+        receipt: orderId,
+        internalOrderId: orderId,
+      });
+      await updateOrderStatus(order.id, "pending", {
+        razorpayOrderId: rpOrder.id,
+      });
+
+      return NextResponse.json({
+        orderId: order.id,
+        provider: "razorpay",
+        razorpayOrderId: rpOrder.id,
+        // Public key id — designed to be embedded in the browser checkout.
+        razorpayKeyId: process.env.RAZORPAY_KEY_ID!.trim(),
+        amount: amountMinor,
+        currency: rpOrder.currency,
+        mode: razorpayMode(),
+        gateway: "razorpay",
+        productName: line.name,
+        quantity: line.qty,
+        seats: tier.seats,
+        perSeat: tier.perSeat,
+        discountPercent: tier.discountPercent,
+        subtotal: tier.subtotal,
+        total: tier.total,
+        coupon: couponApplied
+          ? {
+              code: couponApplied.code,
+              label: couponApplied.label,
+              discountMinor: couponApplied.discountMinor,
+            }
+          : null,
+      });
+    }
 
     const checkout = await createLemonSqueezyCheckout({
       productSlug: line.slug,

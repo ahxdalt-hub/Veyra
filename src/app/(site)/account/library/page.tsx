@@ -8,6 +8,7 @@ import {
 import { supabaseAuthConfigured } from "@/lib/supabase/config";
 import type { EntitlementRow, LicenceRow } from "@/lib/supabase/types";
 import { getProduct } from "@/lib/products";
+import { releasedPlatforms } from "@/lib/registry";
 import { AccountShell, AccountCard } from "@/components/account/account-shell";
 import { AccountDiscovery } from "@/components/account/account-discovery";
 import { DownloadButton } from "@/components/account/download-button";
@@ -62,6 +63,15 @@ export default async function LibraryPage() {
     ((licenceRes.data ?? []) as LicenceRow[])
       .filter((l) => l.status === "active")
       .map((l) => [l.entitlement_id, l])
+  );
+
+  // Platforms with a deliverable published build per owned product (0021) —
+  // the download buttons only offer builds that actually ship.
+  const ownedSlugs = [...new Set(entitlements.map((e) => e.product_slug))];
+  const platformsBySlug = new Map(
+    await Promise.all(
+      ownedSlugs.map(async (s) => [s, await releasedPlatforms(s)] as const)
+    )
   );
 
   return (
@@ -121,8 +131,12 @@ export default async function LibraryPage() {
                       </p>
                       <p className="mt-2.5 spec text-ink-4">
                         {product?.free ? "Claimed" : "Purchased"}
-                        {` · ${seats} ${seats === 1 ? "seat" : "seats"}`}
-                        {` · Licence active`}
+                        {product?.free
+                          ? ""
+                          : ` · ${seats} ${seats === 1 ? "seat" : "seats"}`}
+                        {product?.free
+                          ? ""
+                          : ` · Licence active`}
                         {product?.version ? ` · Version ${product.version}` : ""}
                         {` · Granted ${new Date(
                           entitlement.granted_at
@@ -152,14 +166,17 @@ export default async function LibraryPage() {
                         slug={entitlement.product_slug}
                         productName={name}
                         variant="outline"
+                        platforms={platformsBySlug.get(entitlement.product_slug) ?? []}
                       />
                     )}
-                    <Link
-                      href="/account/licences"
-                      className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
-                    >
-                      View Licence
-                    </Link>
+                    {product?.free ? null : (
+                      <Link
+                        href="/account/licences"
+                        className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
+                      >
+                        View Licence
+                      </Link>
+                    )}
                     {product?.free ? null : (
                       <Link
                         href="/account/quick-start"
@@ -173,17 +190,18 @@ export default async function LibraryPage() {
                       className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
                     >
                       {product?.free
-                        ? "Order Details & Licence →"
+                        ? "Product details →"
                         : "Order Details & Delivery Center →"}
                     </Link>
                   </div>
-                  {licence ? (
+                  {!product?.free && licence ? (
                     <p className="mt-3 text-xs text-ink-4">
                       Licence <span className="spec">{licence.licence_reference}</span>{" "}
-                      · {product?.free ? "free licence" : "one-time purchase"} ·{" "}
-                      {product?.free
-                        ? "yours to keep"
-                        : "every future revision included"}
+                      · one-time purchase · every future revision included
+                    </p>
+                  ) : product?.free ? (
+                    <p className="mt-3 text-xs text-ink-4">
+                      Claimed free — it stays in your library for good.
                     </p>
                   ) : (
                     <p className="mt-3 text-xs leading-relaxed text-ink-4">

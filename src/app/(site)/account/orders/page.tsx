@@ -9,7 +9,7 @@ import {
 import { supabaseAuthConfigured } from "@/lib/supabase/config";
 import type { OrderRow } from "@/lib/supabase/types";
 import { getProduct } from "@/lib/products";
-import { formatPrice } from "@/lib/site";
+import { site,  formatPrice  } from "@/lib/site";
 import { AccountShell, AccountCard } from "@/components/account/account-shell";
 import { OrderStatusBadge, formatDate, shortOrderRef } from "@/components/account/account-format";
 import { DocIcon } from "@/components/ui/icons";
@@ -120,10 +120,10 @@ export default async function OrdersPage() {
       <p className="mt-8 max-w-md text-xs leading-relaxed text-ink-4">
         Questions about an order? Write to{" "}
         <a
-          href="mailto:Caelmontholdings@gmail.com"
+          href={`mailto:${site.contact.email}`}
           className="font-medium text-accent underline-offset-2 hover:underline"
         >
-          Caelmontholdings@gmail.com
+          {site.contact.email}
         </a>{" "}
         with the order reference.
       </p>

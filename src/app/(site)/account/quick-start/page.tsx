@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { requireAccountUser } from "@/lib/supabase/server";
+import {
+  createSupabaseServerClient,
+  requireAccountUser,
+} from "@/lib/supabase/server";
 import { supabaseAuthConfigured } from "@/lib/supabase/config";
 import { phaseMeta, PHASE_ORDER } from "@/lib/products";
+import { releasedPlatforms } from "@/lib/registry";
 import { AccountShell, AccountCard } from "@/components/account/account-shell";
 import { DownloadButton } from "@/components/account/download-button";
 import { Button } from "@/components/ui/button";
@@ -24,7 +28,31 @@ export default async function QuickStartPage() {
   if (!supabaseAuthConfigured()) {
     return <NotConfigured />;
   }
-  await requireAccountUser();
+  const user = await requireAccountUser();
+
+  // Entitlement gate — this is product-specific customer content, so it
+  // requires an ACTIVE entitlement for the product (read through the
+  // session client, so RLS makes "someone else's" rows invisible — the
+  // check below can only ever see the caller's own entitlements). The
+  // download itself is authorized again server-side by /api/download.
+  const supabase = await createSupabaseServerClient();
+  const { data: entitlement } = await supabase
+    .from("entitlements")
+    .select("id")
+    .eq("product_slug", "client-growth-system")
+    .eq("status", "active")
+    .limit(1)
+    .maybeSingle();
+
+  if (!entitlement) {
+    return (
+      <NotOwner email={user?.email ?? ""} />
+    );
+  }
+
+  // Builds the delivery route can actually serve right now (0021) —
+  // the button offers exactly these platforms.
+  const platforms = await releasedPlatforms("client-growth-system");
 
   const steps: { title: string; detail: string }[] = [
     {
@@ -182,8 +210,8 @@ export default async function QuickStartPage() {
           </h2>
           <ol className="mt-4 space-y-3">
             {[
-              "Download the latest version for Windows from your product page.",
-              "Run the installer — no admin rights required.",
+              "Download the latest version for Windows or Mac from your product page.",
+              "Install it — on Windows, run the installer (no admin rights required); on Mac, drag the app into Applications.",
               "Launch the app and sign in with your Veyra account (the email on your order).",
               "The app verifies your licence with Veyra automatically — your seats and entitlement are confirmed server-side.",
               "Once verified, the system unlocks and the in-app welcome walks you through setup.",
@@ -200,7 +228,11 @@ export default async function QuickStartPage() {
             ))}
           </ol>
           <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-line pt-5">
-            <DownloadButton slug="client-growth-system" productName="Client Growth System" />
+            <DownloadButton
+              slug="client-growth-system"
+              productName="Client Growth System"
+              platforms={platforms}
+            />
             <Button href="/account/library/client-growth-system" variant="ghost" size="sm">
               Open your product page
             </Button>
@@ -235,6 +267,35 @@ function NotConfigured() {
             Back to your account
           </Link>
         </p>
+      </AccountCard>
+    </AccountShell>
+  );
+}
+
+function NotOwner({ email }: { email: string }) {
+  return (
+    <AccountShell
+      crumb="Quick Start"
+      title="Quick Start"
+      lead="The Quick Start guide belongs to the Client Growth System."
+    >
+      <AccountCard>
+        <p className="text-sm leading-relaxed text-ink-2">
+          {email
+            ? `You're signed in as ${email}, but this account doesn't hold an active entitlement for the Client Growth System.`
+            : "This account doesn't hold an active entitlement for the Client Growth System."}{" "}
+          If you purchased with a different email address, sign in with that
+          one, or claim your purchase from the order email — your licence and
+          this guide will appear in your library.
+        </p>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <Button href="/account/library" variant="ghost" size="sm">
+            ← Your library
+          </Button>
+          <Button href="/products/client-growth-system" variant="ghost" size="sm">
+            About the product
+          </Button>
+        </div>
       </AccountCard>
     </AccountShell>
   );

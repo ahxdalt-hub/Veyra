@@ -4,6 +4,7 @@ import {
   licensingConfigured,
 } from "@/lib/licensing/service";
 import { jsonCORS, preflight } from "@/lib/licensing/http";
+import { takeRateLimit, clientIp } from "@/lib/rate-limit";
 
 /**
  * POST /api/licence/activate — first-launch activation for Veyra desktop
@@ -25,21 +26,10 @@ import { jsonCORS, preflight } from "@/lib/licensing/http";
 
 export { preflight as OPTIONS };
 
-// Basic per-process throttle — same shape as the existing licence verify
-// route: enough to stop hammering, no cache dependency. Activation is
-// idempotent per device anyway, so replays are safe, not just blocked.
-const recent = new Map<string, number>();
-const THROTTLE_MS = 5_000;
-
-function throttled(key: string): boolean {
-  const last = recent.get(key) ?? 0;
-  if (Date.now() - last < THROTTLE_MS) return true;
-  recent.set(key, Date.now());
-  if (recent.size > 1000) {
-    for (const [k, t] of recent) if (Date.now() - t > THROTTLE_MS) recent.delete(k);
-  }
-  return false;
-}
+// Shared throttle — a Postgres-backed fixed-window counter (see
+// src/lib/rate-limit.ts), enforced across every Worker isolate, unlike
+// the per-isolate Map this replaced. Activation is idempotent per device
+// anyway, so replays are safe, not just blocked.
 
 export async function POST(request: Request) {
   if (!licensingConfigured()) {
@@ -88,7 +78,11 @@ export async function POST(request: Request) {
       ? device_label.trim().slice(0, 40) || undefined
       : undefined;
 
-  if (throttled(`${licence_reference}:${email}:${device_id}`)) {
+  const limited =
+    !(await takeRateLimit(`licence:activate:${licence_reference}:${email}:${device_id}`, 10, 60))
+      .allowed ||
+    !(await takeRateLimit(`licence:activate:ip:${clientIp(request)}`, 60, 60)).allowed;
+  if (limited) {
     return jsonCORS(
       {
         ok: false,

@@ -6,6 +6,7 @@ import {
   supabaseUrl,
 } from "@/lib/supabase/config";
 import { getProduct } from "@/lib/products";
+import { takeRateLimit, clientIp } from "@/lib/rate-limit";
 
 /**
  * POST /api/licence/verify — the endpoint the Client Growth System product
@@ -24,11 +25,6 @@ import { getProduct } from "@/lib/products";
  */
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-
-// Basic per-process throttle: same reference+email pair at most once
-// every 10 seconds — enough to stop hammering without a cache dependency.
-const recent = new Map<string, number>();
-const THROTTLE_MS = 10_000;
 
 export async function POST(request: Request) {
   if (!supabaseAdminConfigured()) {
@@ -70,20 +66,17 @@ export async function POST(request: Request) {
     );
   }
 
-  const throttleKey = `${reference}:${normalizedEmail}`;
-  const last = recent.get(throttleKey) ?? 0;
-  if (Date.now() - last < THROTTLE_MS) {
+  // Shared throttle (Postgres-backed; enforced across every isolate —
+  // see src/lib/rate-limit.ts): per reference+email, plus a per-IP cap.
+  const limited =
+    !(await takeRateLimit(`licence:verify:${reference}:${normalizedEmail}`, 10, 60))
+      .allowed ||
+    !(await takeRateLimit(`licence:verify:ip:${clientIp(request)}`, 60, 60)).allowed;
+  if (limited) {
     return NextResponse.json(
       { error: "Too many verification attempts — try again in a moment." },
       { status: 429 }
     );
-  }
-  recent.set(throttleKey, Date.now());
-  if (recent.size > 1000) {
-    // Keep the throttle map bounded; entries expire by timestamp anyway.
-    for (const [k, t] of recent) {
-      if (Date.now() - t > THROTTLE_MS) recent.delete(k);
-    }
   }
 
   const admin = createClient(supabaseUrl()!, supabaseServiceRoleKey()!, {

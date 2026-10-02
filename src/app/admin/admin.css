@@ -307,6 +307,68 @@ html.cc-html {
   opacity: 1;
 }
 
+/* Vertical table & feed overflow (ScrollFadeX maxY / ScrollFadeY): a
+   section scrolls in place once it passes its max height — the page
+   keeps its layout while a long list stays contained. Below the max
+   nothing changes: no scroller, no fades. When hidden edges exist, a
+   soft fade marks the row/feed item that continues past the fold. The
+   fades are siblings of the scroller (not children) so they never move
+   with the content. */
+.cc-fade-y-wrap {
+  position: relative;
+}
+.cc-fade-x-wrap > [data-y-scroll],
+.cc-fade-y-wrap > [data-y-scroll] {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.cc-fade-x-wrap > .cc-fade-y,
+.cc-fade-y-wrap > .cc-fade-y {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 36px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  z-index: 2;
+}
+.cc-fade-y-top {
+  top: 0;
+  background: linear-gradient(to bottom, var(--cc-bg-2), transparent);
+}
+.cc-fade-y-bottom {
+  bottom: 0;
+  background: linear-gradient(to top, var(--cc-bg-2), transparent);
+}
+.cc-fade-x-wrap[data-y="top"] > .cc-fade-y-top,
+.cc-fade-y-wrap[data-y="top"] > .cc-fade-y-top,
+.cc-fade-x-wrap[data-y="bottom"] > .cc-fade-y-bottom,
+.cc-fade-y-wrap[data-y="bottom"] > .cc-fade-y-bottom,
+.cc-fade-x-wrap[data-y="both"] > .cc-fade-y-top,
+.cc-fade-y-wrap[data-y="both"] > .cc-fade-y-top,
+.cc-fade-x-wrap[data-y="both"] > .cc-fade-y-bottom,
+.cc-fade-y-wrap[data-y="both"] > .cc-fade-y-bottom {
+  opacity: 1;
+}
+/* Sticky table headers inside a vertical scroller. Collapsed table
+   borders don't survive a stuck header in every engine, so these
+   scrollers use separate borders (visually identical — every rule here
+   is a horizontal border on th/td) and the header stays opaque above
+   the rows scrolling under it. */
+.cc-fade-x-wrap [data-y-scroll] table,
+.cc-fade-y-wrap [data-y-scroll] table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.cc-fade-x-wrap [data-y-scroll] thead th,
+.cc-fade-y-wrap [data-y-scroll] thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--cc-bg-2);
+}
+
 /* Skeleton — the dark register version */
 .cc-skeleton {
   border-radius: var(--radius-sm);

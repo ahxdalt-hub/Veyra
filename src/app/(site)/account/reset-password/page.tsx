@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { site } from "@/lib/site";
 import Link from "next/link";
 import { ResetPasswordForm } from "@/components/account/reset-password-form";
 import { supabaseAuthConfigured } from "@/lib/supabase/config";
@@ -27,10 +28,10 @@ export default function ResetPasswordPage() {
                 Customer accounts aren&rsquo;t enabled on this deployment yet.
                 Write to{" "}
                 <a
-                  href="mailto:Caelmontholdings@gmail.com"
+                  href={`mailto:${site.contact.email}`}
                   className="font-medium text-accent underline-offset-2 hover:underline"
                 >
-                  Caelmontholdings@gmail.com
+                  {site.contact.email}
                 </a>{" "}
                 about your account.
               </p>

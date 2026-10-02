@@ -14,6 +14,7 @@ import { CgsWorkflow, type CgsStage } from "@/components/cgs/cgs-workflow";
 import { CgsDemo } from "@/components/cgs/cgs-demo";
 import { CgsPricing } from "@/components/cgs/cgs-pricing";
 import { PurchaseCta } from "@/components/cgs/purchase-cta";
+import { BreadcrumbJsonLd } from "@/components/seo/breadcrumb-json-ld";
 
 /**
  * Client Growth System — the product sales page.
@@ -25,10 +26,10 @@ import { PurchaseCta } from "@/components/cgs/purchase-cta";
  * the allocation is genuinely closed, the regular price is displayed.
  * CTAs enter the existing cart; checkout re-validates independently.
  *
- * Content rule: everything here describes the actual product — a Windows
- * desktop application delivering an installer and per-seat licences
- * through the customer account. No invented features, statistics, or
- * fabricated screenshots.
+ * Content rule: everything here describes the actual product — a desktop
+ * application for Windows and macOS delivering installers and per-seat
+ * licences through the customer account. No invented features, statistics,
+ * or fabricated screenshots.
  */
 
 const FLAGSHIP = "client-growth-system";
@@ -78,7 +79,7 @@ const DELIVERY_STEPS = [
   {
     n: "03",
     t: "Install",
-    d: "Install the Windows desktop application on your computer.",
+    d: "Install the desktop application on your Windows or Mac computer.",
   },
   {
     n: "04",
@@ -90,7 +91,7 @@ const DELIVERY_STEPS = [
 const OWNERSHIP_POINTS = [
   {
     t: "A real desktop application",
-    d: "Client Growth System is a Windows desktop application — installed and run on your own computer, not a tab in someone else's cloud.",
+    d: "Client Growth System is a desktop application for Windows and macOS — installed and run on your own computer, not a tab in someone else's cloud.",
   },
   {
     t: "Your business data, stored locally",
@@ -118,12 +119,12 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: product.name,
     description:
-      "Build a more systematic service business with Veyra Client Growth System. Manage client acquisition, sales, onboarding, retention, and growth in one practical Windows desktop application.",
+      "Build a more systematic service business with Veyra Client Growth System. Manage client acquisition, sales, onboarding, retention, and growth in one practical desktop application for Windows and macOS.",
     alternates: { canonical: `/products/${product.slug}` },
     openGraph: {
       title: `${product.name} — ${formatPrice(price)} one-time purchase`,
       description:
-        "Turn scattered client work into a system for consistent growth. Client acquisition, sales, delivery, retention, and growth — one Windows desktop application.",
+        "Turn scattered client work into a system for consistent growth. Client acquisition, sales, delivery, retention, and growth — one desktop application for Windows and macOS.",
       url: `/products/${product.slug}`,
       type: "website",
     },
@@ -174,7 +175,7 @@ export default async function ClientGrowthSystemPage() {
   const faqItems: FaqItem[] = [
     {
       q: "What is Client Growth System?",
-      a: "It is a Windows desktop business operating system for running the connected client-growth workflow: establishing your business foundation, acquiring clients, selling, delivering, retaining, and reviewing growth — six connected stages inside one practical application, not a template folder or a course.",
+      a: "It is a desktop business operating system for Windows and macOS, for running the connected client-growth workflow: establishing your business foundation, acquiring clients, selling, delivering, retaining, and reviewing growth — six connected stages inside one practical application, not a template folder or a course.",
     },
     {
       q: "Who is it for?",
@@ -190,7 +191,7 @@ export default async function ClientGrowthSystemPage() {
     },
     {
       q: "What happens after I purchase?",
-      a: "Once your one-time payment is confirmed, your order is recorded against your account. You sign in to your Veyra customer account, access the Windows installer and your licence, install the application, and activate it by signing in. Delivery details also arrive by email.",
+      a: "Once your one-time payment is confirmed, your order is recorded against your account. You sign in to your Veyra customer account, access the Windows or Mac installer and your licence, install the application, and activate it by signing in. Delivery details also arrive by email.",
     },
     {
       q: "How many people can use one purchase?",
@@ -198,11 +199,11 @@ export default async function ClientGrowthSystemPage() {
     },
     {
       q: "Is the live demo available?",
-      a: "Not yet. The interactive demo is currently being polished and is coming soon. The “Try the live demo” button on this page tells you its status — it never opens a broken route or a fake application.",
+      a: "Yes. The “Try the live demo” button opens a real, interactive demo of the system, populated with a fictional example business. You can explore all six stages, open records, and see the next-action engine work. The demo is read-only by design — your own data belongs in the full desktop version.",
     },
     {
       q: "What platforms are supported?",
-      a: "Windows only. Client Growth System is currently released as a Windows desktop application; macOS, Linux, and mobile versions are not available and are not being promised.",
+      a: "Windows and macOS. Client Growth System ships as a native desktop application for both — either build can be downloaded from your Veyra account, and one licence activates on any machine you install it on, within your purchased seats. Linux and mobile versions are not available and are not being promised.",
     },
   ];
 
@@ -247,6 +248,13 @@ export default async function ClientGrowthSystemPage() {
               <li aria-current="page" className="text-ink-2">{product.name}</li>
             </ol>
           </nav>
+          <BreadcrumbJsonLd
+            items={[
+              { label: "Home", href: "/" },
+              { label: "Products", href: "/shop" },
+              { label: product.name },
+            ]}
+          />
         </div>
       </div>
 
@@ -432,8 +440,8 @@ export default async function ClientGrowthSystemPage() {
             <p className="mt-10 max-w-2xl text-xs leading-relaxed text-ink-3">
               An internet connection is needed for initial licence
               activation and applicable licence operations. Normal business
-              use is designed to work locally on your Windows computer
-              after successful activation.
+              use is designed to work locally on your computer — Windows or
+              Mac — after successful activation.
             </p>
           </Reveal>
         </div>

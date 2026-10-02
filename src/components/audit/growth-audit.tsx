@@ -38,9 +38,8 @@ import {
  * signed-in owners with an active entitlement (see app/(site)/audit).
  * A "gate" fallback stage exists purely defensively, pointing anyone who
  * somehow reaches the flow without an entitlement to the claim page.
- * Answering plays an ascending pentatonic step (src/lib/sound.ts), so a
- * completed quiz audibly walks a scale — the same rising-pitch feedback
- * games use for progress.
+ * Answering plays the same steady pop every time (src/lib/sound.ts) —
+ * consistent, satisfying feedback rather than a rising pitch.
  *
  * Motion is CSS-only (animate-slide-in / animate-rise / transitions);
  * the global reduced-motion rule collapses everything to instant.
@@ -162,7 +161,7 @@ export function GrowthAudit({
       const next = [...answers];
       next[index] = optionIdx;
       setAnswers(next);
-      select(index);
+      select();
       const t = window.setTimeout(
         () => {
           advancing.current = false;
@@ -667,7 +666,7 @@ function Results({
               href="/account/library/growth-audit"
               className="text-xs text-paper/70 underline-offset-4 hover:text-paper hover:underline"
             >
-              View it in your library — licence included →
+              View it in your library →
             </Link>
           </div>
         </div>

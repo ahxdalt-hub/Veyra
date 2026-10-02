@@ -71,6 +71,30 @@ const mode = (env.LEMONSQUEEZY_MODE ?? "test").toLowerCase();
 if (mode === "live") notes.push("LEMONSQUEEZY_MODE=live — this deployment is declared LIVE. Real money moves if the key is a live key.");
 else if (mode !== "test") problems.push(`LEMONSQUEEZY_MODE="${mode}" is neither "test" nor "live".`);
 
+/* Explicit provider selection — keys alone never pick a provider. */
+const provider = (env.PAYMENT_PROVIDER ?? "lemonsqueezy").toLowerCase();
+if (provider === "razorpay") {
+  notes.push('PAYMENT_PROVIDER=razorpay — checkout routes through Razorpay (test provider).');
+  for (const k of ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET"]) {
+    if (!env[k]) problems.push(`PAYMENT_PROVIDER=razorpay but ${k} is not set — checkout fails closed (payments_not_configured).`);
+  }
+  if (!env.RAZORPAY_WEBHOOK_SECRET) {
+    notes.push("RAZORPAY_WEBHOOK_SECRET unset — /api/webhooks/razorpay answers 503; local testing confirms through /api/checkout/razorpay/verify only.");
+  }
+} else if (provider === "lemonsqueezy" || provider === "lemon-squeezy") {
+  notes.push("PAYMENT_PROVIDER=lemonsqueezy — Lemon Squeezy is the ONLY active provider (Razorpay keys, if any, are ignored).");
+  if (env.RAZORPAY_KEY_ID || env.RAZORPAY_KEY_SECRET) {
+    notes.push("Razorpay keys are present but inert — they cannot reroute checkout while PAYMENT_PROVIDER is lemonsqueezy.");
+  }
+} else {
+  problems.push(`PAYMENT_PROVIDER="${provider}" is not a known provider (use "lemonsqueezy" or "razorpay") — checkout fails closed (payment_provider_invalid).`);
+}
+
+/* Production-readiness checklist for the declared provider. */
+if (mode === "live" && (provider === "lemonsqueezy" || provider === "lemon-squeezy")) {
+  notes.push("Production checklist (Lemon Squeezy): store + variant are LIVE records, the webhook endpoint is registered on the LIVE store with this exact secret and the events \"Order created\" + \"Order refunded\", the checkout currency is USD, custom pricing (custom_price) is what charges (variant dashboard price is overridden), refunds arrive via order_refunded and revoke access, and meta.custom_event_data.veyra_order_id is the only order-matching path.");
+}
+
 /* ---- network verification (GET /v1/stores) ------------------------- */
 async function verifyApiKey() {
   // GET /v1/stores: a key-scoped endpoint that proves the credential is

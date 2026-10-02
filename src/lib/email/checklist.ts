@@ -20,9 +20,21 @@ import {
   CHECKLIST_PDF_FILENAME,
 } from "@/lib/email/checklist-pdf";
 import { siteUrl } from "@/lib/email/purchase";
+import { site } from "@/lib/site";
 
-function fromAddress(): string {
-  return process.env.VEYRA_EMAIL_FROM || "Veyra <Caelmontholdings@gmail.com>";
+/**
+ * The transactional sender — VEYRA_EMAIL_FROM. NO fallback address: a
+ * hard-coded gmail.com sender is a silent delivery failure at Resend.
+ * Null when unset — callers refuse to send.
+ */
+function fromAddress(): string | null {
+  const from = process.env.VEYRA_EMAIL_FROM?.trim();
+  return from ? from : null;
+}
+
+/** Replies go to the brand's support inbox (site config). */
+function replyToAddress(): string {
+  return site.contact.email;
 }
 
 export type ChecklistSendResult = { ok: boolean; error: string | null };
@@ -65,6 +77,13 @@ export async function sendChecklistEmail(to: string): Promise<ChecklistSendResul
   <p style="font-size:13px;color:#8a8474;margin-top:14px">— Veyra · no spam, no drip campaign</p>
 </div>`;
 
+  if (!fromAddress()) {
+    console.error(
+      "[email] VEYRA_EMAIL_FROM is not set — refusing to send the checklist without a verified sender."
+    );
+    return { ok: false, error: "sender_not_configured" };
+  }
+
   const key = process.env.RESEND_API_KEY;
   if (!key) {
     console.log(
@@ -81,11 +100,12 @@ export async function sendChecklistEmail(to: string): Promise<ChecklistSendResul
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: fromAddress(),
+        from: fromAddress()!,
         to: [to],
         subject,
         html,
         text,
+        reply_to: replyToAddress(),
         attachments: [
           {
             filename: CHECKLIST_PDF_FILENAME,

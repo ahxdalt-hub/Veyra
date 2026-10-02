@@ -6,6 +6,7 @@ import { MetricFigure } from "@/components/admin/metric";
 import { RevenueChart, BarRows, type SeriesPoint } from "@/components/admin/charts";
 import { Panel, PageHeading, EmptyState, StatusPill } from "@/components/admin/admin-ui";
 import { RangeSelector } from "@/components/admin/range-selector";
+import { ScrollFadeX, ScrollFadeY } from "@/components/admin/smooth-scroll";
 import { money, timeAgo, dateShort, shortId } from "@/components/admin/format";
 import { getProduct } from "@/lib/products";
 import type {
@@ -250,22 +251,24 @@ export function LiveOverview({ initial }: { initial: LiveOverviewData }) {
               body="Your first Veyra sale will appear here the moment it's confirmed."
             />
           ) : (
-            <table className="cc-table w-full">
-              <thead>
-                <tr>
-                  <th>Customer</th>
-                  <th>Product</th>
-                  <th className="text-right">Amount</th>
-                  <th>Status</th>
-                  <th>When</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.rows.map((o) => (
-                  <OrderRowLink key={o.id} order={o} />
-                ))}
-              </tbody>
-            </table>
+            <ScrollFadeX maxY={372}>
+              <table className="cc-table w-full">
+                <thead>
+                  <tr>
+                    <th>Customer</th>
+                    <th>Product</th>
+                    <th className="text-right">Amount</th>
+                    <th>Status</th>
+                    <th>When</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.rows.map((o) => (
+                    <OrderRowLink key={o.id} order={o} />
+                  ))}
+                </tbody>
+              </table>
+            </ScrollFadeX>
           )}
         </Panel>
 
@@ -283,8 +286,9 @@ export function LiveOverview({ initial }: { initial: LiveOverviewData }) {
               record themselves here as they happen.
             </p>
           ) : (
-            <ol className="space-y-0">
-              {notifications.map((item, i) => (
+            <ScrollFadeY max={420}>
+              <ol className="space-y-0">
+                {notifications.map((item, i) => (
                 <li key={item.id} className="flex gap-3">
                   <div className="flex flex-col items-center">
                     <span
@@ -315,7 +319,8 @@ export function LiveOverview({ initial }: { initial: LiveOverviewData }) {
                   </div>
                 </li>
               ))}
-            </ol>
+              </ol>
+            </ScrollFadeY>
           )}
         </Panel>
       </div>

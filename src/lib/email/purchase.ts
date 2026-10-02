@@ -23,13 +23,20 @@
 
 import "server-only";
 import { supabaseUrl, supabaseServiceRoleKey } from "@/lib/supabase/config";
+import { site } from "@/lib/site";
 
 /* ------------------------------------------------------------------ */
 /* Config                                                              */
 /* ------------------------------------------------------------------ */
 
+/**
+ * True when a real send can happen: an API key AND a configured sender.
+ * The sender is mandatory — Resend rejects unverified "from" domains, so
+ * shipping without VEYRA_EMAIL_FROM would mean receipts that never land
+ * while the ledger records them as sent.
+ */
 export function emailConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY);
+  return Boolean(process.env.RESEND_API_KEY && fromAddress());
 }
 
 /** Canonical absolute site URL — links inside customer emails. */
@@ -40,8 +47,22 @@ export function siteUrl(): string {
   );
 }
 
-function fromAddress(): string {
-  return process.env.VEYRA_EMAIL_FROM || "Veyra <Caelmontholdings@gmail.com>";
+/**
+ * The transactional sender — VEYRA_EMAIL_FROM, e.g.
+ * "Veyra <no-reply@veyra.caelmont.in>". NO fallback address: sending from
+ * a domain that isn't verified at Resend is a silent delivery failure,
+ * and a hard-coded gmail.com sender is exactly that. Null when unset —
+ * callers refuse to send and the ledger records the failure.
+ */
+export function fromAddress(): string | null {
+  const from = process.env.VEYRA_EMAIL_FROM?.trim();
+  return from ? from : null;
+}
+
+/** Customer replies route to the brand's support inbox (site config), not
+ *  to the unmonitored no-reply sender. */
+function replyToAddress(): string {
+  return site.contact.email;
 }
 
 const emailLedgerReady = () => Boolean(supabaseUrl() && supabaseServiceRoleKey());
@@ -139,13 +160,22 @@ async function deliver(
   text: string
 ): Promise<{ ok: boolean; id: string | null; error: string | null }> {
   const key = process.env.RESEND_API_KEY;
-  if (!key) {
-    // Dev fallback: the whole email to the console so local runs can
-    // inspect exactly what a customer would receive.
-    console.log(
-      `\n[email:console] TO ${to}\nSUBJECT ${subject}\n${"-".repeat(60)}\n${text}\n${"-".repeat(60)}`
+  const from = fromAddress();
+  if (!from) {
+    // Sender misconfigured (with or without a key): refuse loudly rather
+    // than pretend an email a customer will never see was delivered. With
+    // a key the ledger records a failure and a later webhook replay
+    // retries; without a key this is a dev run, so dump to console.
+    console.error(
+      "[email] VEYRA_EMAIL_FROM is not set — refusing to send without a verified sender."
     );
-    return { ok: true, id: `console-${Date.now()}`, error: null };
+    if (!key) {
+      console.log(
+        `\n[email:console] TO ${to}\nSUBJECT ${subject}\n${"-".repeat(60)}\n${text}\n${"-".repeat(60)}`
+      );
+      return { ok: true, id: `console-${Date.now()}`, error: null };
+    }
+    return { ok: false, id: null, error: "sender_not_configured" };
   }
 
   try {
@@ -155,7 +185,14 @@ async function deliver(
         Authorization: `Bearer ${key}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ from: fromAddress(), to: [to], subject, html, text }),
+      body: JSON.stringify({
+        from,
+        to: [to],
+        subject,
+        html,
+        text,
+        reply_to: replyToAddress(),
+      }),
       cache: "no-store",
     });
     const body = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
@@ -222,7 +259,7 @@ export async function sendPurchaseEmail(input: PurchaseEmailInput): Promise<void
       ``,
       `Get started:`,
       `1. Sign in to your Veyra account: ${accountUrl}`,
-      `2. Open your library and download the Windows installer: ${libraryUrl}`,
+      `2. Open your library and download the installer for Windows or Mac: ${libraryUrl}`,
       `3. Run the installer, then activate with your licence key above.`,
       ``,
       `Activations can be managed (and moved between machines) from`,
@@ -252,8 +289,8 @@ export async function sendPurchaseEmail(input: PurchaseEmailInput): Promise<void
   <h2 style="font-size:16px;margin:0 0 10px">Install in three steps</h2>
   <ol style="font-size:14px;padding-left:20px;margin:0 0 22px">
     <li style="margin-bottom:6px">Sign in to your <a href="${escapeHtml(accountUrl)}" style="color:#2f5d3a">Veyra account</a> — your purchase and licence are already there.</li>
-    <li style="margin-bottom:6px">Open the <a href="${escapeHtml(libraryUrl)}" style="color:#2f5d3a">Delivery Center</a> and download the Windows installer.</li>
-    <li>Run the installer and activate with the licence key above.</li>
+    <li style="margin-bottom:6px">Open the <a href="${escapeHtml(libraryUrl)}" style="color:#2f5d3a">Delivery Center</a> and download the installer for Windows or Mac.</li>
+    <li>Install it and activate with the licence key above.</li>
   </ol>
   <p style="font-size:13px;color:#6f6a5d">Activations are managed from <a href="${escapeHtml(accountUrl)}/licences" style="color:#2f5d3a">Account → Licences</a> — a seat can move between machines anytime. Every future version is included.</p>
   <p style="font-size:13px;color:#6f6a5d;margin-top:18px">Questions? Just reply to this email.</p>
@@ -267,6 +304,82 @@ export async function sendPurchaseEmail(input: PurchaseEmailInput): Promise<void
     }
   } catch (err) {
     console.error(`[email] purchase send error for ${orderId}:`, err);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Free claim — the Growth Audit's confirmation, licence-free          */
+/* ------------------------------------------------------------------ */
+
+export type FreeClaimEmailInput = {
+  toEmail: string;
+  productName: string;
+  orderId: string;
+  version: string | null;
+  claimedAt: string; // ISO
+};
+
+/**
+ * Send the free-claim confirmation for a $0 tool — at most once per
+ * (order, 'purchase_receipt'). Shares the ledger type with the paid
+ * receipt deliberately: a claim that was already emailed under the old
+ * licence-bearing receipt is never re-emailed, and the free variant
+ * never coexists with a licence key for the same order.
+ */
+export async function sendFreeClaimEmail(input: FreeClaimEmailInput): Promise<void> {
+  const { orderId, toEmail } = input;
+  if (!emailLedgerReady()) return;
+  try {
+    if (!(await beginSend(orderId, "purchase_receipt", toEmail))) return;
+
+    const auditUrl = `${siteUrl()}/audit`;
+    const libraryUrl = `${siteUrl()}/account/library`;
+    const date = new Date(input.claimedAt).toDateString();
+    const orderRef = shortRef(orderId);
+
+    const subject = `${input.productName} — yours, free`;
+    const text = [
+      `Thank you for claiming ${input.productName} — it's yours, free, for good.`,
+      ``,
+      `Claimed:    ${orderRef} (${date})`,
+      input.version ? `Version:    ${input.version}` : null,
+      ``,
+      `Get started:`,
+      `1. Sign in to your Veyra account: ${siteUrl()}`,
+      `2. Open your library: ${libraryUrl}`,
+      `3. Launch it — it runs right in your browser.`,
+      ``,
+      `No licence key, no seats, nothing to install or activate.`,
+      `Claiming once keeps it in your library permanently.`,
+      ``,
+      `Questions? Just reply to this email.`,
+      ``,
+      `— Veyra`,
+    ]
+      .filter((l): l is string => l !== null)
+      .join("\n");
+
+    const html = `<div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;color:#17150f;line-height:1.6">
+  <p style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#8a8474">Veyra · Free claim</p>
+  <h1 style="font-size:26px;margin:6px 0 14px">Thank you — ${escapeHtml(input.productName)} is yours.</h1>
+  <table style="width:100%;border-collapse:collapse;font-size:14px;margin:0 0 22px">
+    <tr><td style="padding:7px 0;color:#6f6a5d;border-bottom:1px solid #e7e4da">Claimed</td><td align="right" style="padding:7px 0;border-bottom:1px solid #e7e4da"><b>${escapeHtml(orderRef)}</b> · ${escapeHtml(date)}</td></tr>
+    <tr><td style="padding:7px 0;color:#6f6a5d;border-bottom:1px solid #e7e4da">Access</td><td align="right" style="padding:7px 0;border-bottom:1px solid #e7e4da">Free — yours for good</td></tr>
+    ${input.version ? `<tr><td style="padding:7px 0;color:#6f6a5d;border-bottom:1px solid #e7e4da">Version</td><td align="right" style="padding:7px 0;border-bottom:1px solid #e7e4da">${escapeHtml(input.version)}</td></tr>` : ""}
+  </table>
+  <p style="font-size:14px;margin:0 0 22px">It runs right in your browser — no download, no install, no key to activate. Claiming once keeps it in your <a href="${escapeHtml(libraryUrl)}" style="color:#2f5d3a">library</a> permanently.</p>
+  <p style="margin:0 0 22px"><a href="${escapeHtml(auditUrl)}" style="display:inline-block;background:#2f5d3a;color:#ffffff;text-decoration:none;font-size:14px;padding:12px 24px;border-radius:6px">Open ${escapeHtml(input.productName)}</a></p>
+  <p style="font-size:13px;color:#6f6a5d;margin-top:18px">Questions? Just reply to this email.</p>
+  <p style="font-size:13px;color:#8a8474;margin-top:14px">— Veyra</p>
+</div>`;
+
+    const result = await deliver(toEmail, subject, html, text);
+    await finishSend(orderId, "purchase_receipt", result.ok, result.id, result.error);
+    if (!result.ok) {
+      console.error(`[email] free claim send failed for ${orderId}: ${result.error}`);
+    }
+  } catch (err) {
+    console.error(`[email] free claim send error for ${orderId}:`, err);
   }
 }
 

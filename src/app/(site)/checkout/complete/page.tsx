@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { formatPrice } from "@/lib/site";
+import { site,  formatPrice  } from "@/lib/site";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
  * durably even if this page is never opened again.
  */
 
-type OrderStatus = "pending" | "paid" | "failed" | "cancelled" | "refunded";
+type OrderStatus = "pending" | "paid" | "refunded";
 
 type PublicOrder = {
   id: string;
@@ -163,21 +163,12 @@ function OrderResult({ orderId }: { orderId: string }) {
     );
   }
 
-  // failed / cancelled / refunded
-  const headline =
-    order.status === "failed"
-      ? "Payment didn't go through."
-      : order.status === "cancelled"
-        ? "Payment was cancelled."
-        : "This order was refunded.";
-
+  // refunded
   return (
     <div className="text-center">
-      <h1 className="text-display-1">{headline}</h1>
+      <h1 className="text-display-1">This order was refunded.</h1>
       <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-ink-3">
-        {order.status === "refunded"
-          ? `The order for ${order.productName} was refunded.`
-          : `No charge was completed for ${order.productName}. You can start a new checkout whenever you're ready.`}
+        The order for {order.productName} was refunded.
       </p>
       <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
         <Button
@@ -258,10 +249,10 @@ function PaidOrder({ order }: { order: PublicOrder }) {
       <p className="mx-auto mt-8 max-w-md text-center text-xs leading-relaxed text-ink-4">
         Questions about your order? Write to{" "}
         <a
-          href="mailto:Caelmontholdings@gmail.com"
+          href={`mailto:${site.contact.email}`}
           className="font-medium text-accent underline-offset-2 hover:underline"
         >
-          Caelmontholdings@gmail.com
+          {site.contact.email}
         </a>{" "}
         with your order reference.
       </p>

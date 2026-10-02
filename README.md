@@ -224,6 +224,20 @@ LEMONSQUEEZY_VARIANT_ID_GROWTH_AUDIT=…
 LEMONSQUEEZY_WEBHOOK_SECRET=…             # the secret you set on the webhook
 ```
 
+### Provider selection is explicit
+
+`PAYMENT_PROVIDER` decides — never the presence of keys:
+
+- `PAYMENT_PROVIDER=lemonsqueezy` (or unset) → Lemon Squeezy is the ONLY
+  provider; Razorpay keys, if present, are inert.
+- `PAYMENT_PROVIDER=razorpay` → Razorpay is the ONLY provider (the 0022
+  test path; requires `RAZORPAY_KEY_ID` + `RAZORPAY_KEY_SECRET`).
+- Any other value fails closed: checkout answers `payment_provider_invalid`
+  (500) until the var is fixed. A typo can never silently pick a gateway.
+
+The selection lives in `src/lib/payments/provider.ts`; the Razorpay
+callback route refuses to run unless the declared provider is razorpay.
+
 **There is no key-prefix guard anymore.** Razorpay encoded test/live in
 the key id (`rzp_test_…`/`rzp_live_…`); Lemon Squeezy keys are opaque
 JWTs and the mode lives on the store's Test Mode toggle. The discipline
@@ -256,7 +270,8 @@ and the admin Settings page) state honestly which mode is wired.
 - **Failure** — an abandoned or failed hosted checkout never produces an
   `order_created` event, so the order stays pending and no entitlement,
   licence, or download authorization can exist (the download route
-  requires an active entitlement).
+  requires an active entitlement AND an active licence when one exists —
+  revoking either cuts downloads).
 
 ## Setting the webhook (test)
 

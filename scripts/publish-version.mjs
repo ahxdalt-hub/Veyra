@@ -1,19 +1,28 @@
 #!/usr/bin/env node
 /**
- * Stage 8 — release publisher.
+ * Stage 8 — release publisher. (0021: per-platform releases.)
  *
  * Uploads a built installer to the PRIVATE delivery bucket and publishes
  * the release into the server-side product registry (product_versions,
- * 0008+0016) in the right order: artifact first, registry pointer second.
- * A half-run can therefore only ever mean "file present, not yet served"
- * — never "registry points at a missing file".
+ * 0008+0016+0021) in the right order: artifact first, registry pointer
+ * second. A half-run can therefore only ever mean "file present, not yet
+ * served" — never "registry points at a missing file".
+ *
+ * Each platform (windows | macos) keeps its OWN current release:
+ * publishing a new Mac .dmg never demotes the Windows .exe and vice
+ * versa. Windows defaults keep the pre-0021 invocation byte-identical.
  *
  * Usage:
  *   node scripts/publish-version.mjs \
  *     --file "../Veyra Client Growth System/src-tauri/target/release/bundle/nsis/Client Growth System_1.0.0_x64-setup.exe" \
  *     --slug client-growth-system --version 1.0.0 --notes "First public release"
  *
- *   --withdraw  client-growth-system@1.0.0   (stop serving, keep the file)
+ *   node scripts/publish-version.mjs \
+ *     --file "../Veyra Client Growth System/release/Client-Growth-System-Setup-universal.dmg" \
+ *     --slug client-growth-system --version 1.0.0 --platform macos --notes "Mac release"
+ *
+ *   --withdraw  client-growth-system@1.0.0        (both platforms)
+ *   --withdraw  client-growth-system@1.0.0@macos  (one platform only)
  *
  * Credentials: reads Veyra/.env.local (service role + URL). The bucket is
  * created private if missing. NEVER run this from CI with committed keys —
@@ -58,6 +67,10 @@ function arg(name) {
   return i >= 0 ? args[i + 1] : undefined;
 }
 
+const PLATFORMS = ["windows", "macos"];
+// The extension each platform's artifact is expected to carry.
+const EXPECTED_EXT = { windows: ".exe", macos: ".dmg" };
+
 async function main() {
   if (args[0] === "--withdraw") {
     return withdraw(args[1]);
@@ -67,8 +80,13 @@ async function main() {
   const slug = arg("slug");
   const version = arg("version");
   const notes = arg("notes") || null;
+  const platform = arg("platform") || "windows";
   if (!file || !slug || !version) {
-    console.error("usage: --file <installer> --slug <product> --version <x.y[.z]> [--notes text]  |  --withdraw <slug@version>");
+    console.error("usage: --file <installer> --slug <product> --version <x.y[.z]> [--platform windows|macos] [--notes text]  |  --withdraw <slug@version[@platform]>");
+    process.exit(2);
+  }
+  if (!PLATFORMS.includes(platform)) {
+    console.error(`--platform must be one of: ${PLATFORMS.join(", ")}`);
     process.exit(2);
   }
   if (!/^\d+\.\d+(\.\d+)?$/.test(version)) {
@@ -77,7 +95,16 @@ async function main() {
   }
   const bytes = readFileSync(file);
   const ext = (file.match(/\.[A-Za-z0-9]+$/)?.[0] || ".bin").toLowerCase();
-  const objectKey = `${slug}/${version}/installer${ext}`;
+  if (ext !== EXPECTED_EXT[platform] && !args.includes("--force")) {
+    console.error(
+      `--platform ${platform} expects a ${EXPECTED_EXT[platform]} artifact, got "${ext}" — refusing to serve the wrong build type. (Override with --force.)`
+    );
+    process.exit(2);
+  }
+  // Windows keeps the pre-0021 key layout exactly; macos artifacts get
+  // their own path segment so the two installers never collide.
+  const platformDir = platform === "windows" ? "" : `${platform}/`;
+  const objectKey = `${slug}/${version}/${platformDir}installer${ext}`;
 
   await ensureBucket();
 
@@ -97,14 +124,15 @@ async function main() {
   }
   console.log(`✓ uploaded ${(bytes.length / 1024 / 1024).toFixed(1)} MB → ${BUCKET}/${objectKey}`);
 
-  // 2. Publish into the registry: demote the old current first (the
-  //    partial unique index forbids two current rows, and merge-duplicates
-  //    must target the (product_slug, version) key), then upsert the new
-  //    release as current + published. The gap between demote and promote
-  //    is milliseconds — downloads in that instant honestly return
+  // 2. Publish into the registry: demote the old current FIRST — only on
+  //    this platform, so promoting a Mac build never disturbs the live
+  //    Windows delivery (the partial unique index now forbids two current
+  //    rows per product+platform, and merge-duplicates must target the
+  //    (product_slug, version, platform) key). The gap between demote and
+  //    promote is milliseconds — downloads in that instant honestly return
   //    not_published, never a stale artifact.
   const demote = await fetch(
-    `${URL_BASE}/rest/v1/product_versions?product_slug=eq.${slug}&version=neq.${version}&current=eq.true`,
+    `${URL_BASE}/rest/v1/product_versions?product_slug=eq.${slug}&platform=eq.${platform}&version=neq.${version}&current=eq.true`,
     {
       method: "PATCH",
       headers: { ...H, "Content-Type": "application/json", Prefer: "return=minimal" },
@@ -117,7 +145,7 @@ async function main() {
     process.exit(1);
   }
   const ins = await fetch(
-    `${URL_BASE}/rest/v1/product_versions?on_conflict=product_slug,version`,
+    `${URL_BASE}/rest/v1/product_versions?on_conflict=product_slug,version,platform`,
     {
       method: "POST",
       headers: {
@@ -128,6 +156,7 @@ async function main() {
       body: JSON.stringify({
         product_slug: slug,
         version,
+        platform,
         notes,
         current: true,
         release_status: "published",
@@ -141,18 +170,26 @@ async function main() {
     console.error(`registry upsert failed (${ins.status}):`, await ins.text());
     process.exit(1);
   }
-  console.log(`✓ ${slug} v${version} is now the published download release`);
+  console.log(`✓ ${slug} v${version} (${platform}) is now the published download release`);
 }
 
-/** Stop serving a release (e.g. bad build) without deleting the artifact. */
+/** Stop serving a release (e.g. bad build) without deleting the artifact.
+ *  `<slug>@<version>` withdraws every platform's row for that version;
+ *  `<slug>@<version>@<platform>` targets one build only. */
 async function withdraw(target) {
-  const [slug, version] = (target || "").split("@");
-  if (!slug || !version) {
-    console.error("usage: --withdraw <slug>@<version>");
+  const parts = (target || "").split("@");
+  const [slug, version, platform] = parts;
+  if (parts.length > 3 || (parts.length === 3 && !PLATFORMS.includes(platform))) {
+    console.error("usage: --withdraw <slug>@<version>[@windows|macos]");
     process.exit(2);
   }
+  if (!slug || !version) {
+    console.error("usage: --withdraw <slug>@<version>[@platform]");
+    process.exit(2);
+  }
+  const filter = platform ? `&platform=eq.${platform}` : "";
   const res = await fetch(
-    `${URL_BASE}/rest/v1/product_versions?product_slug=eq.${slug}&version=eq.${version}`,
+    `${URL_BASE}/rest/v1/product_versions?product_slug=eq.${slug}&version=eq.${version}${filter}`,
     {
       method: "PATCH",
       headers: { ...H, "Content-Type": "application/json", Prefer: "return=minimal" },

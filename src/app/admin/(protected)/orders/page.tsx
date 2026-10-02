@@ -45,8 +45,6 @@ export default async function OrdersPage({
     "all",
     "paid",
     "pending",
-    "failed",
-    "cancelled",
     "refunded",
   ];
   const status = known.includes(sp.status as OrderStatus)

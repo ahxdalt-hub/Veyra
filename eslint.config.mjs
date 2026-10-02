@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     // generated bundles, never linted as source.
     ".open-next/**",
     ".wrangler/**",
+    // Archived demo source (backup, never built or linted).
+    "_archive/**",
   ]),
 ]);
 

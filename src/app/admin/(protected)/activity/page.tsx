@@ -10,6 +10,7 @@ import { dateTime, timeAgo } from "@/components/admin/format";
 import { Panel, PageHeading, EmptyState } from "@/components/admin/admin-ui";
 import { UrlSelect } from "@/components/admin/url-select";
 import { MarkAllReadButton } from "@/components/admin/mark-all-read";
+import { ScrollFadeY } from "@/components/admin/smooth-scroll";
 
 export const metadata: Metadata = { title: "Activity" };
 export const dynamic = "force-dynamic";
@@ -147,7 +148,8 @@ export default async function ActivityPage({
             body="Orders, payments, licences, coupons, and admin actions record themselves here as they happen. Nothing historical is invented."
           />
         ) : (
-          <ol>
+          <ScrollFadeY max={600}>
+            <ol>
             {items.map((item, i) => {
               const color =
                 item.source === "admin"
@@ -205,7 +207,8 @@ export default async function ActivityPage({
               );
               return <li key={item.key}>{body}</li>;
             })}
-          </ol>
+            </ol>
+          </ScrollFadeY>
         )}
       </Panel>
     </div>

@@ -14,9 +14,13 @@ export async function GET(request: Request) {
   const code = url.searchParams.get("code");
   const origin = url.origin;
 
-  // Open-redirect guard: only in-app paths are honored.
+  // Open-redirect guard: only in-app paths are honored. Reject a
+  // protocol-relative start ("//host") and the backslash variant
+  // ("/\host"), which some browsers normalize to "//host".
   let next = url.searchParams.get("next") ?? "/account";
-  if (!next.startsWith("/") || next.startsWith("//")) next = "/account";
+  if (next[0] !== "/" || next[1] === "/" || next[1] === "\\") {
+    next = "/account";
+  }
 
   if (supabaseAuthConfigured() && code) {
     const supabase = await createSupabaseServerClient();

@@ -96,7 +96,7 @@ export function ClaimFreeButton({ slug }: { slug: string }) {
           href={`/account/library/${slug}`}
           className="block text-center text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
         >
-          View in your library · licence included
+          View in your library
         </Link>
       </div>
     );

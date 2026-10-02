@@ -10,7 +10,7 @@ import {
 import { supabaseAuthConfigured } from "@/lib/supabase/config";
 import type { EntitlementRow, LicenceRow, OrderRow } from "@/lib/supabase/types";
 import { getProduct } from "@/lib/products";
-import { formatPrice } from "@/lib/site";
+import { site,  formatPrice  } from "@/lib/site";
 import { AccountShell, AccountCard } from "@/components/account/account-shell";
 import { OrderStatusBadge, formatDate } from "@/components/account/account-format";
 import { ShieldIcon } from "@/components/ui/icons";
@@ -129,10 +129,10 @@ export default async function OrderDetailPage({
             <p className="mt-4 text-xs leading-relaxed text-ink-4">
               For receipt questions, contact{" "}
               <a
-                href="mailto:Caelmontholdings@gmail.com"
+                href={`mailto:${site.contact.email}`}
                 className="font-medium text-accent underline-offset-2 hover:underline"
               >
-                Caelmontholdings@gmail.com
+                {site.contact.email}
               </a>{" "}
               with the order and payment references above.
             </p>
@@ -168,7 +168,8 @@ export default async function OrderDetailPage({
               ) : null}
             </div>
 
-            {licence ? (
+            {/* Paid systems carry a licence; free tools are just claimed. */}
+            {licence && product?.free !== true ? (
               <div className="mt-6 rounded-sm border border-line bg-surface p-4">
                 <div className="flex items-start gap-3">
                   <ShieldIcon className="mt-0.5 h-4 w-4 shrink-0 text-accent" />

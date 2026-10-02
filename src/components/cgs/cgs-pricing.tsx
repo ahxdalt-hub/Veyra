@@ -243,7 +243,7 @@ export function CgsPricing({
                 {[
                   "One-time purchase. No recurring subscription.",
                   "Every future revision included.",
-                  "Windows desktop application — installed on your machine.",
+                  "Windows & macOS desktop application — installed on your machine.",
                   `${REFUND_WINDOW_LABEL} on every purchase.`,
                 ].map((line) => (
                   <li key={line} className="flex items-start gap-2.5">

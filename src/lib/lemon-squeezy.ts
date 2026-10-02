@@ -176,6 +176,67 @@ export async function createLemonSqueezyCheckout(params: {
 }
 
 /* ------------------------------------------------------------------ */
+/* Refunds (admin terminal)                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Issue a full refund for an order through the Lemon Squeezy API — the
+ * money side of the admin terminal's refund command. `paymentId` is the
+ * Lemon Squeezy order uuid stored on our order row
+ * (lemon_squeezy_payment_id). On success the order_refunded webhook still
+ * arrives and drives the local revocation through src/lib/refunds.ts; the
+ * terminal calls revokeAccessForOrder itself for the immediate effect.
+ * Returns a discriminated result instead of throwing so the terminal can
+ * print what actually happened.
+ */
+export async function refundLemonSqueezyOrder(params: {
+  paymentId: string;
+  amountMinor?: number;
+}): Promise<{ ok: boolean; refundId: string | null; error: string | null }> {
+  const key = apiKey();
+  if (!key) {
+    return {
+      ok: false,
+      refundId: null,
+      error: "LEMONSQUEEZY_API_KEY is not configured — refund in the Lemon Squeezy dashboard instead.",
+    };
+  }
+
+  const res = await fetch(
+    `https://api.lemonsqueezy.com/v1/orders/${encodeURIComponent(params.paymentId)}/refund`,
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/vnd.api+json",
+        "Content-Type": "application/vnd.api+json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        data: {
+          type: "refunds",
+          attributes: params.amountMinor
+            ? { amount: params.amountMinor }
+            : { refund_ratio: "1.00" },
+        },
+      }),
+      cache: "no-store",
+    }
+  );
+
+  const payload = (await res.json().catch(() => ({}))) as {
+    data?: { id?: string };
+    errors?: { detail?: string; title?: string }[];
+  };
+  if (!res.ok) {
+    const detail =
+      payload.errors?.map((e) => e.detail ?? e.title).filter(Boolean).join("; ") ||
+      `HTTP ${res.status}`;
+    return { ok: false, refundId: null, error: detail };
+  }
+  return { ok: true, refundId: payload.data?.id ?? null, error: null };
+}
+
+/* ------------------------------------------------------------------ */
 /* Webhook signature verification                                      */
 /* ------------------------------------------------------------------ */
 
@@ -208,17 +269,19 @@ export function verifyWebhookSignature(
 /* ------------------------------------------------------------------ */
 
 /** The parts of an order event we read; the JSON:API envelope is stable
- *  for these fields (see docs.lemonsqueezy.com/api/orders). */
+ *  for these fields (see docs.lemonsqueezy.com/api/orders). `meta` is a
+ *  TOP-LEVEL member of the webhook payload — event_name and the checkout's
+ *  custom_event_data both live there, not under data. */
 export type LemonSqueezyOrderEvent = {
+  meta?: {
+    event_name?: string;
+    /** checkout_data.custom comes back here, values as strings. */
+    custom_event_data?: Record<string, unknown>;
+  };
   data?: {
     /** The order's uuid — our provider payment reference. */
     id?: string;
     type?: string;
-    meta?: {
-      event_name?: string;
-      /** checkout_data.custom comes back here, values as strings. */
-      custom_event_data?: Record<string, unknown>;
-    };
     attributes?: {
       /** Lemon Squeezy's human order id, e.g. "VEYRA-ABCD1". */
       order_id?: string;

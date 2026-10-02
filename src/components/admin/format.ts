@@ -61,8 +61,6 @@ export function n(value: number | null | undefined): string {
 export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   pending: "Pending",
   paid: "Paid",
-  failed: "Failed",
-  cancelled: "Cancelled",
   refunded: "Refunded",
 };
 

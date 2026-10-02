@@ -6,6 +6,8 @@ import {
   lemonSqueezyMode,
   lemonSqueezyWebhookConfigured,
 } from "@/lib/lemon-squeezy";
+import { razorpayConfigured, razorpayMode } from "@/lib/razorpay";
+import { paymentProvider, paymentProviderInvalid } from "@/lib/payments/provider";
 import {
   supabaseAdminConfigured,
   supabaseAuthConfigured,
@@ -82,6 +84,16 @@ export default async function SettingsPage() {
         {/* Payments */}
         <Panel title="Payments · Lemon Squeezy">
           <div className="space-y-0">
+            <KV
+              k="Active provider"
+              v={
+                paymentProviderInvalid()
+                  ? <StatusPill status="pending-config" />
+                  : paymentProvider() === "razorpay"
+                    ? `Razorpay (${razorpayMode()}) — set by PAYMENT_PROVIDER`
+                    : `Lemon Squeezy (${lemonSqueezyMode()}) — set by PAYMENT_PROVIDER`
+              }
+            />
             <KV k="API credentials" v={<StatusPill status={lemonSqueezyConfigured() ? "connected" : "pending-config"} />} />
             <KV k="Webhook verification" v={<StatusPill status={lemonSqueezyWebhookConfigured() ? "connected" : "pending-config"} />} />
             <KV
@@ -99,6 +111,25 @@ export default async function SettingsPage() {
           </div>
           {!lemonSqueezyConfigured() ? (
             <Note>Lemon Squeezy credentials are set in .env.local (LEMONSQUEEZY_API_KEY / LEMONSQUEEZY_STORE_ID / LEMONSQUEEZY_VARIANT_ID_*). Values are never displayed here — only whether they exist.</Note>
+          ) : null}
+          {razorpayConfigured() ? (
+            <Note>
+              Razorpay credentials exist ({razorpayMode()} mode), but the
+              active provider is decided solely by PAYMENT_PROVIDER —
+              currently &ldquo;{paymentProvider()}&rdquo;. Keys alone never
+              reroute checkout. To run checkout through Razorpay, set
+              PAYMENT_PROVIDER=razorpay in the deployment environment;
+              orders are then confirmed via /api/checkout/razorpay/verify
+              and webhook endpoint {site.url}/api/webhooks/razorpay.
+              Values are never displayed here.
+            </Note>
+          ) : null}
+          {paymentProviderInvalid() ? (
+            <Note>
+              PAYMENT_PROVIDER holds an unrecognized value — checkout fails
+              closed (500) until it is set to &ldquo;lemonsqueezy&rdquo; or
+              &ldquo;razorpay&rdquo;.
+            </Note>
           ) : null}
         </Panel>
 
@@ -137,12 +168,13 @@ export default async function SettingsPage() {
         <Panel title="Email">
           <div className="space-y-0">
             <KV k="Transactional (auth)" v={<StatusPill status={supabaseAuthConfigured() ? "connected" : "pending-config"} />} />
-            <KV k="Sender" v="Supabase Auth built-in email (until a custom SMTP sender is configured)" />
-            <KV k="Confirmations" v="Sign-up email confirmation enforced before account linking" />
+            <KV k="Sender" v="Resend SMTP — Veyra <no-reply@veyra.caelmont.in>" />
+            <KV k="Confirmations" v="Sign-up email confirmation enforced before account linking; branded templates (supabase/email-templates)" />
           </div>
           <Note>
-            Custom sender domain: Supabase Dashboard → Authentication →
-            SMTP settings.
+            Custom SMTP: smtp.resend.com (sender domain veyra.caelmont.in
+            verified in Resend). Templates applied via
+            scripts/sb-set-email-templates.mjs.
           </Note>
         </Panel>
 

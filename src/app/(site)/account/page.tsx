@@ -9,7 +9,7 @@ import { describePgError } from "@/lib/supabase/errors";
 import { supabaseAuthConfigured } from "@/lib/supabase/config";
 import type { EntitlementRow, LicenceRow, OrderRow, ProfileRow } from "@/lib/supabase/types";
 import { getProduct } from "@/lib/products";
-import { formatOrderAmount } from "@/lib/site";
+import { site,  formatOrderAmount  } from "@/lib/site";
 import { AccountShell, AccountCard } from "@/components/account/account-shell";
 import { AccountDiscovery } from "@/components/account/account-discovery";
 import { OrderStatusBadge, formatDate, shortOrderRef } from "@/components/account/account-format";
@@ -57,7 +57,7 @@ export default async function AccountPage() {
       supabase
         .from("orders")
         .select("*")
-        .in("status", ["pending", "failed"])
+        .eq("status", "pending")
         .order("created_at", { ascending: false })
         .limit(2),
     ]);
@@ -97,10 +97,10 @@ export default async function AccountPage() {
             We&rsquo;re having trouble loading your account right now. Please
             try again in a moment — if it persists, write to{" "}
             <a
-              href="mailto:Caelmontholdings@gmail.com"
+              href={`mailto:${site.contact.email}`}
               className="font-medium text-accent underline-offset-2 hover:underline"
             >
-              Caelmontholdings@gmail.com
+              {site.contact.email}
             </a>
             .
           </p>
@@ -114,7 +114,7 @@ export default async function AccountPage() {
   const recentOrders = (ordersRes.data ?? []) as OrderRow[];
   const licences = (licencesRes.data ?? []) as LicenceRow[];
   const noticeOrders = ((noticesRes.data ?? []) as OrderRow[]).filter(
-    (o) => o.status === "pending" || o.status === "failed"
+    (o) => o.status === "pending"
   );
   const orderCount = ordersRes.count ?? recentOrders.length;
 
@@ -140,21 +140,14 @@ export default async function AccountPage() {
                 <Link
                   key={order.id}
                   href={`/account/orders/${order.id}`}
-                  className={`block rounded-md border p-4 transition-colors duration-200 sm:p-5 ${
-                    order.status === "pending"
-                      ? "border-amber/30 bg-amber-soft hover:border-amber/50"
-                      : "border-clay/30 bg-clay-soft hover:border-clay/50"
-                  }`}
+                  className="block rounded-md border border-amber/30 bg-amber-soft p-4 transition-colors duration-200 hover:border-amber/50 sm:p-5"
                 >
                   <p className="text-sm font-medium text-ink">
-                    {order.status === "pending"
-                      ? `We're confirming your payment for ${productName}`
-                      : `Your payment for ${productName} didn't complete`}
+                    We&apos;re confirming your payment for {productName}
                   </p>
                   <p className="mt-1 text-xs leading-relaxed text-ink-2">
-                    {order.status === "pending"
-                      ? "This usually takes a few minutes. The order will update automatically — nothing to do right now."
-                      : "No charge was captured. You can start again from the product page anytime."}
+                    This usually takes a few minutes. The order will update
+                    automatically — nothing to do right now.
                   </p>
                 </Link>
               );

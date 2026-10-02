@@ -18,6 +18,7 @@ import {
   supabaseServiceRoleKey,
   supabaseUrl,
 } from "@/lib/supabase/config";
+import { DELIVERY_PLATFORMS, type DeliveryPlatform } from "@/lib/platforms";
 import type { Database } from "@/lib/supabase/types";
 
 function adminClient() {
@@ -31,23 +32,30 @@ export type ReleaseInfo = {
   /** Private-bucket object key for the installer artifact. */
   artifactKey: string;
   publishedAt: string;
+  /** 0021 — which OS this artifact installs on. */
+  platform: DeliveryPlatform;
 };
 
 /**
- * The downloadable release for a product: the row marked current,
- * published, and backed by an uploaded artifact — or null when nothing
- * may be delivered (registry empty, artifact not yet uploaded, or the
- * current release was withdrawn).
+ * The downloadable release for a product on one platform: the row marked
+ * current for that platform, published, and backed by an uploaded
+ * artifact — or null when nothing may be delivered (registry empty,
+ * artifact not yet uploaded, or the current release was withdrawn).
+ *
+ * The default is 'windows' so every existing caller keeps its exact
+ * pre-0021 behaviour: Windows delivery is untouched by Mac support.
  */
 export async function currentRelease(
-  slug: string
+  slug: string,
+  platform: DeliveryPlatform = "windows"
 ): Promise<ReleaseInfo | null> {
   if (!supabaseUrl() || !supabaseServiceRoleKey()) return null;
   try {
     const { data, error } = await adminClient()
       .from("product_versions")
-      .select("version, artifact_key, published_at")
+      .select("version, artifact_key, published_at, platform")
       .eq("product_slug", slug)
+      .eq("platform", platform)
       .eq("current", true)
       .eq("release_status", "published")
       .not("artifact_key", "is", null)
@@ -58,10 +66,39 @@ export async function currentRelease(
       version: data.version,
       artifactKey: data.artifact_key as string,
       publishedAt: data.published_at,
+      platform: data.platform,
     };
   } catch (err) {
-    console.error(`[registry] currentRelease(${slug}) failed:`, err);
+    console.error(`[registry] currentRelease(${slug}, ${platform}) failed:`, err);
     return null;
+  }
+}
+
+/**
+ * Which platforms currently have a deliverable release for a product —
+ * drives the download UI so it only offers buttons for builds that
+ * actually exist (a published Windows .exe and a not-yet-uploaded .dmg
+ * show one button; both published show two).
+ */
+export async function releasedPlatforms(
+  slug: string
+): Promise<DeliveryPlatform[]> {
+  if (!supabaseUrl() || !supabaseServiceRoleKey()) return [];
+  try {
+    const { data, error } = await adminClient()
+      .from("product_versions")
+      .select("platform")
+      .eq("product_slug", slug)
+      .eq("current", true)
+      .eq("release_status", "published")
+      .not("artifact_key", "is", null);
+    if (error) throw error;
+    const have = new Set((data ?? []).map((r) => r.platform));
+    // Stable display order matching DELIVERY_PLATFORMS.
+    return DELIVERY_PLATFORMS.filter((p) => have.has(p));
+  } catch (err) {
+    console.error(`[registry] releasedPlatforms(${slug}) failed:`, err);
+    return [];
   }
 }
 

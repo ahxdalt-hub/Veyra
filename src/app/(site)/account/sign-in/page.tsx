@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { site } from "@/lib/site";
 import Link from "next/link";
 import { Suspense } from "react";
 import { SignInForm } from "@/components/account/sign-in-form";
@@ -33,10 +34,10 @@ export default function SignInPage() {
                 Customer accounts aren&rsquo;t enabled on this deployment yet.
                 Purchases currently deliver by email — write to{" "}
                 <a
-                  href="mailto:Caelmontholdings@gmail.com"
+                  href={`mailto:${site.contact.email}`}
                   className="font-medium text-accent underline-offset-2 hover:underline"
                 >
-                  Caelmontholdings@gmail.com
+                  {site.contact.email}
                 </a>{" "}
                 about an existing order.
               </p>

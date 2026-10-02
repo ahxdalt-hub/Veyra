@@ -43,6 +43,14 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  /* Server actions POST back to the page that rendered them. Rerouting one
+   * of those replaces the action's flight payload with an HTML redirect, and
+   * React surfaces that as a generic failure — sign-up hit exactly this: the
+   * browser had just created the session, so the claim action's own POST was
+   * redirected away from /account/sign-up. Only GET navigations may be
+   * rerouted here; the refreshed cookies still ride back on `response`. */
+  if (request.method !== "GET") return response;
+
   const isAccountAuthPage =
     pathname === "/account/sign-in" ||
     pathname === "/account/sign-up" ||

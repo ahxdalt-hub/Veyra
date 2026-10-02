@@ -77,7 +77,7 @@ export default async function ProductsPage({
       ) : null}
 
       <Panel padded={false}>
-        <ScrollFadeX>
+        <ScrollFadeX maxY={520}>
           <table className="cc-table min-w-full">
             <thead>
               <tr>

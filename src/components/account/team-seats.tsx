@@ -212,6 +212,7 @@ export function TeamSeats({
       ) : (
         <form
           className="mt-3 max-w-sm"
+          method="post"
           onSubmit={(e) => {
             e.preventDefault();
             if (!emailError) submit();

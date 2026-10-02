@@ -164,24 +164,10 @@ async function simulateOneCustomer(seq) {
         },
         order.id
       );
-    } else if (roll < 0.85) {
-      const { error: upErr } = await supabase
-        .from("orders")
-        .update({ status: "failed", updated_at: stamp })
-        .eq("id", order.id);
-      if (upErr) return void console.warn("update failed:", upErr.message);
-      console.log(`[${ts()}] ✗ #${seq} FAILED   ${usd(amount)}  ${product.name}`);
-      await notify(
-        {
-          kind: "payment_failed",
-          severity: "error",
-          title: "Payment failed",
-          message: `${product.name} — ${usd(amount)} · ${email}`,
-        },
-        order.id
-      );
     }
     // else: abandoned at the payment modal — row stays pending on purpose.
+    // There is no 'failed' order status (0026): an unpaid checkout is
+    // simply a pending row that never confirmed.
   }, 2400);
 }
 

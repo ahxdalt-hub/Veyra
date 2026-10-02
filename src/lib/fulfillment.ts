@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { getProduct } from "@/lib/products";
+import { getProduct, isFreeProduct } from "@/lib/products";
 import { clampSeats } from "@/lib/pricing";
 import {
   supabaseAdminConfigured,
@@ -9,7 +9,7 @@ import {
 import type { Database } from "@/lib/supabase/types";
 import type { Order } from "@/lib/orders";
 import { notifyLicenceEvent } from "@/lib/admin/notifications";
-import { sendPurchaseEmail } from "@/lib/email/purchase";
+import { sendFreeClaimEmail, sendPurchaseEmail } from "@/lib/email/purchase";
 import { currentRelease } from "@/lib/registry";
 
 /**
@@ -34,6 +34,9 @@ import { currentRelease } from "@/lib/registry";
  * purchaser takes seat 1 at grant time. Deliberately no expiry/renewal
  * fields. The human-readable reference is derived deterministically from
  * the entitlement id, so re-grants reproduce the same reference.
+ *
+ * Free tools are the exception: fulfillment for them ends at the
+ * entitlement — no licence, no seats, no licence email.
  */
 
 function adminClient() {
@@ -94,6 +97,22 @@ async function grantForOrder(db: ReturnType<typeof adminClient>, order: Order) {
     } else {
       entitlementId = inserted.data.id;
     }
+  }
+
+  // Free tools (the Growth Audit) stop here: the entitlement IS the
+  // ownership. No licence row, no seat assignment, no key to activate —
+  // the claim confirmation email carries none of that furniture either.
+  // Reusing the purchase_receipt ledger type keeps old claims (which were
+  // already emailed under it) from ever being re-emailed on a re-grant.
+  if (isFreeProduct(product)) {
+    await sendFreeClaimEmail({
+      toEmail: order.email,
+      productName: product.name,
+      orderId: order.id,
+      version: product.version ?? null,
+      claimedAt: order.paid_at ?? order.created_at,
+    });
+    return;
   }
 
   // 2. Licence — unique on entitlement_id, derived from it. The licence is

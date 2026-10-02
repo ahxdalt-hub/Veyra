@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { AddToCartButton } from "@/components/product/add-to-cart-button";
 import { ClaimFreeButton } from "@/components/product/claim-free-button";
 import { CheckIcon } from "@/components/ui/icons";
+import { BreadcrumbJsonLd } from "@/components/seo/breadcrumb-json-ld";
 
 /**
  * Product detail — server-rendered, statically generated per product.
@@ -36,10 +37,15 @@ export async function generateMetadata({
   const { slug } = await params;
   const product = getProduct(slug);
   if (!product) return {};
+  // Coming-soon announcements are thin, templated placeholders — they stay
+  // out of the index until the product ships with substantial content.
+  // `follow` stays on so their outbound links still carry weight.
+  const comingSoon = product.status === "coming-soon";
   return {
     title: product.name,
     description: product.shortDescription,
     alternates: { canonical: `/products/${product.slug}` },
+    ...(comingSoon ? { robots: { index: false, follow: true } } : {}),
     openGraph: {
       title: product.free
         ? `${product.name} — Free`
@@ -112,6 +118,13 @@ export default async function ProductPage({
                 <li aria-current="page" className="text-ink-2">{product.name}</li>
               </ol>
             </nav>
+            <BreadcrumbJsonLd
+              items={[
+                { label: "Home", href: "/" },
+                { label: "Products", href: "/shop" },
+                { label: product.name },
+              ]}
+            />
             <div className="grid gap-10 lg:grid-cols-[2fr_1fr] lg:gap-16">
               <div>
                 <p className="text-eyebrow mb-4">
@@ -497,9 +510,9 @@ function PurchasePanel({
             <ClaimFreeButton slug={product.slug} />
           </div>
           <p className="mt-3 text-xs leading-relaxed text-ink-3">
-            Claiming links a licence to your account — the same fulfillment
-            paid customers get, minus the payment. Not signed in? The audit
-            still runs free; claiming just saves it to your library.
+            Claiming saves it to your account for good — no payment, no key,
+            nothing to manage. Not signed in? The audit still runs free;
+            claiming just keeps it in your library.
           </p>
           <ul className="mt-6 space-y-2.5 border-t border-line pt-5">
             {product.specs.map((spec) => (

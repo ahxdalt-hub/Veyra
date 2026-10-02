@@ -6,7 +6,7 @@ import {
   type FormEvent,
 } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { claimPurchasesAction } from "@/app/(site)/account/actions";
 import { USERNAME_RE } from "@/lib/username";
@@ -30,6 +30,13 @@ type UsernameStatus = "idle" | "invalid" | "checking" | "available" | "taken";
 
 export function SignUpForm() {
   const router = useRouter();
+  const params = useSearchParams();
+
+  // Same in-app-only redirect target the sign-in form honours, so a visitor
+  // bounced here from a guarded page returns to the page they wanted.
+  const rawNext = params.get("next") ?? "/account";
+  const next =
+    rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/account";
 
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
@@ -126,16 +133,23 @@ export function SignUpForm() {
       }
 
       if (data.session) {
-        // Confirmation not required — signed in immediately.
-        await claimPurchasesAction();
-        router.replace("/account");
+        // Confirmation not required — signed in immediately. Claiming guest
+        // purchases is best-effort: the account and session already exist, so
+        // a hiccup here must never be shown as a failed sign-up.
+        try {
+          await claimPurchasesAction();
+        } catch (err) {
+          console.error("[sign-up] purchase claim skipped:", err);
+        }
+        router.replace(next);
         router.refresh();
         return;
       }
 
       setAwaitingConfirmation(true);
       setBusy(false);
-    } catch {
+    } catch (err) {
+      console.error("[sign-up] unexpected failure:", err);
       setError("Something went wrong. Please try again.");
       setBusy(false);
     }
@@ -164,7 +178,12 @@ export function SignUpForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="stagger-rise space-y-5" noValidate>
+    <form
+      onSubmit={onSubmit}
+      method="post"
+      className="stagger-rise space-y-5"
+      noValidate
+    >
       <Input
         type="text"
         name="name"

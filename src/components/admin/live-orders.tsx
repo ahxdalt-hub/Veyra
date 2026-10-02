@@ -139,7 +139,7 @@ export function LiveOrdersTable({
           }
         />
       ) : (
-        <ScrollFadeX>
+        <ScrollFadeX maxY={520}>
           <table className="cc-table min-w-full">
             <thead>
               <tr>
@@ -214,12 +214,10 @@ function OrderLine({
   const paymentCell =
     order.status === "paid" ? (
       <span style={{ color: "var(--cc-success)" }}>Confirmed</span>
-    ) : order.status === "failed" ? (
-      <span style={{ color: "var(--cc-error)" }}>Failed</span>
     ) : order.status === "pending" ? (
       <span style={{ color: "var(--cc-warning)" }}>Awaiting</span>
     ) : (
-      <span style={{ color: "var(--cc-text-4)" }}>—</span>
+      <span style={{ color: "var(--cc-text-4)" }}>Refunded</span>
     );
   return (
     <tr

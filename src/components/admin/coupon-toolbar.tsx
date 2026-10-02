@@ -154,7 +154,7 @@ function EditorBody({
       title={mode === "create" ? "New coupon" : "Edit coupon"}
       subtitle={mode === "edit" ? "Changes take effect at checkout immediately" : "Works at checkout as soon as it's saved"}
     >
-      <form ref={form} onSubmit={onSubmit} className="space-y-5">
+      <form ref={form} onSubmit={onSubmit} method="post" className="space-y-5">
         <div className="grid grid-cols-2 gap-4">
           <Field label="Code">
             <input

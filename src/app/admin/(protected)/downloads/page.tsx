@@ -59,26 +59,54 @@ export default async function DownloadsPage() {
                 <Row k="Availability">
                   <StatusPill status={d.purchasable ? "available" : "coming-soon"} />
                 </Row>
-                <Row k="Delivery status">
-                  {d.versionSource !== "registry" ? (
-                    <StatusPill status="pending-config" />
-                  ) : d.releaseStatus === "withdrawn" ? (
-                    <StatusPill status="revoked" />
-                  ) : !d.artifactReady ? (
-                    <StatusPill status="attention" />
-                  ) : (
-                    <StatusPill status="healthy" />
-                  )}
-                  <span className="ml-2 text-xs" style={{ color: "var(--cc-text-4)" }}>
-                    {d.versionSource !== "registry"
-                      ? "publish this version to the registry to control delivery"
-                      : d.releaseStatus === "withdrawn"
-                        ? "withdrawn — downloads stopped"
-                        : !d.artifactReady
-                          ? "release recorded, installer not uploaded yet"
-                          : "installer published · serving signed URLs"}
+                <div
+                  className="flex items-start justify-between gap-4 border-b py-2.5 last:border-b-0"
+                  style={{ borderColor: "var(--cc-line)" }}
+                >
+                  <span className="shrink-0 text-xs" style={{ color: "var(--cc-text-4)" }}>
+                    Delivery status
                   </span>
-                </Row>
+                  <div className="space-y-1 text-right">
+                    {(["windows", "macos"] as const).map((pl) => {
+                      const rel = d.releases.find((r) => r.platform === pl);
+                      return (
+                        <div key={pl} className="flex items-center justify-end gap-2">
+                          <span
+                            className="text-xs"
+                            style={{ color: "var(--cc-text-4)" }}
+                          >
+                            {pl === "windows" ? "Windows" : "Mac"}
+                          </span>
+                          {!rel ? (
+                            <StatusPill status="pending-config" />
+                          ) : rel.releaseStatus === "withdrawn" ? (
+                            <StatusPill status="revoked" />
+                          ) : !rel.artifactReady ? (
+                            <StatusPill status="attention" />
+                          ) : (
+                            <StatusPill status="healthy" />
+                          )}
+                        </div>
+                      );
+                    })}
+                    <span className="block text-xs" style={{ color: "var(--cc-text-4)" }}>
+                      {d.versionSource !== "registry"
+                        ? "publish this version to the registry to control delivery"
+                        : d.releases
+                            .map(
+                              (r) =>
+                                `${r.platform === "windows" ? "Windows" : "Mac"} v${r.version} — ${
+                                  r.releaseStatus === "withdrawn"
+                                    ? "withdrawn, downloads stopped"
+                                    : !r.artifactReady
+                                      ? "release recorded, installer not uploaded yet"
+                                      : "installer published · serving signed URLs"
+                                }`
+                            )
+                            .join(" · ") || "no current release on the registry yet"}
+                    </span>
+                  </div>
+                </div>
                 <Row k="Downloads (all time)">
                   <span className="tnum" style={{ color: "var(--cc-text)" }}>{d.downloadCount}</span>
                   <span className="ml-2 text-xs" style={{ color: "var(--cc-text-4)" }}>

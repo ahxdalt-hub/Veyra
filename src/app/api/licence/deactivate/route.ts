@@ -4,6 +4,7 @@ import {
   activationMessage,
 } from "@/lib/licensing/service";
 import { jsonCORS, preflight } from "@/lib/licensing/http";
+import { takeRateLimit, clientIp } from "@/lib/rate-limit";
 
 /**
  * POST /api/licence/deactivate — a device gives its seat back (the app's
@@ -40,6 +41,23 @@ export async function POST(request: Request) {
     return jsonCORS(
       { ok: false, code: "invalid_input", message: activationMessage("invalid_input") },
       422
+    );
+  }
+
+  // Shared throttle (src/lib/rate-limit.ts): deactivation is seat-moving
+  // and was previously unthrottled; keep brute hammering off the RPC.
+  const limited =
+    !(await takeRateLimit(`licence:deactivate:${licence_reference}:${email}`, 10, 60))
+      .allowed ||
+    !(await takeRateLimit(`licence:deactivate:ip:${clientIp(request)}`, 60, 60)).allowed;
+  if (limited) {
+    return jsonCORS(
+      {
+        ok: false,
+        code: "server_unavailable",
+        message: "Too many attempts — wait a moment, then try again.",
+      },
+      429
     );
   }
 

@@ -43,7 +43,9 @@
   // identifier (NEXT_PUBLIC_* values are shipped to browsers on purpose and
   // are protected by Supabase RLS) or a display-only mode flag. Anything
   // sensitive — SUPABASE_SERVICE_ROLE_KEY, VEYRA_LICENCE_SIGNING_KEY,
-  // LEMONSQUEEZY_API_KEY, LEMONSQUEEZY_WEBHOOK_SECRET, RESEND_API_KEY — is
+  // LEMONSQUEEZY_API_KEY, LEMONSQUEEZY_WEBHOOK_SECRET, RESEND_API_KEY, and
+  // the command-center vault set (VEYRA_ADMIN_USERNAME, VEYRA_ADMIN_PASSWORD,
+  // VEYRA_ADMIN_EMAIL, VEYRA_ADMIN_PIN, VEYRA_ADMIN_SESSION_SECRET) — is
   // set with `wrangler secret put` / `wrangler secret bulk` and never
   // committed.
   "vars": {
@@ -51,14 +53,18 @@
     "NEXT_PUBLIC_SUPABASE_URL": "https://otqucrqcefdychplbbtq.supabase.co",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90cXVjcnFjZWZkeWNocGxiYnRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMjA3MDksImV4cCI6MjEwNDY5NjcwOX0.k4lAS0BTHEqpi6GgVEymZK0-XCjLxYIsStBLxeFIs9g",
     "SUPABASE_DELIVERY_BUCKET": "product-downloads",
+    // Explicit provider selection (see src/lib/payments/provider.ts).
+    // "lemonsqueezy" is production; Razorpay keys never reroute checkout
+    // unless this is changed to "razorpay".
+    "PAYMENT_PROVIDER": "lemonsqueezy",
     "LEMONSQUEEZY_MODE": "test",
     "LEMONSQUEEZY_STORE_ID": "485404",
     // Sender for transactional email (checklist PDF, purchase receipts).
     // Currently the Resend SANDBOX sender — Resend only delivers it to the
     // account owner's inbox until a sending domain is verified at
     // resend.com/domains. Contact email is Caelmontholdings@gmail.com;
-    // set VEYRA_EMAIL_FROM to whatever sender Resend has verified.
-    "VEYRA_EMAIL_FROM": "Veyra <onboarding@resend.dev>",
+    // veyra.caelmont.in is verified at Resend, so the real sender is live.
+    "VEYRA_EMAIL_FROM": "Veyra <no-reply@veyra.caelmont.in>",
     "VEYRA_LICENCE_PUBLIC_KEY_JWK": "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"f4HKyrMbMIxqXVwYwKnpEt39hbLVIS2sMvP7g8WIdzg\",\"y\":\"IWqaev8f4P_3z_f1qduNDlCIeS-In0en3RNvgdFAgk0\"}"
   }
 }

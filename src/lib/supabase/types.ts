@@ -15,6 +15,10 @@ export type OrderRow = {
   lemon_squeezy_order_id: string | null;
   /** Lemon Squeezy order uuid — the provider payment reference. */
   lemon_squeezy_payment_id: string | null;
+  /** 0022 — Razorpay order id (test provider); null on LS checkout. */
+  razorpay_order_id: string | null;
+  /** 0022 — Razorpay payment id, written when the signature verifies. */
+  razorpay_payment_id: string | null;
   email: string;
   user_id: string | null;
   product_slug: string;
@@ -125,6 +129,9 @@ export type ProductVersionRow = {
   release_status: "draft" | "published" | "withdrawn";
   /** 0016 — private delivery-bucket object key; null until uploaded. */
   artifact_key: string | null;
+  /** 0021 — OS the artifact installs on. One current release per
+   *  (product, platform); existing rows defaulted to 'windows'. */
+  platform: "windows" | "macos";
 };
 
 /** public.email_events (0016) — at-most-once customer email ledger.

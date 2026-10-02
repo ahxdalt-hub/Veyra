@@ -135,7 +135,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     // coming-soon products are rejected here as well as at checkout.
     if (!resolvePurchasableProduct(slug)) return;
     const current = read();
-    if (!current.some((l) => l.slug === slug)) {
+    // Veyra sells one product per order (the checkout API enforces it).
+    // Rather than let the cart reach a state checkout must reject with a
+    // 422, a different product simply doesn't get added.
+    const holdsOtherProduct = current.some((l) => l.slug !== slug);
+    if (!holdsOtherProduct && !current.some((l) => l.slug === slug)) {
       write([...current, { slug, qty: 1 }]);
     }
     setIsOpen(true);

@@ -2,9 +2,8 @@
  * Sound — a tiny synthesizer for UI effects, via the Web Audio API.
  *
  * No audio files, no dependencies: every sound is generated from
- * oscillators at play time. Hover is a quiet sine tick; each answer pops
- * a pentatonic step HIGHER than the last, so completing the quiz walks an
- * ascending scale (the "level-up" feel); back is a descending blip; the
+ * oscillators at play time. Hover is a quiet sine tick; every answer pops
+ * the same steady, satisfying click; back is a descending blip; the
  * reveal is a short arpeggio.
  *
  * Preferences persist under `veyra:sfx` and default to ON. The AudioContext
@@ -18,18 +17,8 @@ export type SfxName =
   | "select"
   | "back"
   | "reveal"
-  | "unlock";
-
-/** Pentatonic ladder (C major pentatonic) — any two steps sound pleasant. */
-const SCALE_SEMITONES = [0, 2, 4, 7, 9];
-const BASE_HZ = 523.25; // C5
-
-function stepFreq(step: number): number {
-  const clamped = Math.min(step, 14);
-  const octave = 1 + Math.floor(clamped / SCALE_SEMITONES.length);
-  const semitone = SCALE_SEMITONES[clamped % SCALE_SEMITONES.length];
-  return BASE_HZ * octave * Math.pow(2, semitone / 12);
-}
+  | "unlock"
+  | "lock";
 
 let ctx: AudioContext | null = null;
 
@@ -122,10 +111,10 @@ function tone(ac: AudioContext, t: Tone): void {
 }
 
 /**
- * Play a named effect. `step` (for "select") is the question index — the
- * pentatonic ladder ascends with it, one rung per answered question.
+ * Play a named effect. Every answer click sounds identical, regardless of
+ * position in the flow.
  */
-export function playSfx(name: SfxName, step = 0): void {
+export function playSfx(name: SfxName): void {
   if (!soundsEnabled()) return;
   const ac = audio();
   if (!ac) return;
@@ -137,10 +126,11 @@ export function playSfx(name: SfxName, step = 0): void {
       tone(ac, { freq: 1150, at: t, dur: 0.045, gain: 0.012, type: "sine" });
       break;
     case "select": {
-      // The main event: triangle pop + sine octave shimmer, rising per step.
-      const f = stepFreq(step);
-      tone(ac, { freq: f, at: t, dur: 0.11, gain: 0.05, type: "triangle" });
-      tone(ac, { freq: f * 2, at: t, dur: 0.09, gain: 0.016, type: "sine" });
+      // The main event: triangle pop + sine octave shimmer — identical
+      // every time, a steady satisfying click rather than a rising scale.
+      const f = 587.33; // D5
+      tone(ac, { freq: f, at: t, dur: 0.1, gain: 0.05, type: "triangle" });
+      tone(ac, { freq: f * 2, at: t, dur: 0.08, gain: 0.014, type: "sine" });
       break;
     }
     case "back":
@@ -171,6 +161,11 @@ export function playSfx(name: SfxName, step = 0): void {
       // Two-note sparkle — the gate opening.
       tone(ac, { freq: 783.99, at: t, dur: 0.16, gain: 0.035, type: "sine" });
       tone(ac, { freq: 1318.5, at: t + 0.09, dur: 0.3, gain: 0.03, type: "sine" });
+      break;
+    case "lock":
+      // Soft muted tap — a gentle "not here", never an error sound.
+      tone(ac, { freq: 320, at: t, dur: 0.07, gain: 0.028, type: "sine" });
+      tone(ac, { freq: 240, at: t + 0.055, dur: 0.1, gain: 0.02, type: "sine" });
       break;
   }
 }

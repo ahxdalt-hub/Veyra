@@ -70,7 +70,6 @@ export default async function PaymentsPage({
             { value: "", label: "All outcomes" },
             { value: "paid", label: "Successful" },
             { value: "pending", label: "Pending" },
-            { value: "failed", label: "Failed" },
             { value: "refunded", label: "Refunded" },
           ]}
         />
@@ -87,7 +86,7 @@ export default async function PaymentsPage({
             />
           ) : (
             <>
-              <ScrollFadeX>
+              <ScrollFadeX maxY={520}>
                 <table className="cc-table min-w-full">
                   <thead>
                     <tr>

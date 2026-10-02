@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { takeRateLimit, clientIp } from "@/lib/rate-limit";
 import { sendChecklistEmail } from "@/lib/email/checklist";
 
 /**
@@ -23,29 +24,13 @@ import { sendChecklistEmail } from "@/lib/email/checklist";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 /* ------------------------------------------------------------------ */
-/* Best-effort rate limit: 5 requests / 10 min / client IP            */
+/* Shared rate limit: 5 requests / 10 min / client IP                 */
+/* (Postgres-backed fixed window — src/lib/rate-limit.ts — enforced   */
+/* across every Worker isolate)                                       */
 /* ------------------------------------------------------------------ */
 
-const WINDOW_MS = 10 * 60 * 1000;
-const MAX_PER_WINDOW = 5;
-const hits = new Map<string, number[]>();
-
-function rateLimited(ip: string): boolean {
-  const now = Date.now();
-  const recent = (hits.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
-  if (recent.length >= MAX_PER_WINDOW) {
-    hits.set(ip, recent);
-    return true;
-  }
-  recent.push(now);
-  hits.set(ip, recent);
-  // Opportunistic cleanup so the map can't grow unbounded.
-  if (hits.size > 1000) {
-    for (const [key, times] of hits) {
-      if (!times.some((t) => now - t < WINDOW_MS)) hits.delete(key);
-    }
-  }
-  return false;
+async function rateLimited(ip: string): Promise<boolean> {
+  return !(await takeRateLimit(`subscribe:ip:${ip}`, 5, 600)).allowed;
 }
 
 export async function POST(request: Request) {
@@ -70,8 +55,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
-  if (rateLimited(ip)) {
+  const ip = clientIp(request);
+  if (await rateLimited(ip)) {
     return NextResponse.json(
       { error: "Too many requests — please try again in a few minutes." },
       { status: 429 }

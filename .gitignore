@@ -53,3 +53,9 @@ dev*.log
 *.log
 .sbp-token
 backups/
+
+# Supabase CLI local state (project refs, versions) — never commit
+supabase/.temp/
+
+# Local demo backup wiped from prod 2026-10-03 — stays on disk, out of git
+_archive/

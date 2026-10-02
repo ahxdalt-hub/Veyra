@@ -25,6 +25,15 @@ import { USERNAME_RE } from "@/lib/username";
 /* Sign in — email OR username                                         */
 /* ------------------------------------------------------------------ */
 
+/**
+ * One generic credential-failure message for every rejection path
+ * (unknown username, bad format, wrong password, unconfirmed email).
+ * Distinguishing them would let an attacker enumerate which accounts
+ * exist, so the messages must be byte-identical.
+ */
+const GENERIC_SIGNIN_ERROR =
+  "That email or username and password don't match an account. Please try again.";
+
 /** Same format the database enforces (profiles_username_format). */
 export type SignInState = { error?: string };
 
@@ -54,8 +63,7 @@ export async function signInWithPasswordAction(
   if (!email.includes("@")) {
     if (!USERNAME_RE.test(email)) {
       return {
-        error:
-          "That email and password don't match an account. Please try again.",
+        error: GENERIC_SIGNIN_ERROR,
       };
     }
     if (!supabaseAdminConfigured()) {
@@ -74,8 +82,7 @@ export async function signInWithPasswordAction(
       .maybeSingle();
     if (!profile) {
       return {
-        error:
-          "That username and password don't match an account. Please try again.",
+        error: GENERIC_SIGNIN_ERROR,
       };
     }
     const { data: authUser, error: userError } =
@@ -97,16 +104,11 @@ export async function signInWithPasswordAction(
   });
 
   if (error || !data.user?.email) {
-    const message = (error?.message ?? "").toLowerCase();
-    if (message.includes("confirm")) {
-      return {
-        error:
-          "Please confirm your email first — check your inbox for the confirmation link.",
-      };
-    }
+    // Supabase distinguishes "invalid credentials" from "email not yet
+    // confirmed", but surfacing that difference would confirm an account
+    // exists at this address — so every failure collapses to one message.
     return {
-      error:
-        "That email and password don't match an account. Please try again.",
+      error: GENERIC_SIGNIN_ERROR,
     };
   }
 
@@ -497,8 +499,8 @@ export async function requestRedeliveryAction(
 
   return {
     message: version
-      ? `Request received — version ${version} of ${productName} will be delivered to ${user.email}.`
-      : `Request received — ${productName} will be delivered to ${user.email}.`,
+      ? `Request received — our team will email version ${version} of ${productName} to ${user.email}, usually within one business day.`
+      : `Request received — our team will email ${productName} to ${user.email}, usually within one business day.`,
   };
 }
 

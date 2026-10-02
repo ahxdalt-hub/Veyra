@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/cart/cart-context";
-import { formatPrice, REFUND_WINDOW_LABEL } from "@/lib/site";
+import { site,  formatPrice, REFUND_WINDOW_LABEL  } from "@/lib/site";
 import { formatDiscountPercent } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,9 +34,12 @@ import { AnimatedNumber } from "@/components/motion/animated-number";
 type CheckoutProps = {
   /** Resolved store mode this deployment is wired to. */
   mode: "test" | "live";
-  /** Whether Lemon Squeezy credentials + variant mappings exist. When
-   *  false the page states plainly that payments aren't enabled yet. */
+  /** Whether payment credentials exist. When false the page states
+   *  plainly that payments aren't enabled yet. */
   configured: boolean;
+  /** 0022 — which gateway /api/checkout will use: Razorpay when its test
+   *  keys are set (local development), else Lemon Squeezy (production). */
+  provider: "lemon-squeezy" | "razorpay";
 };
 
 type Phase =
@@ -46,7 +49,52 @@ type Phase =
   | "failed"
   | "not-configured";
 
-export default function CheckoutClient({ mode, configured }: CheckoutProps) {
+/* Razorpay Checkout.js — loaded on demand, typed minimally. The handler
+ * response is POSTed to /api/checkout/razorpay/verify, which re-verifies
+ * everything server-side; this client never asserts payment success. */
+type RazorpayHandlerResponse = {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+};
+
+type RazorpayOptions = {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description?: string;
+  order_id: string;
+  prefill?: { email?: string };
+  theme?: { color?: string };
+  handler: (response: RazorpayHandlerResponse) => void;
+  modal?: { ondismiss?: () => void };
+};
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: RazorpayOptions) => { open: () => void };
+  }
+}
+
+function loadRazorpayScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (window.Razorpay) return resolve();
+    const existing = document.querySelector<HTMLScriptElement>(
+      'script[src="https://checkout.razorpay.com/v1/checkout.js"]'
+    );
+    const script = existing ?? document.createElement("script");
+    const done = () => (window.Razorpay ? resolve() : reject(new Error("Razorpay failed to load")));
+    script.addEventListener("load", done, { once: true });
+    script.addEventListener("error", () => reject(new Error("Razorpay failed to load")), { once: true });
+    if (!existing) {
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      document.head.appendChild(script);
+    }
+  });
+}
+
+export default function CheckoutClient({ mode, configured, provider }: CheckoutProps) {
   const router = useRouter();
   const { detailedLines } = useCart();
 
@@ -132,6 +180,9 @@ export default function CheckoutClient({ mode, configured }: CheckoutProps) {
         code?: string;
         orderId?: string;
         checkoutUrl?: string;
+        provider?: "lemon-squeezy" | "razorpay";
+        razorpayOrderId?: string;
+        razorpayKeyId?: string;
         amount?: number;
         currency?: string;
         productName?: string;
@@ -152,6 +203,76 @@ export default function CheckoutClient({ mode, configured }: CheckoutProps) {
         router.replace(`/checkout/complete?order=${data.orderId}`);
         return;
       }
+
+      // Razorpay path (0022 test provider): open Razorpay Checkout in a
+      // modal. Confirmation is NOT this page's job — the handler's response
+      // goes to /api/checkout/razorpay/verify, which re-verifies the
+      // signature AND the payment server-side before the order turns paid.
+      if (res.ok && data.orderId && data.razorpayOrderId && data.razorpayKeyId) {
+        setPhase("redirecting");
+        try {
+          await loadRazorpayScript();
+          if (!window.Razorpay) throw new Error("Razorpay failed to load");
+          const rzp = new window.Razorpay({
+            key: data.razorpayKeyId,
+            amount: data.amount ?? 0,
+            currency: data.currency ?? "INR",
+            name: "Veyra",
+            description: data.productName ?? "Veyra purchase",
+            order_id: data.razorpayOrderId,
+            prefill: { email },
+            theme: { color: "#23201A" },
+            handler: (response) => {
+              void (async () => {
+                try {
+                  const vres = await fetch("/api/checkout/razorpay/verify", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      orderId: data.orderId,
+                      razorpay_order_id: response.razorpay_order_id,
+                      razorpay_payment_id: response.razorpay_payment_id,
+                      razorpay_signature: response.razorpay_signature,
+                    }),
+                  });
+                  const vdata = (await vres.json().catch(() => ({}))) as {
+                    ok?: boolean;
+                    error?: string;
+                  };
+                  if (vres.ok && vdata.ok) {
+                    router.replace(`/checkout/complete?order=${data.orderId}`);
+                    return;
+                  }
+                  setPhase("failed");
+                  setError(
+                    vdata.error ??
+                      "We couldn't confirm your payment. If money left your account it is safe — try again in a moment."
+                  );
+                } catch {
+                  setPhase("failed");
+                  setError(
+                    "We lost the connection while confirming your payment. If money left your account it is safe — try again in a moment."
+                  );
+                }
+              })();
+            },
+            modal: {
+              ondismiss: () => {
+                setPhase("failed");
+                setError(
+                  "The payment window was closed before completing. Nothing was confirmed — you can try again whenever you're ready."
+                );
+              },
+            },
+          });
+          rzp.open();
+        } catch {
+          setPhase("failed");
+          setError("We couldn't open the payment window. Please try again.");
+        }
+        return;
+      }
+
       if (!res.ok || !data.orderId || !data.checkoutUrl) {
         throw new Error(data.error ?? "We couldn't start your payment.");
       }
@@ -239,7 +360,10 @@ export default function CheckoutClient({ mode, configured }: CheckoutProps) {
                   One product, one payment, delivered digitally. You&rsquo;re
                   buying licences for{" "}
                   {tier.seats === 1 ? "1 seat" : `${tier.seats} seats`} —
-                  confirm the amount in Lemon Squeezy&rsquo;s secure checkout
+                  confirm the amount in{" "}
+                  {provider === "razorpay"
+                    ? "the secure payment window"
+                    : "Lemon Squeezy’s secure checkout"}{" "}
                   before anything is charged.
                 </>
               )}
@@ -256,16 +380,16 @@ export default function CheckoutClient({ mode, configured }: CheckoutProps) {
                   so checkout can&rsquo;t start. Nothing has been charged —
                   write to{" "}
                   <a
-                    href="mailto:Caelmontholdings@gmail.com"
+                    href={`mailto:${site.contact.email}`}
                     className="font-medium text-accent underline-offset-2 hover:underline"
                   >
-                    Caelmontholdings@gmail.com
+                    {site.contact.email}
                   </a>{" "}
                   and we&rsquo;ll arrange your purchase directly.
                 </p>
               </div>
             ) : (
-              <form onSubmit={onPay} className="mt-8 max-w-md">
+              <form onSubmit={onPay} method="post" className="mt-8 max-w-md">
                 <Input
                   type="email"
                   name="email"
@@ -297,14 +421,20 @@ export default function CheckoutClient({ mode, configured }: CheckoutProps) {
                 </Button>
 
                 <p className="mt-3 text-center text-xs text-ink-4">
-                  Processed by Lemon Squeezy · {REFUND_WINDOW_LABEL}
+                  {provider === "razorpay"
+                    ? "Processed through a secure payment gateway"
+                    : "Processed by Lemon Squeezy"}{" "}
+                  · {REFUND_WINDOW_LABEL}
                 </p>
 
                 {mode === "test" ? (
                   <p className="mt-4 rounded-sm border border-line bg-paper px-3 py-2 text-center text-xs leading-relaxed text-ink-3">
                     <span className="font-medium text-ink-2">Test mode.</span>{" "}
-                    This deployment runs Lemon Squeezy&rsquo;s test checkout —
-                    no real money moves and live cards are never accepted.
+                    This deployment runs{" "}
+                    {provider === "razorpay"
+                      ? "Razorpay’s test checkout"
+                      : "Lemon Squeezy’s test checkout"}{" "}
+                    — no real money moves and live cards are never accepted.
                   </p>
                 ) : null}
 
@@ -380,10 +510,10 @@ export default function CheckoutClient({ mode, configured }: CheckoutProps) {
                   {error} If money left your account but this message
                   appeared, contact{" "}
                   <a
-                    href="mailto:Caelmontholdings@gmail.com"
+                    href={`mailto:${site.contact.email}`}
                     className="font-medium text-accent underline-offset-2 hover:underline"
                   >
-                    Caelmontholdings@gmail.com
+                    {site.contact.email}
                   </a>{" "}
                   and we&rsquo;ll sort it out.
                 </p>

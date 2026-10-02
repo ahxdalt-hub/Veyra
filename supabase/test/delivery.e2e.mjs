@@ -20,7 +20,7 @@
  *   1 successful webhook confirmation (+entitlement/licence/seat/receipt)
  *   2 duplicate webhook delivery is a no-op (idempotent grant + email)
  *   3 tamper attempts: bad signature → rejected; amount mismatch → not paid
- *   4 late authoritative webhook reconciles an abandoned (cancelled) order
+ *   4 late authoritative webhook confirms the pending order
  *   5 refund webhook revokes access end to end
  *   6 result-page polling (owner session vs guest uuid)
  *   7 account area renders the licence
@@ -28,7 +28,8 @@
  *  10 activation + revalidation + deactivation after purchase
  */
 
-import { readFileSync, existsSync, randomUUID } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { createHash, createHmac } from "node:crypto";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -319,13 +320,12 @@ async function main() {
     const cD = await sql(`select (select count(*)::int from entitlements e join orders o on o.id=e.order_id where o.email='${tamperEmail}') as ent`);
     check("tampered order stayed pending, no entitlement", stD[0]?.status === "pending" && cD[0].ent === 0);
 
-    /* === 4. abandoned (cancelled) order, then late authoritative webhook === */
-    orderB = await seedPendingOrder({ email: guestEmail, qty: 1, status: "cancelled" });
-    // The customer completed payment on the hosted page after walking away
-    // client-side; the signed webhook is authoritative and must reconcile
-    // cancelled → paid.
+    /* === 4. pending order, then the late authoritative webhook === */
+    orderB = await seedPendingOrder({ email: guestEmail, qty: 1, status: "pending" });
+    // The customer never returned to the site; the signed webhook is the
+    // only durable confirmation and must complete the purchase.
     const whB = await lsWebhook({ eventName: "order_created", veyraOrderId: orderB.orderId, subtotal: orderB.amount });
-    check("late webhook reconciles cancelled → paid", whB.status === 200);
+    check("late webhook confirms pending → paid", whB.status === 200);
     const cB = await sql(`select status from orders where id='${orderB.orderId}'`);
     const cbCounts = await counts(guestEmail);
     check("guest reconciled purchase fully delivered (paid + entitlement + licence)",
@@ -349,6 +349,15 @@ async function main() {
     const ledgerE = await sql(`select email_type, status from email_events where order_id='${orderE.orderId}'`);
     check("refund confirmation email recorded", ledgerE.some((r) => r.email_type === "refund_confirmation" && r.status === "sent"),
       JSON.stringify(ledgerE));
+
+    // A late order_created replay after the refund must NOT resurrect the
+    // order or re-activate access — refunded is terminal.
+    const whReplay = await lsWebhook({ eventName: "order_created", veyraOrderId: orderE.orderId, subtotal: orderE.amount });
+    check("post-refund order_created replay acknowledged", whReplay.status === 200);
+    const resurrected = await sql(`select o.status, e.status as ent_status from orders o left join entitlements e on e.order_id=o.id where o.id='${orderE.orderId}'`);
+    check("refunded order NOT resurrected by late order_created replay",
+      resurrected[0]?.status === "refunded" && resurrected[0]?.ent_status === "revoked",
+      JSON.stringify(resurrected[0]));
 
     /* === 6. refresh after payment (result-page polling) === */
     const poll = await veyra(`/api/orders/${orderA.orderId}`, { headers: { cookie } });
@@ -385,6 +394,26 @@ async function main() {
     }
     const dlEvents = await sql(`select count(*)::int as n from download_events where email='${buyerEmail}'`);
     check("download event recorded", (dlEvents[0]?.n ?? 0) >= 1);
+
+    /* === 9b. platform selection (0021) === */
+    // The no-param request above exercised the default (Windows) — legacy
+    // delivery must keep working without a platform hint.
+    const dlBadPlatform = await veyra(
+      "/api/download/client-growth-system?mode=json&platform=linux",
+      { headers: { cookie } }
+    );
+    check("unknown platform refused (400 bad_platform)",
+      dlBadPlatform.status === 400 && dlBadPlatform.json?.code === "bad_platform", `status ${dlBadPlatform.status}`);
+    const dlMacNoSession = await veyra("/api/download/client-growth-system?mode=json&platform=macos");
+    check("platform choice never bypasses the session gate (401)", dlMacNoSession.status === 401);
+    const dlMac = await veyra("/api/download/client-growth-system?mode=json&platform=macos", { headers: { cookie } });
+    // Either a Mac build is published (signed URL) or the registry honestly
+    // says it isn't yet (503 not_published). Anything else means platform
+    // selection leaked the wrong build or skipped authorization.
+    check("Mac request serves a Mac build or honestly reports not published",
+      (dlMac.status === 200 && /^https?:\/\//.test(dlMac.json?.url ?? "")) ||
+      (dlMac.status === 503 && dlMac.json?.code === "not_published"),
+      `status ${dlMac.status} ${JSON.stringify(dlMac.json)?.slice(0, 120)}`);
 
     /* === 10. activation after purchase === */
     const refA = licA[0]?.licence_reference;

@@ -31,7 +31,7 @@ export function useUiSounds() {
   }, []);
 
   const hover = useCallback(() => playSfx("hover"), []);
-  const select = useCallback((step: number) => playSfx("select", step), []);
+  const select = useCallback(() => playSfx("select"), []);
   const back = useCallback(() => playSfx("back"), []);
   const play = useCallback((name: SfxName) => playSfx(name), []);
 

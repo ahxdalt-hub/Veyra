@@ -221,6 +221,13 @@ export const FilterIcon = (p: IconProps) => (
   </Svg>
 );
 
+export const TerminalIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3" y="4" width="18" height="16" rx="1.5" />
+    <path d="m7 9.5 2.8 2.5L7 14.5M12.5 15H17" />
+  </Svg>
+);
+
 export const DotIcon = (p: IconProps) => (
   <Svg {...p}>
     <circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none" />

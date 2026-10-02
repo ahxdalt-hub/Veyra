@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { site } from "@/lib/site";
+import { LOGO_URL, ORGANIZATION_ID } from "@/lib/seo";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { FoundingBanner } from "@/components/layout/founding-banner";
@@ -13,7 +14,10 @@ export const metadata: Metadata = {
     template: `%s — ${site.name}`,
   },
   description: site.description,
-  alternates: { canonical: "/" },
+  // No layout-level `alternates.canonical` on purpose: a canonical set
+  // here is inherited by any page under (site) that doesn't declare its
+  // own, which would quietly point that page at the homepage. Every page
+  // sets its own canonical instead.
   // No explicit openGraph object: the opengraph-image.tsx file convention
   // supplies og:image (with its hashed URL), and title/description/type
   // flow from the fields above. twitter card mirrors automatically.
@@ -51,8 +55,12 @@ export default function SiteLayout({
   const orgJsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
+    // Stable @id so the WebSite node on the homepage can reference this
+    // same Organization entity instead of repeating an anonymous copy.
+    "@id": ORGANIZATION_ID,
     name: site.name,
     url: site.url,
+    logo: LOGO_URL,
     email: site.contact.email,
     description: site.description,
   };

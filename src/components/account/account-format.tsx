@@ -11,8 +11,6 @@ export const orderStatusMeta: Record<
 > = {
   paid: { label: "Paid", className: "border-accent/30 bg-accent-soft text-accent-ink" },
   pending: { label: "Verifying", className: "border-line-strong bg-surface text-ink-2" },
-  failed: { label: "Failed", className: "border-clay/30 bg-clay-soft text-clay" },
-  cancelled: { label: "Cancelled", className: "border-line-strong bg-surface text-ink-3" },
   refunded: { label: "Refunded", className: "border-line-strong bg-surface text-ink-2" },
 };
 

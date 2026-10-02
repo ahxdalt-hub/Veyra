@@ -67,7 +67,7 @@ function FooterColumn({
   links,
 }: {
   heading: string;
-  links: readonly { label: string; href: string }[];
+  links: readonly { label: string; href: string; external?: boolean }[];
 }) {
   return (
     <div>
@@ -75,12 +75,23 @@ function FooterColumn({
       <ul className="space-y-3">
         {links.map((link) => (
           <li key={link.href + link.label}>
-            <Link
-              href={link.href}
-              className="text-sm text-ink-2 transition-colors hover:text-ink"
-            >
-              {link.label}
-            </Link>
+            {link.external ? (
+              <a
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-ink-2 transition-colors hover:text-ink"
+              >
+                {link.label}
+              </a>
+            ) : (
+              <Link
+                href={link.href}
+                className="text-sm text-ink-2 transition-colors hover:text-ink"
+              >
+                {link.label}
+              </Link>
+            )}
           </li>
         ))}
       </ul>

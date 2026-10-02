@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { site } from "@/lib/site";
 
 /**
  * OG image — generated at request time (cached statically).
@@ -8,7 +9,10 @@ import { ImageResponse } from "next/og";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "Veyra — ready-to-use business systems for client work";
+export const alt = "Veyra — practical business systems for client work";
+
+/** Host shown in the card, resolved from the canonical site URL. */
+const host = new URL(site.url).host;
 
 export default function OgImage() {
   return new ImageResponse(
@@ -52,49 +56,49 @@ export default function OgImage() {
               textTransform: "uppercase",
             }}
           >
-            For consultants &amp; independent studios
+            For freelancers, consultants &amp; service businesses
           </div>
         </div>
 
         <div
           style={{
             display: "flex",
-            fontSize: "88px",
+            fontSize: "64px",
             fontWeight: 600,
             color: "#17150f",
             letterSpacing: "-0.02em",
             lineHeight: 1.05,
           }}
         >
-          Stop reinventing
+          Practical business systems
         </div>
         <div
           style={{
             display: "flex",
-            fontSize: "88px",
+            fontSize: "64px",
             fontWeight: 300,
             fontStyle: "italic",
-            color: "#2f4f3a",
+            color: "#8a6320",
             letterSpacing: "-0.02em",
             lineHeight: 1.05,
             marginTop: "4px",
           }}
         >
-          how you get clients.
+          you can actually run.
         </div>
 
         <div
           style={{
             display: "flex",
-            fontSize: "30px",
+            fontSize: "28px",
             color: "#3e3a30",
-            marginTop: "44px",
-            maxWidth: "760px",
+            marginTop: "40px",
+            maxWidth: "820px",
             lineHeight: 1.5,
           }}
         >
-          Ready-to-use systems for lead management, outreach, follow-up, and
-          onboarding — running the same day you download them.
+          Structured systems for the whole client journey — positioning,
+          acquisition, sales, delivery, retention, and growth.
         </div>
 
         <div
@@ -108,21 +112,29 @@ export default function OgImage() {
           <div
             style={{
               display: "flex",
-              fontSize: "34px",
-              fontWeight: 600,
-              color: "#17150f",
+              alignItems: "center",
+              gap: "14px",
             }}
           >
-            Standard
-            <span
+            <div
               style={{
-                fontWeight: 300,
-                fontStyle: "italic",
-                color: "#2f4f3a",
+                display: "flex",
+                width: "12px",
+                height: "12px",
+                borderRadius: "50%",
+                backgroundColor: "#b8842a",
+              }}
+            />
+            <div
+              style={{
+                display: "flex",
+                fontSize: "34px",
+                fontWeight: 600,
+                color: "#17150f",
               }}
             >
-              &nbsp;Practice
-            </span>
+              Veyra
+            </div>
           </div>
           <div
             style={{
@@ -133,7 +145,7 @@ export default function OgImage() {
               textTransform: "uppercase",
             }}
           >
-            veyra.caelmont.in
+            {host}
           </div>
         </div>
       </div>

@@ -182,7 +182,17 @@ create unique index if not exists entitlements_order_id_uidx
 
 -- ---------------------------------------------------------------------------
 -- 4. Licenses — adopt the pre-existing table as the licence store
+--
+-- Guarded: `public.licenses` only exists on databases that predate 0003
+-- (the early experiment's table, later renamed to `licences` by 0006). On
+-- a fresh database built from this chain the table never existed and
+-- 0003's `create table public.licences` already made the canonical table,
+-- so the whole section is skipped rather than failing.
 -- ---------------------------------------------------------------------------
+
+do $$
+begin
+  if to_regclass('public.licenses') is not null then
 
 alter table public.licenses
   add column if not exists entitlement_id uuid references public.entitlements (id) on delete cascade,
@@ -208,8 +218,6 @@ create policy "licenses_select_own"
 
 -- Unique per entitlement and per reference — fulfillment's idempotency
 -- keys. Skipped (with a warning) if legacy duplicate rows exist.
-do $$
-begin
   begin
     create unique index if not exists licenses_entitlement_id_uidx
       on public.licenses (entitlement_id);
@@ -224,6 +232,8 @@ begin
     when others then
       raise warning 'licenses_licence_reference_uidx not created: %', sqlerrm;
   end;
+
+  end if;
 end $$;
 
 -- ---------------------------------------------------------------------------

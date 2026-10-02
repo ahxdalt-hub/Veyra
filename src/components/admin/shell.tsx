@@ -19,6 +19,7 @@ import {
   AnalyticsIcon,
   CouponsIcon,
   ActivityIcon,
+  TerminalIcon,
   SettingsIcon,
   PanelIcon,
   ExternalIcon,
@@ -47,6 +48,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
     items: [
       { href: "/admin", label: "Overview", icon: OverviewIcon, exact: true },
       { href: "/admin/activity", label: "Activity", icon: ActivityIcon },
+      { href: "/admin/terminals", label: "Terminals", icon: TerminalIcon },
     ],
   },
   {
@@ -425,6 +427,7 @@ export function AdminShell({
 const TITLES: Record<string, string> = {
   "": "Overview",
   activity: "Activity",
+  terminals: "Terminals",
   orders: "Orders",
   customers: "Customers",
   payments: "Payments",

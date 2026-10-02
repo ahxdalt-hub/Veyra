@@ -10,6 +10,12 @@ import {
 import { supabaseAuthConfigured } from "@/lib/supabase/config";
 import type { EntitlementRow, LicenceRow, OrderRow } from "@/lib/supabase/types";
 import { getProduct } from "@/lib/products";
+import { releasedPlatforms } from "@/lib/registry";
+import {
+  DELIVERY_PLATFORMS,
+  PLATFORM_LABEL,
+} from "@/lib/platforms";
+import { RequestDeliveryButton } from "@/components/account/request-delivery-button";
 import { AccountShell, AccountCard } from "@/components/account/account-shell";
 import { DownloadButton } from "@/components/account/download-button";
 import { formatDate, shortOrderRef } from "@/components/account/account-format";
@@ -60,42 +66,66 @@ export default async function LibraryProductPage({
   // The current PUBLISHED release, read through the customer session (the
   // registry is RLS read-only for authenticated users). This is the same
   // source /api/download authorizes against — what you see is what ships.
-  const versionRes = await supabase
-    .from("product_versions")
-    .select("version")
-    .eq("product_slug", slug)
-    .eq("current", true)
-    .eq("release_status", "published")
-    .maybeSingle();
+  // Scoped to the Windows row (0021): two platforms can both be current,
+  // and the version number shown here follows the primary desktop build.
+  const [versionRes, platforms] = await Promise.all([
+    supabase
+      .from("product_versions")
+      .select("version")
+      .eq("product_slug", slug)
+      .eq("platform", "windows")
+      .eq("current", true)
+      .eq("release_status", "published")
+      .maybeSingle(),
+    // Which builds /api/download will actually serve right now — the
+    // button only offers platforms that are genuinely deliverable.
+    releasedPlatforms(slug),
+  ]);
   const currentVersion =
     versionRes.data?.version ?? product?.version ?? null;
-
-  // Licence + purchase record, RLS-scoped. Guest orders are claimed at
-  // sign-in, so both are populated for everything visible here.
-  const [orderRes, licenceRes, seatsRes] = await Promise.all([
-    supabase
-      .from("orders")
-      .select("*")
-      .eq("id", entitlement.order_id)
-      .maybeSingle(),
-    supabase
-      .from("licences")
-      .select("*")
-      .eq("entitlement_id", entitlement.id)
-      .maybeSingle(),
-    supabase
-      .from("seat_assignments")
-      .select("id")
-      .eq("entitlement_id", entitlement.id),
-  ]);
-  const order = (orderRes.data ?? null) as OrderRow | null;
-  const licence = (licenceRes.data ?? null) as LicenceRow | null;
-  const seatsInUse = (seatsRes.data ?? []).length;
-  const licensedSeats = entitlement.seats;
 
   const name = product?.name ?? entitlement.product_slug;
   const isFree = product?.free === true;
   const appHref = isFree && product?.slug === "growth-audit" ? "/audit" : null;
+
+  // Licence + purchase record, RLS-scoped. Guest orders are claimed at
+  // sign-in, so both are populated for everything visible here. Free tools
+  // have no licence or seats — the claim record is the whole story.
+  const orderRes = await supabase
+    .from("orders")
+    .select("*")
+    .eq("id", entitlement.order_id)
+    .maybeSingle();
+  const order = (orderRes.data ?? null) as OrderRow | null;
+
+  let licence: LicenceRow | null = null;
+  let seatsInUse = 0;
+  if (!isFree) {
+    const [licenceRes, seatsRes] = await Promise.all([
+      supabase
+        .from("licences")
+        .select("*")
+        .eq("entitlement_id", entitlement.id)
+        .maybeSingle(),
+      supabase
+        .from("seat_assignments")
+        .select("id")
+        .eq("entitlement_id", entitlement.id),
+    ]);
+    licence = (licenceRes.data ?? null) as LicenceRow | null;
+    seatsInUse = (seatsRes.data ?? []).length;
+  }
+  const licensedSeats = entitlement.seats;
+
+  // Delivery-request fallback: when a platform build isn't published yet,
+  // the customer can ask for the current version by email. The request is
+  // entitlement-checked, throttled to one per day, and lands in the
+  // command center's delivery queue — the honest path when the registry
+  // has nothing to hand out. Never shown for free tools: they run in the
+  // browser, there is nothing to deliver.
+  const missingPlatforms = isFree
+    ? []
+    : DELIVERY_PLATFORMS.filter((p) => !platforms.includes(p));
 
   return (
     <AccountShell
@@ -104,86 +134,137 @@ export default async function LibraryProductPage({
       lead={product?.tagline ?? "Your Veyra system, ready when you are."}
     >
       <div className="stagger-rise space-y-6">
-        {/* Delivery — the primary reason to open this page */}
-        <AccountCard>
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0">
-              <h2 className="text-eyebrow">Delivery center</h2>
-              <p className="mt-3 flex items-center gap-2 text-sm font-medium text-ink">
-                <CheckIcon className="h-4 w-4 text-accent" />
-                Ready to use
-              </p>
-              <p className="mt-2 max-w-lg text-sm leading-relaxed text-ink-2">
-                {product?.shortDescription ??
-                  "A Veyra system delivered digitally after purchase."}
-              </p>
+        {isFree ? (
+          /* Free tools run in the browser — no delivery, no licence.
+               The card is a door, not a download center. */
+          <AccountCard>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="min-w-0">
+                <h2 className="text-eyebrow">Ready to run</h2>
+                <p className="mt-3 flex items-center gap-2 text-sm font-medium text-ink">
+                  <CheckIcon className="h-4 w-4 text-accent" />
+                  Unlocked — nothing to install
+                </p>
+                <p className="mt-2 max-w-lg text-sm leading-relaxed text-ink-2">
+                  {product?.shortDescription ??
+                    "Your free Veyra tool, ready in your browser."}
+                </p>
+              </div>
+              <dl className="flex shrink-0 gap-8 text-right">
+                <div>
+                  <dt className="spec text-ink-4">Version</dt>
+                  <dd className="mt-1 text-sm font-medium tnum text-ink">
+                    {currentVersion ? `${currentVersion} — latest` : "—"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="spec text-ink-4">Access</dt>
+                  <dd className="mt-1 text-sm font-medium text-ink">
+                    Yours for good
+                  </dd>
+                </div>
+              </dl>
             </div>
-            <dl className="flex shrink-0 gap-8 text-right">
-              <div>
-                <dt className="spec text-ink-4">Version</dt>
-                <dd className="mt-1 text-sm font-medium tnum text-ink">
-                  {currentVersion ? `${currentVersion} — latest` : "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="spec text-ink-4">Licence</dt>
-                <dd className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-accent-ink">
-                  <CheckIcon className="h-3.5 w-3.5" />
-                  Active
-                </dd>
-              </div>
-              <div>
-                <dt className="spec text-ink-4">Seats</dt>
-                <dd className="mt-1 text-sm font-medium tnum text-ink">
-                  {seatsInUse} / {licensedSeats}
-                </dd>
-              </div>
-            </dl>
-          </div>
-
-          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-line pt-5">
-            {appHref ? (
-              <Button href={appHref} arrow>
+            <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-line pt-5">
+              <Button href={appHref ?? "/account/library"} arrow>
                 Open the Growth Audit
               </Button>
-            ) : (
-              <DownloadButton slug={slug} productName={name} />
-            )}
-            <Link
-              href="/account/licences"
-              className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
-            >
-              View Licence
-            </Link>
-            <Link
-              href="/account/licences"
-              className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
-            >
-              Manage Activations
-            </Link>
-            {isFree ? null : (
-              <>
-                <Link
-                  href="/account/quick-start"
-                  className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
-                >
-                  Quick Start Guide
-                </Link>
-                <Link
-                  href="/account/quick-start#installation"
-                  className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
-                >
-                  Installation Guide
-                </Link>
-              </>
-            )}
-          </div>
-          <p className="mt-3 max-w-md text-xs leading-relaxed text-ink-4">
-            {isFree
-              ? "Runs in your browser — no download, no install. Your licence keeps it yours for good."
-              : "Every future revision is included — download the latest version here whenever it ships. Windows, signed in with your Veyra account."}
-          </p>
-        </AccountCard>
+            </div>
+            <p className="mt-3 max-w-md text-xs leading-relaxed text-ink-4">
+              Runs right here in your browser — no download, no install, no
+              key to activate. It stays in your library for good.
+            </p>
+          </AccountCard>
+        ) : (
+          /* Delivery — the primary reason to open this page for a paid system */
+          <AccountCard>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="min-w-0">
+                <h2 className="text-eyebrow">Delivery center</h2>
+                <p className="mt-3 flex items-center gap-2 text-sm font-medium text-ink">
+                  <CheckIcon className="h-4 w-4 text-accent" />
+                  Ready to use
+                </p>
+                <p className="mt-2 max-w-lg text-sm leading-relaxed text-ink-2">
+                  {product?.shortDescription ??
+                    "A Veyra system delivered digitally after purchase."}
+                </p>
+              </div>
+              <dl className="flex shrink-0 gap-8 text-right">
+                <div>
+                  <dt className="spec text-ink-4">Version</dt>
+                  <dd className="mt-1 text-sm font-medium tnum text-ink">
+                    {currentVersion ? `${currentVersion} — latest` : "—"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="spec text-ink-4">Licence</dt>
+                  <dd className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-accent-ink">
+                    <CheckIcon className="h-3.5 w-3.5" />
+                    Active
+                  </dd>
+                </div>
+                <div>
+                  <dt className="spec text-ink-4">Seats</dt>
+                  <dd className="mt-1 text-sm font-medium tnum text-ink">
+                    {seatsInUse} / {licensedSeats}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-line pt-5">
+              <DownloadButton
+                slug={slug}
+                productName={name}
+                platforms={platforms}
+              />
+              {missingPlatforms.length > 0 ? (
+                <div className="w-full">
+                  <RequestDeliveryButton
+                    entitlementId={entitlement.id}
+                    productName={name}
+                  />
+                  <p className="mt-2 max-w-md text-xs leading-relaxed text-ink-4">
+                    No published build yet for{" "}
+                    {missingPlatforms.map((p) => PLATFORM_LABEL[p]).join(" and ")}
+                    . Request delivery and the current version will be emailed
+                    to you instead.
+                  </p>
+                </div>
+              ) : null}
+              <Link
+                href="/account/licences"
+                className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
+              >
+                View Licence
+              </Link>
+              <Link
+                href="/account/licences"
+                className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
+              >
+                Manage Activations
+              </Link>
+              <Link
+                href="/account/quick-start"
+                className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
+              >
+                Quick Start Guide
+              </Link>
+              <Link
+                href="/account/quick-start#installation"
+                className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
+              >
+                Installation Guide
+              </Link>
+            </div>
+            <p className="mt-3 max-w-md text-xs leading-relaxed text-ink-4">
+              Every future revision is included — download the latest version
+              here whenever it ships. Windows and macOS builds are delivered
+              from this page, signed in with your Veyra account.
+            </p>
+          </AccountCard>
+        )}
 
         {/* Quick start — the next step after delivery */}
         <AccountCard className="border-accent/25 bg-accent-soft/40">
@@ -192,7 +273,7 @@ export default async function LibraryProductPage({
           </h2>
           <p className="mt-3 max-w-lg text-sm leading-relaxed text-ink-2">
             {isFree
-              ? "Open the audit, answer 18 questions, and get the scored report — the full experience, un-gated, for as long as your licence is yours."
+              ? "Open the audit, answer 18 questions, and get your scored report in about three minutes — the full experience, un-gated, free for good."
               : "Your system is ready. Start by building the foundation, then move through acquisition, sales, delivery, retention, and growth."}
           </p>
           <p className="mt-3 spec text-ink-4" aria-hidden="true">
@@ -211,72 +292,101 @@ export default async function LibraryProductPage({
           </div>
         </AccountCard>
 
-        {/* The licence + order behind this product */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <AccountCard className="transition-colors duration-200 hover:border-ink/25">
-            <div className="flex items-center gap-3">
-              <ShieldIcon className="h-4 w-4 shrink-0 text-accent" />
-              <h2 className="text-eyebrow">Licence</h2>
-            </div>
-            {licence ? (
-              <>
-                <p className="mt-3 text-sm font-medium text-ink">
-                  Active — {licensedSeats}{" "}
-                  {licensedSeats === 1 ? "seat" : "seats"},{" "}
-                  {isFree ? "free licence" : "one-time purchase"}
-                </p>
-                <p className="mt-1 spec text-ink-4">
-                  {licence.licence_reference}
-                </p>
-                <p className="mt-1 text-xs text-ink-3">
-                  Issued {formatDate(licence.issued_at)} · All future revisions
-                  included
-                </p>
-                <Link
-                  href="/account/licences"
-                  className="mt-3 inline-block text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
-                >
-                  Manage seats in the Licence Center →
-                </Link>
-              </>
-            ) : (
-              <p className="mt-3 text-sm leading-relaxed text-ink-2">
-                Your licence record is being finalized — it will appear here
-                and in your licence center shortly.
-              </p>
-            )}
-          </AccountCard>
-
+        {/* The licence + order behind this product. Free tools have no
+            licence — the claim record is the whole story. */}
+        {isFree ? (
           <AccountCard className="transition-colors duration-200 hover:border-ink/25">
             <div className="flex items-center gap-3">
               <DocIcon className="h-4 w-4 shrink-0 text-accent" />
-              <h2 className="text-eyebrow">Purchase</h2>
+              <h2 className="text-eyebrow">Your claim</h2>
             </div>
             {order ? (
               <>
-                <p className="mt-3 text-sm font-medium text-ink">
-                  {name}
-                  {order.quantity > 1 ? ` · ${order.quantity} seats` : ""}
-                </p>
+                <p className="mt-3 text-sm font-medium text-ink">{name}</p>
                 <p className="mt-1 text-xs text-ink-3">
-                  {isFree ? "Claimed" : "Purchased"} {formatDate(order.created_at)} · #
+                  Claimed {formatDate(order.created_at)} · #
                   {shortOrderRef(order.id)}
                 </p>
                 <Link
                   href={`/account/orders/${order.id}`}
                   className="mt-3 inline-block text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
                 >
-                  View order →
+                  View claim details →
                 </Link>
               </>
             ) : (
               <p className="mt-3 text-sm leading-relaxed text-ink-2">
-                This product is linked to your account. Its order record will
+                This product is linked to your account. Its claim record will
                 appear here shortly.
               </p>
             )}
           </AccountCard>
-        </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <AccountCard className="transition-colors duration-200 hover:border-ink/25">
+              <div className="flex items-center gap-3">
+                <ShieldIcon className="h-4 w-4 shrink-0 text-accent" />
+                <h2 className="text-eyebrow">Licence</h2>
+              </div>
+              {licence ? (
+                <>
+                  <p className="mt-3 text-sm font-medium text-ink">
+                    Active — {licensedSeats}{" "}
+                    {licensedSeats === 1 ? "seat" : "seats"}, one-time purchase
+                  </p>
+                  <p className="mt-1 spec text-ink-4">
+                    {licence.licence_reference}
+                  </p>
+                  <p className="mt-1 text-xs text-ink-3">
+                    Issued {formatDate(licence.issued_at)} · All future
+                    revisions included
+                  </p>
+                  <Link
+                    href="/account/licences"
+                    className="mt-3 inline-block text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
+                  >
+                    Manage seats in the Licence Center →
+                  </Link>
+                </>
+              ) : (
+                <p className="mt-3 text-sm leading-relaxed text-ink-2">
+                  Your licence record is being finalized — it will appear here
+                  and in your licence center shortly.
+                </p>
+              )}
+            </AccountCard>
+
+            <AccountCard className="transition-colors duration-200 hover:border-ink/25">
+              <div className="flex items-center gap-3">
+                <DocIcon className="h-4 w-4 shrink-0 text-accent" />
+                <h2 className="text-eyebrow">Purchase</h2>
+              </div>
+              {order ? (
+                <>
+                  <p className="mt-3 text-sm font-medium text-ink">
+                    {name}
+                    {order.quantity > 1 ? ` · ${order.quantity} seats` : ""}
+                  </p>
+                  <p className="mt-1 text-xs text-ink-3">
+                    Purchased {formatDate(order.created_at)} · #
+                    {shortOrderRef(order.id)}
+                  </p>
+                  <Link
+                    href={`/account/orders/${order.id}`}
+                    className="mt-3 inline-block text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
+                  >
+                    View order →
+                  </Link>
+                </>
+              ) : (
+                <p className="mt-3 text-sm leading-relaxed text-ink-2">
+                  This product is linked to your account. Its order record will
+                  appear here shortly.
+                </p>
+              )}
+            </AccountCard>
+          </div>
+        )}
 
         <div>
           <Button href="/account/library" variant="ghost" size="sm">

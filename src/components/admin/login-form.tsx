@@ -275,6 +275,7 @@ export function AdminSignInForm() {
         phase === "ready" && (
           <form
             onSubmit={onSubmit}
+            method="post"
             className={`cc-rise mt-8 space-y-4${stage === "to-pin" ? " cc-exit" : ""}`}
           >
           <label className="block">

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireAdmin, adminAuthConfigured } from "@/lib/admin/auth";
+import { pinStepEnabled, vaultCleared } from "@/lib/admin/vault";
 import { AdminShell } from "@/components/admin/shell";
 import { GlobalSearch } from "@/components/admin/global-search";
 import { NotificationCenter } from "@/components/admin/notification-center";
@@ -24,6 +25,10 @@ export default async function ProtectedLayout({
   if (!adminAuthConfigured()) redirect("/admin/sign-in");
   const admin = await requireAdmin();
   if (!admin) redirect("/admin/sign-in");
+  // The vault re-arms on every fresh entry: a signed, session-scoped
+  // clearance cookie (issued when the pin last cleared) is required
+  // beyond the role check itself.
+  if (pinStepEnabled() && !(await vaultCleared())) redirect("/admin/vault");
 
   return (
     <NotificationProvider>

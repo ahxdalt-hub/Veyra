@@ -336,13 +336,20 @@ export async function publishVersionAction(
   const artifact = artifactKey?.trim() || `${slug}/${clean}/download.zip`;
   const db = admin();
   // Demote the incumbent first, then promote — order matters so the
-  // registry never holds two current rows.
-  await db.from("product_versions").update({ current: false }).eq("product_slug", slug);
+  // registry never holds two current rows. Scoped to the Windows platform
+  // (0021): this manual admin path records Windows releases; Mac builds
+  // are published with scripts/publish-version.mjs --platform macos.
+  await db
+    .from("product_versions")
+    .update({ current: false })
+    .eq("product_slug", slug)
+    .eq("platform", "windows");
   const { error } = await db
     .from("product_versions")
     .insert({
       product_slug: slug,
       version: clean,
+      platform: "windows",
       notes: notes?.trim() || null,
       current: true,
       release_status: "published",

@@ -96,7 +96,7 @@ export default async function LicencesPage({
             />
           ) : (
             <>
-              <ScrollFadeX>
+              <ScrollFadeX maxY={520}>
                 <table className="cc-table min-w-full">
                   <thead>
                     <tr>

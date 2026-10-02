@@ -104,8 +104,8 @@ export async function getMetrics(
   range: RangeKey,
   custom?: { from: Date; to: Date }
 ): Promise<AdminMetrics | null> {
-  if (!commandCenterConfigured()) return null;
   const { from, to } = rangeBounds(range, custom);
+  if (!commandCenterConfigured()) return null;
   const { data, error } = await db().rpc("admin_metrics", {
     p_from: from.toISOString(),
     p_to: to.toISOString(),
@@ -146,8 +146,8 @@ export async function getRevenueSeries(
   range: RangeKey,
   custom?: { from: Date; to: Date }
 ): Promise<RevenuePoint[]> {
-  if (!commandCenterConfigured()) return [];
   const { from, to } = rangeBounds(range, custom);
+  if (!commandCenterConfigured()) return [];
   const spanDays = (to.getTime() - from.getTime()) / 86_400_000;
   // Hourly detail is only meaningful below ~3 days; beyond that, daily.
   const bucket = spanDays <= 3 ? "hour" : "day";
@@ -174,8 +174,8 @@ export async function getProductBreakdown(
   range: RangeKey,
   custom?: { from: Date; to: Date }
 ): Promise<ProductBreakdown[]> {
-  if (!commandCenterConfigured()) return [];
   const { from, to } = rangeBounds(range, custom);
+  if (!commandCenterConfigured()) return [];
   const { data, error } = await db().rpc("admin_product_breakdown", {
     p_from: from.toISOString(),
     p_to: to.toISOString(),
@@ -253,8 +253,8 @@ export async function getFreeClaims(
   range: RangeKey,
   custom?: { from: Date; to: Date }
 ): Promise<FreeClaimStats | null> {
-  if (!commandCenterConfigured()) return null;
   const { from, to } = rangeBounds(range, custom);
+  if (!commandCenterConfigured()) return null;
   const rows = await listFreeClaimOrders(from, to);
   const paid = rows.filter((r) => r.status === "paid");
   const accounts = new Set(paid.map((r) => r.user_id ?? r.email.toLowerCase()));
@@ -272,8 +272,8 @@ export async function getOrderStatusCounts(
   range: RangeKey,
   custom?: { from: Date; to: Date }
 ): Promise<{ status: string; count: number }[]> {
-  if (!commandCenterConfigured()) return [];
   const { from, to } = rangeBounds(range, custom);
+  if (!commandCenterConfigured()) return [];
   const { data, error } = await db().rpc("admin_order_status_counts", {
     p_from: from.toISOString(),
     p_to: to.toISOString(),
@@ -295,7 +295,8 @@ export async function getLicenceSeatStats(
   licenceIds: string[]
 ): Promise<Record<string, { seats: number; activeDevices: number; lastActivation: string | null }>> {
   const out: Record<string, { seats: number; activeDevices: number; lastActivation: string | null }> = {};
-  if (!commandCenterConfigured() || licenceIds.length === 0) return out;
+  if (licenceIds.length === 0) return out;
+  if (!commandCenterConfigured()) return out;
   const client = db();
   // licences → entitlement.seats
   const { data: licRows } = await client
@@ -693,6 +694,14 @@ export type DownloadSummary = {
    *  uploaded yet. */
   releaseStatus: "draft" | "published" | "withdrawn" | null;
   artifactReady: boolean;
+  /** 0021 — every platform with a current registry row, so the operator
+   *  can see Windows and Mac delivery state side by side. */
+  releases: Array<{
+    platform: "windows" | "macos";
+    version: string;
+    releaseStatus: "draft" | "published" | "withdrawn";
+    artifactReady: boolean;
+  }>;
   purchasable: boolean;
   downloadCount: number;
   lastDownloadAt: string | null;
@@ -721,7 +730,28 @@ export async function getDownloadSummary(): Promise<DownloadSummary[] | null> {
   }
 
   return catalog.map((p) => {
-    const registry = (versionsR.data ?? []).find((v) => v.product_slug === p.slug && v.current) ?? null;
+    // 0021: one current row PER PLATFORM. The headline fields follow the
+    // Windows release (the established primary), falling back to whatever
+    // current row exists; `releases` lists them all.
+    const currentRows = (versionsR.data ?? []).filter(
+      (v) => v.product_slug === p.slug && v.current
+    );
+    const registry =
+      currentRows.find((v) => (v.platform ?? "windows") === "windows") ??
+      currentRows[0] ??
+      null;
+    const releases = (["windows", "macos"] as const)
+      .map(
+        (pl) =>
+          currentRows.find((v) => (v.platform ?? "windows") === pl) ?? null
+      )
+      .filter((v): v is NonNullable<typeof v> => v !== null)
+      .map((v) => ({
+        platform: (v.platform ?? "windows") as "windows" | "macos",
+        version: v.version,
+        releaseStatus: v.release_status,
+        artifactReady: Boolean(v.artifact_key),
+      }));
     const stat = counts.get(p.slug) ?? { count: 0, last: null };
     return {
       slug: p.slug,
@@ -730,6 +760,7 @@ export async function getDownloadSummary(): Promise<DownloadSummary[] | null> {
       versionSource: registry ? ("registry" as const) : p.version ? ("catalog" as const) : null,
       releaseStatus: registry?.release_status ?? null,
       artifactReady: Boolean(registry?.artifact_key),
+      releases,
       purchasable: p.status === "available",
       downloadCount: stat.count,
       lastDownloadAt: stat.last,

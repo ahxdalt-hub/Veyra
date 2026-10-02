@@ -21,8 +21,6 @@ const KNOWN_STATUSES: (OrderStatus | "all")[] = [
   "all",
   "paid",
   "pending",
-  "failed",
-  "cancelled",
   "refunded",
 ];
 const PAGE_SIZE = 25;

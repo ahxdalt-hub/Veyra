@@ -63,7 +63,12 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="animate-rise space-y-5" noValidate>
+    <form
+      onSubmit={onSubmit}
+      method="post"
+      className="animate-rise space-y-5"
+      noValidate
+    >
       <Input
         type="email"
         name="email"

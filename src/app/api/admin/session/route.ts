@@ -11,6 +11,12 @@ import {
   supabaseServiceRoleKey,
   supabaseUrl,
 } from "@/lib/supabase/config";
+import {
+  VAULT_COOKIE,
+  issueVaultToken,
+  pinStepEnabled,
+} from "@/lib/admin/vault";
+import { takeRateLimit, clientIp } from "@/lib/rate-limit";
 
 /**
  * POST /api/admin/session — the sign-in endpoint for the command
@@ -65,11 +71,6 @@ function operatorDoorMatches(identifier: string, password: string): boolean {
   return userOk && passOk;
 }
 
-function pinStepEnabled(): boolean {
-  const pin = process.env.VEYRA_ADMIN_PIN;
-  return Boolean(pin && /^\d{4,8}$/.test(pin));
-}
-
 /** Mint a session for the operator-door admin user: service-role magic
  *  link → server-side verifyOtp on the SSR client (sets the httpOnly
  *  cookies), so the established session is indistinguishable from a
@@ -119,6 +120,71 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
   const { identifier, password, pin } = (body ?? {}) as Record<string, unknown>;
+
+  // Shared brute-force throttle (Postgres-backed, enforced across every
+  // Worker isolate — see src/lib/rate-limit.ts). Covers BOTH stages:
+  // credential verification, vault PIN re-entry, and the operator door.
+  // Supabase's signInWithPassword limiter only covers the personal door,
+  // so the operator pair and the PIN previously had no shared ceiling.
+  const ip = clientIp(request);
+  const idKey =
+    typeof identifier === "string" && identifier.trim()
+      ? `admin:session:id:${identifier.trim().toLowerCase()}`
+      : null;
+  const limited =
+    !(await takeRateLimit(`admin:session:ip:${ip}`, 10, 300)).allowed ||
+    (idKey !== null && !(await takeRateLimit(idKey, 10, 300)).allowed);
+  if (limited) {
+    return NextResponse.json(
+      { error: "Too many attempts — try again in a few minutes." },
+      { status: 429 }
+    );
+  }
+
+  // Success helper — the vault-open clearance rides on every response
+  // that leaves a usable session behind.
+  const vaultedOk = () => {
+    const res = NextResponse.json({ ok: true });
+    if (pinStepEnabled()) {
+      res.cookies.set(VAULT_COOKIE, issueVaultToken(), {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      });
+    }
+    return res;
+  };
+
+  // Vault-only re-entry: a live admin session + the code. No
+  // credentials — those were typed once when the session was minted.
+  if (typeof identifier !== "string" && typeof pin === "string") {
+    if (!pinStepEnabled()) {
+      return NextResponse.json(
+        { error: "No vault is configured on this deployment." },
+        { status: 400 }
+      );
+    }
+    const existing = await requireAdmin();
+    if (!existing) {
+      return NextResponse.json(
+        { ok: false, error: "Your session has ended — sign in again." },
+        { status: 401 }
+      );
+    }
+    const pinOk = safeEqual(
+      pin.trim(),
+      process.env.VEYRA_ADMIN_PIN!.trim()
+    );
+    if (!pinOk) {
+      return NextResponse.json(
+        { ok: false, badPin: true, error: "That pin doesn't open this safe." },
+        { status: 401 }
+      );
+    }
+    return vaultedOk();
+  }
+
   if (
     typeof identifier !== "string" ||
     typeof password !== "string" ||
@@ -213,15 +279,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, notAdmin: true }, { status: 403 });
   }
 
-  return NextResponse.json({ ok: true });
+  return vaultedOk();
 }
 
-/** DELETE — sign out (called by the shell's profile menu). */
+/** DELETE — sign out (called by the shell's profile menu). The vault
+ *  clearance dies with the session. */
 export async function DELETE() {
   if (!adminAuthConfigured()) {
     return NextResponse.json({ ok: true });
   }
   const supabase = await createSupabaseServerClient();
   await supabase.auth.signOut();
-  return NextResponse.json({ ok: true });
+  const res = NextResponse.json({ ok: true });
+  res.cookies.set(VAULT_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });
+  return res;
 }

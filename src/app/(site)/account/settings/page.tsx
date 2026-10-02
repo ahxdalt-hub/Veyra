@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { site } from "@/lib/site";
 import Link from "next/link";
 import {
   createSupabaseServerClient,
@@ -72,10 +73,10 @@ export default async function SettingsPage() {
             Your email is tied to your purchases and licences. To change it,
             write to{" "}
             <a
-              href="mailto:Caelmontholdings@gmail.com"
+              href={`mailto:${site.contact.email}`}
               className="font-medium text-accent underline-offset-2 hover:underline"
             >
-              Caelmontholdings@gmail.com
+              {site.contact.email}
             </a>{" "}
             and we&rsquo;ll take care of it.
           </p>

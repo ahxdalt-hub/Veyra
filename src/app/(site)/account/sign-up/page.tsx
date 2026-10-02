@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { site } from "@/lib/site";
+import { Suspense } from "react";
 import { SignUpForm } from "@/components/account/sign-up-form";
 import { supabaseAuthConfigured } from "@/lib/supabase/config";
 
@@ -23,16 +25,18 @@ export default function SignUpPage() {
 
           <div className="mt-8 rounded-md border border-line bg-surface p-6 sm:p-8">
             {supabaseAuthConfigured() ? (
-              <SignUpForm />
+              <Suspense fallback={null}>
+                <SignUpForm />
+              </Suspense>
             ) : (
               <p className="text-sm leading-relaxed text-ink-2">
                 Customer accounts aren&rsquo;t enabled on this deployment yet.
                 Purchases currently deliver by email — write to{" "}
                 <a
-                  href="mailto:Caelmontholdings@gmail.com"
+                  href={`mailto:${site.contact.email}`}
                   className="font-medium text-accent underline-offset-2 hover:underline"
                 >
-                  Caelmontholdings@gmail.com
+                  {site.contact.email}
                 </a>{" "}
                 about an existing order.
               </p>

@@ -70,7 +70,9 @@ export async function POST(request: Request) {
   }
 
   const attrs = event.data?.attributes;
-  const meta = event.data?.meta;
+  // LS puts event_name and custom_event_data in the payload's TOP-LEVEL
+  // meta, never under data.
+  const meta = event.meta;
   const eventName = meta?.event_name ?? "";
   const lsOrderId = attrs?.order_id ?? "unknown";
 
@@ -132,9 +134,9 @@ export async function POST(request: Request) {
     }
 
     // --- order_created ---------------------------------------------------
-    // The event must carry a genuinely placed (paid) order: a pending or
-    // failed order under 'order_created' is ignored — never allowed to
-    // move an order to paid.
+    // The event must carry a genuinely placed (paid) order: anything else
+    // under 'order_created' is ignored — never allowed to move an order
+    // to paid.
     if (attrs?.status && attrs.status !== "paid") {
       console.warn(
         `[ls-webhook] ignoring order_created carrying status ` +
@@ -172,23 +174,12 @@ export async function POST(request: Request) {
       lemonSqueezyOrderId: attrs?.order_id ?? null,
       lemonSqueezyPaymentId: event.data?.id ?? null,
     });
-    let reconciled = updated;
-    if (!reconciled && order.status !== "paid" && order.status !== "refunded") {
-      // The browser may have raced us (a cancelled marker from an abandoned
-      // checkout) — a verified Lemon Squeezy payment is authoritative, so
-      // reconcile the row into 'paid' from any non-paid state.
-      reconciled = await updateOrderStatus(order.id, "paid", {
-        expectedCurrent: order.status,
-        lemonSqueezyOrderId: attrs?.order_id ?? null,
-        lemonSqueezyPaymentId: event.data?.id ?? null,
-      });
-      if (reconciled) {
-        console.warn(
-          `[ls-webhook] reconciled ${order.status}→paid for order ${order.id} ` +
-            `(placed order ${lsOrderId} overrides earlier ${order.status})`
-        );
-      }
-    }
+    const reconciled = updated;
+    // No other reconcile path: the order state machine is pending → paid →
+    // refunded (0026), and the conditional update above is the only legal
+    // pending→paid transition. A late event on a paid/refunded order is an
+    // idempotent no-op for the row (grantPurchaseForOrder below still
+    // heals a fulfillment that died mid-grant).
     console.log(
       `[ls-webhook] order_created ${lsOrderId} for order ${order.id} ` +
         `(order was ${order.status} before this delivery)`

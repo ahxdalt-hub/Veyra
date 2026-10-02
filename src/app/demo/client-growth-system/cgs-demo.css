@@ -1,0 +1,92 @@
+/* Client Growth System — web demo skin.
+   Ported from the desktop app's globals.css. Every design token is renamed
+   with a `cgs-` prefix so it can never collide with the Veyra marketing site's
+   own palette, and every global element rule is scoped under .cgs-demo-root. */
+
+@import "tailwindcss";
+
+@theme inline {
+  --color-cgs-canvas: #f5f1ea;
+  --color-cgs-surface: #fbf8f3;
+  --color-cgs-raised: #ffffff;
+  --color-cgs-inset: #f0ebe1;
+
+  --color-cgs-line: #e7dfd0;
+  --color-cgs-line-strong: #d8cdb8;
+
+  --color-cgs-ink: #23201a;
+  --color-cgs-ink-soft: #55503f;
+  --color-cgs-muted: #6e654b;
+  --color-cgs-faint: #7c7257;
+
+  --color-cgs-accent: #a5522a;
+  --color-cgs-accent-deep: #87411e;
+  --color-cgs-accent-soft: #f2e3d5;
+  --color-cgs-accent-faint: #f9efe4;
+
+  --color-cgs-complete: #4c6b46;
+  --color-cgs-complete-soft: #e4ecdf;
+  --color-cgs-refine: #97691d;
+  --color-cgs-refine-soft: #f3e7cf;
+  --color-cgs-danger: #a03c30;
+  --color-cgs-danger-soft: #f5e3df;
+
+  --font-cgs-sans: "Inter Variable", system-ui, sans-serif;
+  --font-cgs-display: "Source Serif 4 Variable", Georgia, serif;
+
+  --shadow-cgs-card: 0 1px 2px rgba(43, 34, 18, 0.04), 0 1px 1px rgba(43, 34, 18, 0.03);
+  --shadow-cgs-pop: 0 8px 24px -12px rgba(43, 34, 18, 0.18), 0 2px 6px rgba(43, 34, 18, 0.05);
+}
+
+.cgs-demo-root {
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--color-cgs-canvas);
+  color: var(--color-cgs-ink);
+  font-family: var(--font-cgs-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.cgs-demo-root ::selection,
+.cgs-demo-root::selection {
+  background: var(--color-cgs-accent-soft);
+  color: var(--color-cgs-accent-deep);
+}
+
+.cgs-demo-root *,
+.cgs-demo-root *::before,
+.cgs-demo-root *::after {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-cgs-line-strong) transparent;
+}
+.cgs-demo-root *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.cgs-demo-root *::-webkit-scrollbar-thumb {
+  background: var(--color-cgs-line-strong);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+.cgs-demo-root *::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.cgs-demo-root :where(button, a, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-cgs-accent) 55%, transparent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cgs-demo-root *,
+  .cgs-demo-root *::before,
+  .cgs-demo-root *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

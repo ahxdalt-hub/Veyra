@@ -4,6 +4,7 @@ import {
   activationMessage,
 } from "@/lib/licensing/service";
 import { jsonCORS, preflight } from "@/lib/licensing/http";
+import { takeRateLimit, clientIp } from "@/lib/rate-limit";
 
 /**
  * POST /api/licence/revalidate — the opportunistic online check behind the
@@ -39,6 +40,24 @@ export async function POST(request: Request) {
     return jsonCORS(
       { ok: false, code: "invalid_input", message: activationMessage("invalid_input") },
       422
+    );
+  }
+
+  // Shared throttle (src/lib/rate-limit.ts). Revalidate authenticates
+  // with only {activation_id, device_id}, so without a limiter this was
+  // an unauthenticated, unthrottled state oracle and last_seen_at writer.
+  const limited =
+    !(await takeRateLimit(`licence:revalidate:${activation_id}`, 30, 60))
+      .allowed ||
+    !(await takeRateLimit(`licence:revalidate:ip:${clientIp(request)}`, 120, 60)).allowed;
+  if (limited) {
+    return jsonCORS(
+      {
+        ok: false,
+        code: "server_unavailable",
+        message: "Too many attempts — wait a moment, then try again.",
+      },
+      429
     );
   }
 

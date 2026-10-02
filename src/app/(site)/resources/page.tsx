@@ -58,7 +58,7 @@ export default function ResourcesPage() {
                 <p className="mt-2 text-sm text-ink-3">
                   18 questions, six phases, one honest number. It&rsquo;s also
                   a real product — claim it free into your account and keep
-                  the full report, licence included.
+                  the full report for good.
                 </p>
                 <div className="mt-6">
                   <Button

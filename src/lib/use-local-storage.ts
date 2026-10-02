@@ -20,10 +20,10 @@ export function useLocalStorageState(
       };
       const onLocal = () => cb();
       window.addEventListener("storage", onStorage);
-      localListeners.get(key)?.add(onLocal);
+      listenersFor(key).add(onLocal);
       return () => {
         window.removeEventListener("storage", onStorage);
-        localListeners.get(key)?.delete(onLocal);
+        listenersFor(key).delete(onLocal);
       };
     },
     () => {
@@ -42,10 +42,21 @@ export function useLocalStorageState(
     } catch {
       /* private mode — state lives for this page only */
     }
-    for (const l of localListeners.get(key) ?? []) l();
+    for (const l of listenersFor(key)) l();
   };
 
   return [value, set];
 }
 
 const localListeners = new Map<string, Set<() => void>>();
+
+/** Same-tab writes notify subscribers through this registry — the Map must
+ * materialise a Set per key or `?.add` silently drops every listener. */
+function listenersFor(key: string): Set<() => void> {
+  let set = localListeners.get(key);
+  if (!set) {
+    set = new Set();
+    localListeners.set(key, set);
+  }
+  return set;
+}

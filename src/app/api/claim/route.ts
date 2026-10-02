@@ -11,6 +11,7 @@ import type { Order } from "@/lib/orders";
 import { grantPurchaseForOrder } from "@/lib/fulfillment";
 import { notifyNewSale } from "@/lib/admin/notifications";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { takeRateLimit, clientIp } from "@/lib/rate-limit";
 import { supabaseAuthConfigured } from "@/lib/supabase/config";
 
 /**
@@ -21,8 +22,8 @@ import { supabaseAuthConfigured } from "@/lib/supabase/config";
  * resolvePurchasableProduct excludes them, so the seat-tier pricing path
  * can never see one. Claiming walks the REAL order lifecycle instead —
  * inserted as pending, confirmed to paid with amount 0 — so fulfillment
- * (entitlement + licence + seat + delivery email) is the exact same
- * idempotent chain the payment webhook runs. The DB trigger stamps
+ * (entitlement + confirmation email; free tools carry no licence or
+ * seats) is the exact same idempotent chain the payment webhook runs. The DB trigger stamps
  * paid_at on the transition just as a card payment would.
  *
  * One claim per account is a database rule (0019 unique index on
@@ -47,30 +48,14 @@ async function sessionUser() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Best-effort rate limit: 10 POSTs / 10 min / client IP              */
-/* (same shape as /api/subscribe — cheap protection against scripted  */
-/* claim spam; the 0019 unique index is the real one-per-account cap) */
+/* Shared rate limit: 10 POSTs / 10 min / client IP                   */
+/* (Postgres-backed fixed window — src/lib/rate-limit.ts — enforced   */
+/* across every Worker isolate; the 0019 unique index is the real     */
+/* one-per-account cap)                                               */
 /* ------------------------------------------------------------------ */
 
-const WINDOW_MS = 10 * 60 * 1000;
-const MAX_PER_WINDOW = 10;
-const hits = new Map<string, number[]>();
-
-function rateLimited(ip: string): boolean {
-  const now = Date.now();
-  const recent = (hits.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
-  if (recent.length >= MAX_PER_WINDOW) {
-    hits.set(ip, recent);
-    return true;
-  }
-  recent.push(now);
-  hits.set(ip, recent);
-  if (hits.size > 1000) {
-    for (const [key, times] of hits) {
-      if (!times.some((t) => now - t < WINDOW_MS)) hits.delete(key);
-    }
-  }
-  return false;
+async function rateLimited(ip: string): Promise<boolean> {
+  return !(await takeRateLimit(`claim:ip:${ip}`, 10, 600)).allowed;
 }
 
 /** The caller's active entitlement for a slug, if any (RLS-scoped read). */
@@ -135,9 +120,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
-  if (rateLimited(ip)) {
+  const ip = clientIp(request);
+  if (await rateLimited(ip)) {
     return NextResponse.json(
       { error: "Too many requests — please try again in a few minutes." },
       { status: 429 }
@@ -165,6 +149,8 @@ export async function POST(request: Request) {
       id: orderId,
       lemon_squeezy_order_id: null,
       lemon_squeezy_payment_id: null,
+    razorpay_order_id: null,
+    razorpay_payment_id: null,
       email,
       user_id: user.id,
       product_slug: slug,

@@ -298,7 +298,7 @@ export const products: Product[] = [
     problem:
       "You can't fix what you can't see. Most service businesses run growth on instinct and discover the leak only when the pipeline empties. The audit makes the state of your system visible in three minutes.",
     description:
-      "The Growth Audit is Veyra's free diagnostic tool: 18 multiple-choice questions mapped one-to-one onto the six phases of the Client Growth System. Answer them and the tool scores each phase in your browser, grades your overall operation, and writes a personalized report — your strengths, your two weakest phases, the modules that fix them, and the single change worth making this week. Claiming it links a licence to your account like every Veyra product: it costs nothing, runs in your browser, and the model behind it is the same one the paid systems are built on.",
+      "The Growth Audit is Veyra's free diagnostic tool: 18 multiple-choice questions mapped one-to-one onto the six phases of the Client Growth System. Answer them and the tool scores each phase in your browser, grades your overall operation, and writes a personalized report — your strengths, your two weakest phases, the modules that fix them, and the single change worth making this week. Claiming it keeps it in your account for good: it costs nothing, runs in your browser, and the model behind it is the same one the paid systems are built on.",
     workflow: [],
     modules: [],
     specs: [

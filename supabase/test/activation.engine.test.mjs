@@ -71,10 +71,12 @@ async function applyMigrations() {
 
   const files = readdirSync(MIGRATIONS_DIR)
     .filter((f) => f.endsWith(".sql") && !SKIP.includes(f))
-    // Licensing depends on 0001 → 0008 only; later stages (command center,
-    // coupons, quarantine) encode live-DB history and are not prerequisites
-    // of the activation engine under test.
-    .filter((f) => Number(f.slice(0, 4)) <= 8)
+    // Licensing depends on 0001 → 0008 plus the licensing-hardening
+    // revision (0024: device ownership, seat reassignment cascade,
+    // revalidation seat re-check). Later stages (command center, coupons,
+    // quarantine) encode live-DB history and are not prerequisites of the
+    // activation engine under test.
+    .filter((f) => Number(f.slice(0, 4)) <= 8 || f === "0024_licensing_device_ownership.sql")
     .sort();
   for (const file of files) {
     const sql = readFileSync(new URL(file, MIGRATIONS_DIR), "utf8");
@@ -125,7 +127,7 @@ async function seed() {
     ["o2", USERS.owner1, "solo@example.com", "paid", 1],
     ["o3", USERS.owner2, "team@example.com", "paid", 2],
     ["o4", USERS.owner1, "gone@example.com", "paid", 1],
-    ["o5", USERS.owner1, "dead@example.com", "cancelled", 1],
+    ["o5", USERS.owner1, "dead@example.com", "pending", 1],
   ];
   const uuids = {
     o1: "aaaaaaaa-0000-0000-0000-000000000001",
@@ -194,6 +196,7 @@ const revalidate = async (activationId, deviceId) =>
 test("migrations apply cleanly", async () => {
   const files = await applyMigrations();
   assert.ok(files.includes("0008_activations.sql"));
+  assert.ok(files.includes("0024_licensing_device_ownership.sql"));
   const { rows } = await run(
     `select to_regclass('public.licence_activations') is not null as has_table,
             (select count(*)::int from pg_policies where tablename='licence_activations') as policies,
@@ -314,7 +317,7 @@ test("revoked licence releases its devices and blocks revalidation", async () =>
   assert.equal(f.code, "licence_revoked");
 });
 
-test("cancelled purchase blocks activation and revalidation", async () => {
+test("an unpaid (pending) purchase blocks activation and revalidation", async () => {
   const a = await activate(licences.o5, "dead@example.com", "client-growth-system", DEVICE.g);
   assert.equal(a.code, "purchase_invalid");
 });
@@ -393,4 +396,104 @@ test("unique index is the final oversell guard", async () => {
     () => assert.fail("duplicate active device insert should have failed"),
     (e) => assert.match(String(e.message), /unique|duplicate/i)
   );
+});
+
+/* ------------------- 0024 hardening: device ownership --------------------- */
+
+test("0024 reset: o3 fixture back to a clean two-seat state", async () => {
+  // Earlier tests filled both o3 seats and deleted seat 2. Reset the
+  // licence so the hardening tests below start from a known state.
+  await run(
+    `delete from licence_activations where licence_id=(select id from licences where licence_reference='${licences.o3}')`
+  );
+  await run(
+    `insert into seat_assignments (entitlement_id, seat_number, email, user_id, status)
+     values ('${entitlements.o3}', 2, 'mate@example.com', '${USERS.seat2}', 'active')
+     on conflict (entitlement_id, seat_number) do update
+       set email = 'mate@example.com', user_id = '${USERS.seat2}', status = 'active'`
+  );
+});
+
+test("a seat holder cannot release another seat's device", async () => {
+  // o3: owner team@example.com (USERS.owner2), seat mate@example.com
+  // (USERS.seat2). mate activates their own device, then tries to release
+  // the owner's device with the seat-holder email.
+  await activate(licences.o3, "team@example.com", "client-growth-system", DEVICE.a);
+  const mateAct = await activate(licences.o3, "mate@example.com", "client-growth-system", DEVICE.b);
+  assert.equal(mateAct.ok, true);
+
+  const released = await deactivate(licences.o3, "mate@example.com", DEVICE.a);
+  assert.equal(released.ok, false);
+  assert.equal(released.code, "not_seat");
+  const stillActive = (
+    await run(`select count(*)::int as n from licence_activations
+               where licence_id=(select id from licences where licence_reference='${licences.o3}')
+                 and device_id='${DEVICE.a}' and status='active'`)
+  ).rows[0].n;
+  assert.equal(stillActive, 1);
+});
+
+test("a seat holder can still release their own device", async () => {
+  const mine = await deactivate(licences.o3, "mate@example.com", DEVICE.b);
+  assert.equal(mine.ok, true);
+});
+
+test("the owner can release any seat's device", async () => {
+  // mate's device was released above; reactivate it, then let the OWNER
+  // release it with the owner email.
+  await activate(licences.o3, "mate@example.com", "client-growth-system", DEVICE.b);
+  const released = await deactivate(licences.o3, "team@example.com", DEVICE.b);
+  assert.equal(released.ok, true);
+});
+
+/* --------------- 0024 hardening: reassignment + revalidation -------------- */
+
+test("reassigning a seat releases the old holder's devices", async () => {
+  // mate re-activates, then the seat's email is reassigned to someone new
+  // (the account area's UPDATE-in-place flow) — the old holder's devices
+  // must be released with reason 'seat'.
+  const act = await activate(licences.o3, "mate@example.com", "client-growth-system", DEVICE.b);
+  assert.equal(act.ok, true);
+  await run(
+    `update seat_assignments set email='newmate@example.com', user_id=null, status='invited'
+     where entitlement_id='${entitlements.o3}' and seat_number=2`
+  );
+  const row = (
+    await run(`select status, deactivated_reason from licence_activations where id='${act.activation_id}'`)
+  ).rows[0];
+  assert.equal(row.status, "deactivated");
+  assert.equal(row.deactivated_reason, "seat");
+});
+
+test("revalidation refuses (and releases) an activation whose seat is gone", async () => {
+  // Mate's device was released by the reassignment cascade; simulate an
+  // app that missed the release: a live activation row for an email that
+  // no longer holds a seat must fail revalidation AND be released.
+  const act = (
+    await run(
+      `insert into licence_activations (licence_id, entitlement_id, device_id, activated_email)
+       values ((select id from licences where licence_reference='${licences.o3}'),
+               '${entitlements.o3}', '${DEVICE.c}', 'mate@example.com')
+       returning id`
+    )
+  ).rows[0].id;
+  const result = await revalidate(act, DEVICE.c);
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "activation_revoked");
+  const row = (
+    await run(`select status, deactivated_reason from licence_activations where id='${act}'`)
+  ).rows[0];
+  assert.equal(row.status, "deactivated");
+  assert.equal(row.deactivated_reason, "seat");
+});
+
+test("revalidation still succeeds for the owner and an active seat holder", async () => {
+  const ownerAct = await activate(licences.o3, "team@example.com", "client-growth-system", DEVICE.a);
+  assert.equal(ownerAct.ok, true);
+  const seatAct = await activate(licences.o3, "newmate@example.com", "client-growth-system", DEVICE.b);
+  assert.equal(seatAct.ok, true); // 'invited' status still counts as holding the seat (same rule as activation)
+  const okOwner = await revalidate(ownerAct.activation_id, DEVICE.a);
+  assert.equal(okOwner.ok, true);
+  const okSeat = await revalidate(seatAct.activation_id, DEVICE.b);
+  assert.equal(okSeat.ok, true);
 });

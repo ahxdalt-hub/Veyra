@@ -115,7 +115,7 @@ export default async function AnalyticsPage({
                     ? "var(--cc-success)"
                     : s.status === "pending"
                       ? "var(--cc-warning)"
-                      : s.status === "failed"
+                      : s.status === "refunded"
                         ? "var(--cc-error)"
                         : "var(--cc-text-4)",
               }))}

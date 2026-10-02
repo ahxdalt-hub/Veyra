@@ -48,7 +48,12 @@ export function SignInForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="stagger-rise space-y-5" noValidate>
+    <form
+      onSubmit={onSubmit}
+      method="post"
+      className="stagger-rise space-y-5"
+      noValidate
+    >
       <Input
         type="text"
         name="identifier"
