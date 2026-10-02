@@ -13,8 +13,27 @@ const REF = "otqucrqcefdychplbbtq";
 const args = process.argv.slice(2);
 const query = args[0] === "--file"
   ? (args[1] ? readFileSync(args[1], "utf8") : "")
-  : args[0];
-if (!query) { console.error("usage: node scripts/sb-query.mjs <sql> | --file <path.sql>"); process.exit(2); }
+  : args.filter((a) => a !== "--yes-i-mean-prod").join(" ");
+if (!query) { console.error("usage: node scripts/sb-query.mjs <sql> | --file <path.sql> [--yes-i-mean-prod]"); process.exit(2); }
+
+// This project is LIVE commerce. Read-only statements run freely, but anything
+// that mutates rows or schema is refused unless the operator passes
+// --yes-i-mean-prod, so one fat-fingered command cannot silently corrupt or
+// wipe real orders. Strip strings/comments first so the detector isn't fooled
+// by a keyword appearing inside a quoted literal.
+const CONFIRM = args.includes("--yes-i-mean-prod");
+const scannable = query
+  .replace(/'([^']|'')*'/g, "''")
+  .replace(/--(?!\n)[^\n]*/g, "")
+  .replace(/"[^"]*"/g, '""')
+  .replace(/\/\*[\s\S]*?\*\//g, "")
+  .toUpperCase();
+const WRITE = /\b(INSERT|UPDATE|DELETE|MERGE|TRUNCATE|DROP|ALTER|CREATE|GRANT|REVOKE|REINDEX|VACUUM|COMMENT|COPY|REFRESH|CLUSTER|LOCK|DO)\b/.test(scannable);
+if (WRITE && !CONFIRM) {
+  console.error("REFUSED: this query mutates the LIVE Veyra database (" + REF + ").");
+  console.error("Re-run with --yes-i-mean-prod to confirm you intend to change production data or schema.");
+  process.exit(1);
+}
 const res = await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`, {
   method: "POST",
   headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },

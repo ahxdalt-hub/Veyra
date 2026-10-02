@@ -57,6 +57,18 @@ if (!url || !key) {
 }
 const supabase = createClient(url, key, { auth: { persistSession: false } });
 
+// SAFETY: this writes straight into the LIVE Veyra project — fake orders and
+// admin notifications that the command center reacts to as if they were real.
+// Refuse to run (generate OR --cleanup) unless the operator explicitly opts
+// in with --yes-i-mean-prod, so it can never fire by accident on a machine
+// that is pointed at production.
+if (!process.argv.includes("--yes-i-mean-prod")) {
+  console.error("REFUSED: this inserts (or cleans up) rows in the LIVE Veyra database.");
+  console.error("Demo traffic belongs in a test project. If you truly mean to");
+  console.error("pollute/clean production, re-run adding --yes-i-mean-prod.");
+  process.exit(1);
+}
+
 /* — catalog (slugs must exist in src/lib/products.ts; amounts are
    cents, matching the real USD checkout totals). — */
 const CATALOG = [
