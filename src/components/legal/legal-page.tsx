@@ -165,6 +165,13 @@ export function LegalPage({
                     </Link>
                     ,{" "}
                     <Link
+                      href="/cookie-policy"
+                      className="font-medium text-accent underline-offset-2 hover:underline"
+                    >
+                      Cookie Policy
+                    </Link>
+                    ,{" "}
+                    <Link
                       href="/refund-policy"
                       className="font-medium text-accent underline-offset-2 hover:underline"
                     >

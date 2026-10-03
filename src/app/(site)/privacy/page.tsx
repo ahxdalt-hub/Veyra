@@ -76,9 +76,12 @@ export default function PrivacyPage() {
                 email address and the page it came from. Nothing else.
               </p>
               <p>
-                <strong>Basic analytics.</strong> We use privacy-respecting,
-                aggregate analytics to see which pages are read. No cross-site
-                tracking, no advertising pixels, no profiling.
+                <strong>No analytics.</strong> Veyra currently runs no
+                analytics script, no advertising pixel, and no third-party
+                tracker. Nothing about how you browse this site is measured or
+                sent to a third party. If we later add aggregate measurement,
+                it will be cookieless and both this page and the Cookie Policy
+                will describe it before it is switched on.
               </p>
             </>
           ),
@@ -147,10 +150,24 @@ export default function PrivacyPage() {
           body: (
             <p>
               We use only strictly necessary cookies — the session cookie that
-              keeps you signed in to your account, and the cart state stored in
-              your own browser. There are no advertising or third-party tracking
-              cookies, and nothing to accept or reject in a banner, because
-              nothing beyond the essentials is set.
+              keeps you signed in to your account, an additional session cookie
+              that guards the admin area, and your cart state held in your own
+              browser&rsquo;s local storage. There are no advertising or
+              third-party tracking cookies. If you arrived here through a{" "}
+              {site.parent} partner referral link, a signed{" "}
+              <code>cm_ref</code> cookie set on the shared{" "}
+              <code>.caelmont.in</code> domain by {site.parent} may be read at
+              checkout so the referring partner is credited; we neither set nor
+              decode that value. There is nothing to accept or reject in a
+              banner, because nothing beyond the essentials is set. Every
+              cookie is listed by name, purpose, and lifetime in our{" "}
+              <a
+                href="/cookie-policy"
+                className="font-medium text-accent underline-offset-2 hover:underline"
+              >
+                Cookie Policy
+              </a>
+              .
             </p>
           ),
         },
