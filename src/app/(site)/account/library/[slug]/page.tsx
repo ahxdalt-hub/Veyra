@@ -77,8 +77,8 @@ export default async function LibraryProductPage({
       .eq("current", true)
       .eq("release_status", "published")
       .maybeSingle(),
-    // Which builds /api/download will actually serve right now — the
-    // button only offers platforms that are genuinely deliverable.
+    // Which builds /api/download will actually serve right now — drives
+    // the request-delivery fallback for anything NOT published.
     releasedPlatforms(slug),
   ]);
   const currentVersion =
@@ -214,10 +214,14 @@ export default async function LibraryProductPage({
             </div>
 
             <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-line pt-5">
+              {/* Both platforms always offered; the visitor's OS picks the
+                  primary. A not-yet-published build answers with the honest
+                  "being published" notice, and the request-delivery fallback
+                  below covers it. */}
               <DownloadButton
                 slug={slug}
                 productName={name}
-                platforms={platforms}
+                platforms={[...DELIVERY_PLATFORMS]}
               />
               {missingPlatforms.length > 0 ? (
                 <div className="w-full">

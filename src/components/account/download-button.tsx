@@ -16,11 +16,13 @@ import {
  * The browser is then pointed at the signed URL; no permanent public
  * storage URL is ever exposed.
  *
- * Platform handling (0021): `platforms` lists the builds the registry is
- * actually publishing right now. The visitor's detected OS picks which
- * one is the PRIMARY action — detection only orders the buttons, it
- * never gates anything; authorization is the server-side chain, and the
- * other platform stays one click away.
+ * Platform handling (0021): `platforms` is the full list of platforms the
+ * product ships for — both links always render, and the visitor's detected
+ * OS decides which one is the PRIMARY (highlighted) action, the other
+ * staying one small click away. Detection only orders the buttons, it
+ * never gates anything: authorization is the server-side chain, and a
+ * platform whose build isn't published yet gets the route's honest
+ * "being published — request delivery" answer rather than a fake download.
  */
 
 // useSyncExternalStore plumbing for the browser's user-agent. The UA never
@@ -40,7 +42,7 @@ export function DownloadButton({
   slug: string;
   productName: string;
   variant?: "accent" | "outline";
-  /** Platforms with a published, deliverable build. */
+  /** Platforms the product ships for — both render, detected OS leads. */
   platforms?: DeliveryPlatform[];
 }) {
   const [notice, setNotice] = useState<string | null>(null);

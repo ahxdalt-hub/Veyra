@@ -8,7 +8,7 @@ import {
 import { supabaseAuthConfigured } from "@/lib/supabase/config";
 import type { EntitlementRow, LicenceRow } from "@/lib/supabase/types";
 import { getProduct } from "@/lib/products";
-import { releasedPlatforms } from "@/lib/registry";
+import { DELIVERY_PLATFORMS } from "@/lib/platforms";
 import { AccountShell, AccountCard } from "@/components/account/account-shell";
 import { AccountDiscovery } from "@/components/account/account-discovery";
 import { DownloadButton } from "@/components/account/download-button";
@@ -65,14 +65,10 @@ export default async function LibraryPage() {
       .map((l) => [l.entitlement_id, l])
   );
 
-  // Platforms with a deliverable published build per owned product (0021) —
-  // the download buttons only offer builds that actually ship.
-  const ownedSlugs = [...new Set(entitlements.map((e) => e.product_slug))];
-  const platformsBySlug = new Map(
-    await Promise.all(
-      ownedSlugs.map(async (s) => [s, await releasedPlatforms(s)] as const)
-    )
-  );
+  // Both platforms are always offered — the visitor's detected OS picks
+  // which one leads, and /api/download answers honestly for any build that
+  // isn't published yet (the Delivery Center carries the request-delivery
+  // fallback for those).
 
   return (
     <AccountShell
@@ -166,7 +162,7 @@ export default async function LibraryPage() {
                         slug={entitlement.product_slug}
                         productName={name}
                         variant="outline"
-                        platforms={platformsBySlug.get(entitlement.product_slug) ?? []}
+                        platforms={[...DELIVERY_PLATFORMS]}
                       />
                     )}
                     {product?.free ? null : (

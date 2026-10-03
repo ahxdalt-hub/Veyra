@@ -6,7 +6,7 @@ import {
 } from "@/lib/supabase/server";
 import { supabaseAuthConfigured } from "@/lib/supabase/config";
 import { phaseMeta, PHASE_ORDER } from "@/lib/products";
-import { releasedPlatforms } from "@/lib/registry";
+import { DELIVERY_PLATFORMS } from "@/lib/platforms";
 import { AccountShell, AccountCard } from "@/components/account/account-shell";
 import { DownloadButton } from "@/components/account/download-button";
 import { Button } from "@/components/ui/button";
@@ -50,9 +50,9 @@ export default async function QuickStartPage() {
     );
   }
 
-  // Builds the delivery route can actually serve right now (0021) —
-  // the button offers exactly these platforms.
-  const platforms = await releasedPlatforms("client-growth-system");
+  // Both platforms are always offered — the visitor's OS picks which
+  // download leads; /api/download answers honestly if a build isn't
+  // published yet.
 
   const steps: { title: string; detail: string }[] = [
     {
@@ -231,7 +231,7 @@ export default async function QuickStartPage() {
             <DownloadButton
               slug="client-growth-system"
               productName="Client Growth System"
-              platforms={platforms}
+              platforms={[...DELIVERY_PLATFORMS]}
             />
             <Button href="/account/library/client-growth-system" variant="ghost" size="sm">
               Open your product page

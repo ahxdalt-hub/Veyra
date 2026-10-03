@@ -28,21 +28,21 @@ const PHASES = [
     label: "Build",
     tagline: "Positioning, offer, and who you serve.",
     points: [
-      "One tested sentence describes who you serve and what you get them — and it is used consistently, everywhere.",
-      "The offer is packaged: defined scope, price, and outcome. It is not reinvented with every prospect.",
-      "Written ideal-client criteria exist, and every new lead is checked against them.",
-      "You can say, out loud, what you no longer do for clients.",
+      "A tested positioning sentence — who you serve and what you get them — used consistently, everywhere.",
+      "The offer is documented: outcomes, boundaries, and pricing logic. It is not reinvented with every prospect.",
+      "Written ideal-client criteria exist, with disqualifiers, and every new lead is checked against them.",
+      "You can name what you no longer take on — and work that does not fit gets declined.",
     ],
   },
   {
     label: "Acquire",
     tagline: "Where leads come from, and what follows.",
     points: [
-      "A documented channel plan sets a weekly rhythm and numbers for lead generation.",
-      "Outreach time happens every week — not only when the pipeline looks empty.",
-      "Outreach messages have a clear structure and a specific ask.",
+      "A documented channel plan sets a weekly rhythm and targets for lead generation.",
+      "Outreach runs every week — not only when the pipeline looks empty.",
+      "Messages come from a maintained library: structured, with a clear ask and personal reference points.",
       "Every open conversation has a scheduled next touch, with a date.",
-      "Follow-up runs by rule — touch two, three, four — not at the first silence.",
+      "Follow-up is rules-based — touch two, three, four — run to the end, not stopped at the first silence.",
     ],
   },
   {
@@ -50,8 +50,8 @@ const PHASES = [
     tagline: "Conversations, proposals, and the pipeline.",
     points: [
       "Sales calls follow a written structure: discovery, qualification, next step.",
-      "A question bank and prepared answers to the five most common objections exist.",
-      "Proposals come from a template — scope, outcomes, terms, price, validity — never a blank page.",
+      "A question bank and prepared responses to your most common objections exist — and get used.",
+      "Proposals come from a system — scope, outcomes, terms, price, validity — shaped like a decision, never a blank page.",
       "Every open deal lives in one pipeline with defined stages.",
       "The pipeline is reviewed weekly, and stalled deals get a decision.",
     ],
@@ -61,28 +61,28 @@ const PHASES = [
     tagline: "From the yes to a running engagement.",
     points: [
       "The sequence from signature to kickoff is documented and run identically for every client.",
-      "Scope is written, and changes go through a defined, priced change process.",
-      "Clients receive updates on a standing cadence — they never have to ask where things stand.",
-      "The project ends deliberately: handover, final review, closure — not a slow fade.",
+      "Scope is written, with boundaries and change pricing — and changes actually go through it.",
+      "Clients get updates on a standing cadence, from a shared status view — they never have to ask where things stand.",
+      "The engagement ends deliberately: handover, final review, closure — not a slow fade.",
     ],
   },
   {
     label: "Retain",
     tagline: "Keeping clients on purpose.",
     points: [
-      "Scheduled check-ins happen with every active client.",
-      "Early-warning signals of a drifting client are named, with a planned response for each.",
-      "Referrals are asked for at defined moments — not when it feels natural.",
+      "Scheduled check-ins and formal value reviews happen with every active client.",
+      "Early-warning signals of a drifting client are named, each with a planned response.",
+      "Referral asks happen at defined moments, plus alumni touchpoints — not when it feels natural.",
     ],
   },
   {
     label: "Grow",
     tagline: "Compounding what works.",
     points: [
-      "A standing growth review sits on the calendar — with an agenda, kept.",
+      "A standing growth review with an agenda sits on the calendar — on a fixed cadence, kept.",
       "The full funnel is tracked: outreach, conversations, proposals, win rate, retention.",
       "When something stalls, the fix comes from the review — tested, documented, kept or reverted.",
-      "The biggest current revenue lever is known, with one concrete action attached to it.",
+      "Your biggest current revenue lever is known, with one concrete action attached to it this week.",
     ],
   },
 ];
@@ -189,8 +189,9 @@ function rule(color = C.line, thickness = 1, inset = 0) {
   });
 }
 
-/** Smart quotes and dashes are not in WinAnsi via pdf-lib drawText edge cases — keep them, pdf-lib handles WinAnsi; just guard exotic chars. */
-function sanitize(s) { return s.replace(/[–—]/g, "-").replace(/[‘’]/g, "'").replace(/[“”]/g, '"'); }
+/** WinAnsi covers em/en dashes, curly quotes, and ellipsis — verified against
+ *  pdf-lib drawText — so text passes through; only exotic whitespace is normalized. */
+function sanitize(s) { return s.replace(/\u00A0/g, " "); }
 
 /* ------------------------------------------------------------------ */
 /* Masthead                                                            */
@@ -212,7 +213,7 @@ text("The 25-Point", M, 30, serifBold, C.ink); y -= 34;
 text("Client Acquisition Audit", M, 30, serifBold, C.ink); y -= 30;
 
 draw(
-  "Twenty-five yes/no checks across the six phases of client growth - build, " +
+  "Twenty-five yes/no checks across the six phases of client growth — build, " +
   "acquire, sell, deliver, retain, grow. One honest no costs more than ten " +
   "polished yeses: the point is not the score, it is finding where growth leaks.",
   12, serif, C.ink3, { leading: 17 }
@@ -303,12 +304,12 @@ tracked("The fix-first rule", M + 8, 8.5, sansBold, C.accent, 1.4);
 y = fixTop - 42;
 draw(
   "Find the phase with the fewest yeses. Write down the one thing from its " +
-  "row below - this week, before anything else.",
+  "row below — this week, before anything else.",
   10.5, serif, C.ink3, { x: M + 8, width: CW - 16, leading: 14 }
 );
 space(6);
 for (const [phase, action] of FIX_FIRST) {
-  const line = `${phase} - ${action}`;
+  const line = `${phase} — ${action}`;
   const lines = wrap(line, serif, 10, CW - 32);
   for (const l of lines) {
     page.drawText(sanitize(l), { x: M + 8, y, size: 10, font: serif, color: C.ink });
@@ -326,13 +327,13 @@ rule();
 space(16);
 draw(
   "Prefer it scored for you? The interactive Growth Audit asks 18 questions " +
-  "and returns your score, phase breakdown, and priority list in about " +
-  "three minutes.",
+  "across the same six phases and returns your score, phase breakdown, and " +
+  "priority list in about three minutes — free with a Veyra account.",
   10.5, serifItalic, C.ink3, { leading: 14 }
 );
 space(2);
 text("veyra.caelmont.in/audit", M, 13, serifBold, C.accent);
-const fine = "Veyra - no spam, no drip campaign. veyra.caelmont.in";
+const fine = "Veyra — no spam, no drip campaign. veyra.caelmont.in";
 page.drawText(sanitize(fine), { x: PAGE.w - M - sans.widthOfTextAtSize(fine, 8), y, size: 8, font: sans, color: C.muted });
 
 /* ------------------------------------------------------------------ */

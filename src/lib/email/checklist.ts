@@ -52,8 +52,9 @@ export async function sendChecklistEmail(to: string): Promise<ChecklistSendResul
     `   one thing this week, before anything else.`,
     ``,
     `Prefer it scored for you? The interactive Growth Audit asks 18`,
-    `questions and returns your score, phase breakdown, and priority`,
-    `list in about three minutes: ${siteUrl()}/audit`,
+    `questions across the same six phases and returns your score, phase`,
+    `breakdown, and priority list in about three minutes — free with a`,
+    `Veyra account: ${siteUrl()}/audit`,
     ``,
     `Questions? Just reply to this email.`,
     ``,
@@ -72,7 +73,7 @@ export async function sendChecklistEmail(to: string): Promise<ChecklistSendResul
       <li>The phase with the fewest yeses is where growth leaks. Fix that one thing this week.</li>
     </ol>
   </div>
-  <p style="font-size:14px;margin:0 0 18px">Prefer it scored for you? The <a href="${escapeHtml(siteUrl())}/audit" style="color:#2f5d3a">interactive Growth Audit</a> asks 18 questions and returns your score, phase breakdown, and priority list in about three minutes.</p>
+  <p style="font-size:14px;margin:0 0 18px">Prefer it scored for you? The <a href="${escapeHtml(siteUrl())}/audit" style="color:#2f5d3a">interactive Growth Audit</a> asks 18 questions across the same six phases and returns your score, phase breakdown, and priority list in about three minutes — free with a Veyra account.</p>
   <p style="font-size:13px;color:#6f6a5d">Questions? Just reply to this email.</p>
   <p style="font-size:13px;color:#8a8474;margin-top:14px">— Veyra · no spam, no drip campaign</p>
 </div>`;
