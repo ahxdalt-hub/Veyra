@@ -56,9 +56,15 @@ function run(command, args) {
 }
 
 let swapped = false;
+/** In-memory safety copy — the on-disk backup alone proved destructible
+ *  (one run lost `.env.local.deploy-backup` mid-build and the restore
+ *  failed with it gone). Contents in this process can't be deleted by the
+ *  build, so the finally block can always put the file back. */
+let envOriginal = null;
 try {
   const publicOnly = publicLines();
   if (existsSync(envLocal)) {
+    envOriginal = readFileSync(envLocal, "utf8");
     copyFileSync(envLocal, backup);
     rmSync(envLocal);
     swapped = true;
@@ -79,8 +85,13 @@ try {
 } finally {
   if (swapped) {
     rmSync(envLocal, { force: true });
-    copyFileSync(backup, envLocal);
-    rmSync(backup, { force: true });
+    if (existsSync(backup)) {
+      rmSync(backup, { force: true });
+    }
+    // The backup file may not have survived the build; the in-memory copy
+    // always has. Write bytes, not a file copy, so there is no second
+    // dependency to fail on.
+    writeFileSync(envLocal, envOriginal);
     console.log("[deploy] .env.local restored");
   }
 }

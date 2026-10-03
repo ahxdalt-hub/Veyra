@@ -277,11 +277,14 @@ export function verifyWebhookSignature(
 /** The parts of an order event we read; the JSON:API envelope is stable
  *  for these fields (see docs.lemonsqueezy.com/api/orders). `meta` is a
  *  TOP-LEVEL member of the webhook payload — event_name and the checkout's
- *  custom_event_data both live there, not under data. */
+ *  custom data both live there, not under data. */
 export type LemonSqueezyOrderEvent = {
   meta?: {
     event_name?: string;
-    /** checkout_data.custom comes back here, values as strings. */
+    /** checkout_data.custom comes back here, values as strings — this is
+     *  the key genuine LS webhooks use (verified against live deliveries). */
+    custom_data?: Record<string, unknown>;
+    /** Legacy/alternative spelling kept for hand-built and older payloads. */
     custom_event_data?: Record<string, unknown>;
   };
   data?: {
@@ -289,8 +292,12 @@ export type LemonSqueezyOrderEvent = {
     id?: string;
     type?: string;
     attributes?: {
-      /** Lemon Squeezy's human order id, e.g. "VEYRA-ABCD1". */
-      order_id?: string;
+      /**
+       * The human order number LS actually sends (e.g. 4854043). Note the
+       * API's order object has NO `order_id` attribute — payloads verified
+       * live against api.lemonsqueezy.com — so nothing may key off it.
+       */
+      order_number?: number;
       order_name?: string;
       status?: string;
       /** Cents, pre-tax — what custom_price was set to. */
