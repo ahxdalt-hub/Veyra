@@ -87,24 +87,39 @@ export function RedeemForm() {
           <li className="flex gap-3">
             <span className="font-display italic text-ink-3">1</span>
             <span>
-              Create your Veyra account using{" "}
-              <strong className="font-medium text-ink">{email}</strong> — the
-              same address you just entered. Your purchase attaches to it
-              automatically.
+              <strong className="font-medium text-ink">Check your email.</strong>{" "}
+              A receipt with your licence key and download instructions is on
+              its way to{" "}
+              <strong className="font-medium text-ink">{email}</strong>. It may
+              take a few seconds, and it can land in promotions or spam.
             </span>
           </li>
           <li className="flex gap-3">
             <span className="font-display italic text-ink-3">2</span>
             <span>
+              Create a Veyra account with that same address. Your purchase
+              attaches to it automatically — you are not buying it again.
+            </span>
+          </li>
+          <li className="flex gap-3">
+            <span className="font-display italic text-ink-3">3</span>
+            <span>
               Open{" "}
+              <Link
+                href="/account/library"
+                className="font-medium text-accent underline-offset-2 hover:underline"
+              >
+                Library
+              </Link>{" "}
+              to download — Windows and macOS are both offered, your current
+              system is the one selected.{" "}
               <Link
                 href="/account/licences"
                 className="font-medium text-accent underline-offset-2 hover:underline"
               >
                 Licences
               </Link>{" "}
-              to see your licence reference and download the app for Windows
-              or macOS.
+              is where activations and seats live.
             </span>
           </li>
         </ol>

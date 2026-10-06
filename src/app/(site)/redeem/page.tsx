@@ -55,9 +55,10 @@ export default function RedeemPage() {
               <p className="spec text-ink-4">What happens after you redeem</p>
               <ul className="mt-4 space-y-4 text-sm leading-relaxed text-ink-2">
                 <li>
-                  Your licence and downloads live in your Veyra account, not in
-                  the email that carried the code — so the account has to be
-                  created with the address you redeem against.
+                  The receipt we email you carries your licence key, but the
+                  software unlocks from your Veyra account — so create it with
+                  the address you redeem against and the purchase attaches
+                  itself.
                 </li>
                 <li>
                   The Windows and macOS builds are both listed under{" "}

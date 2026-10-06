@@ -59,7 +59,13 @@ function newCode() {
 /* Single-use and single-customer are what make a leaked code worth one copy
  * rather than many. used_count is stamped by the database's own trigger when
  * the order flips to paid — it is initialised to 0 here and never written
- * again. */
+ * again.
+ *
+ * Lowercase in the database, uppercase on paper: validate_coupon() looks a
+ * code up as `code = lower(trim(p_code))` (0013), so a code STORED uppercase
+ * can never be found however the buyer types it. The CSV shows uppercase
+ * because that is what a human reads off a receipt, and the lookup lowercases
+ * whatever they type in. */
 function buildRows() {
   const seen = new Set();
   const rows = [];
@@ -68,7 +74,7 @@ function buildRows() {
     if (seen.has(code)) continue;
     seen.add(code);
     rows.push({
-      code,
+      code: code.toLowerCase(),
       label: `AppSumo — ${batch}`,
       kind: "percent",
       value: 100,
@@ -84,7 +90,7 @@ function buildRows() {
 }
 
 const rows = buildRows();
-const csv = ["code", ...rows.map((r) => r.code)].join("\n") + "\n";
+const csv = ["code", ...rows.map((r) => r.code.toUpperCase())].join("\n") + "\n";
 
 console.log(`Batch "${batch}" — ${count} codes generated (nothing spent).`);
 
