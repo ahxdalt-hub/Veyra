@@ -145,7 +145,7 @@ export function RedeemForm() {
         name="code"
         autoComplete="one-time-code"
         spellCheck={false}
-        placeholder="AS-VEYRA-…"
+        placeholder="ASV-XXXXX-XXXXX"
         value={code}
         onChange={(event) => setCode(event.target.value)}
         disabled={phase === "working"}
