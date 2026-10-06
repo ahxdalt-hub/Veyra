@@ -117,15 +117,15 @@ export default async function OrderDetailPage({
             <Row label="Order reference">
               <span className="tnum text-xs text-ink-2">{order.id}</span>
             </Row>
-            {order.lemon_squeezy_payment_id ? (
+            {order.provider_payment_id ? (
               <Row label="Payment reference">
                 <span className="tnum text-xs text-ink-2">
-                  {order.lemon_squeezy_payment_id}
+                  {order.provider_payment_id}
                 </span>
               </Row>
             ) : null}
           </dl>
-          {order.lemon_squeezy_payment_id ? (
+          {order.provider_payment_id ? (
             <p className="mt-4 text-xs leading-relaxed text-ink-4">
               For receipt questions, contact{" "}
               <a

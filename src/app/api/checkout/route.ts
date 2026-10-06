@@ -2,16 +2,10 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { resolvePurchasableProduct } from "@/lib/products";
 import { checkoutAmountMinor, MAX_SEATS, seatTier } from "@/lib/pricing";
+import { getFoundingStatus } from "@/lib/founding";
 import { CURRENCY } from "@/lib/site";
-import {
-  createLemonSqueezyCheckout,
-  lemonSqueezyMode,
-} from "@/lib/lemon-squeezy";
+import { createDodoCheckout, dodoMode } from "@/lib/dodo-payments";
 import { readReferralToken } from "@/lib/partner-attribution";
-import {
-  createRazorpayOrder,
-  razorpayMode,
-} from "@/lib/razorpay";
 import { selectCheckoutProvider } from "@/lib/payments/provider";
 import { site } from "@/lib/site";
 import { insertOrder, updateOrderStatus } from "@/lib/orders";
@@ -23,19 +17,21 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { supabaseAuthConfigured } from "@/lib/supabase/config";
 
 /**
- * POST /api/checkout — create a payment order + hosted Lemon Squeezy checkout.
+ * POST /api/checkout — create a payment order + the gateway's checkout.
  *
  * Security model:
  *  - The client sends ONLY slugs, quantities, and an email. No prices,
  *    no totals — the amount is computed here from the catalog and is the
- *    sole number passed to Lemon Squeezy as custom_price, and the sole
- *    number trusted by the orders table.
+ *    sole number passed to the gateway, and the sole number trusted by the
+ *    orders table.
  *  - Products must be currently purchasable (coming-soon slugs are
  *    rejected) and a single distinct product per order is supported.
- *  - The response exposes the hosted checkout URL only. The API key never
- *    leaves the server. Confirmation happens exclusively via the signed
- *    /api/webhooks/lemonsqueezy order_created event — the browser's return
- *    redirect is decoration, never proof.
+ *  - Dodo Payments is the processor (src/lib/payments/provider.ts). It
+ *    returns a hosted checkout URL the browser is redirected to, and the
+ *    payment is confirmed ONLY by its signed `payment.succeeded` webhook —
+ *    there is no browser-side callback. The browser's return trip is
+ *    decoration, never proof, and no credential ever crosses into the
+ *    client.
  */
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -150,8 +146,11 @@ export async function POST(request: Request) {
   // Team pricing resolves here, server-side — the per-seat tier, the
   // discount, and the payable amount are computed from the catalog's
   // pricing configuration. A client-sent total is never read.
-  const tier = seatTier(line.qty);
-  const subtotalMinor = checkoutAmountMinor(line.qty); // cents, pre-coupon
+  // The founding allocation decides WHICH ladder applies, so the price the
+  // banner promises and the price charged here are the same number.
+  const foundingActive = (await getFoundingStatus()) === "active";
+  const tier = seatTier(line.qty, foundingActive);
+  const subtotalMinor = checkoutAmountMinor(line.qty, foundingActive); // cents, pre-coupon
 
   // --- Coupon (0013): the client may PROPOSE a code; the database decides.
   // validate_coupon enforces active flag, date window, minimums, usage
@@ -191,8 +190,8 @@ export async function POST(request: Request) {
     const rawDiscountMinor = verdict.discount_dollars * 100;
     freeOrder = rawDiscountMinor >= subtotalMinor;
     // Free orders take the full discount (nothing is charged). Partial
-    // discounts keep the ≥1-cent floor payment gateways require —
-    // a $0.00 charge would be rejected by Lemon Squeezy, so a fully-covered
+    // discounts keep the ≥1-cent floor payment processors require —
+    // a $0.00 charge would be rejected by Dodo, so a fully-covered
     // order must skip the gateway rather than send it one cent.
     const discountMinor = freeOrder
       ? subtotalMinor
@@ -230,10 +229,8 @@ export async function POST(request: Request) {
     try {
       const order = await insertOrder({
         id: orderId,
-        lemon_squeezy_order_id: null,
-        lemon_squeezy_payment_id: null,
-        razorpay_order_id: null,
-        razorpay_payment_id: null,
+        provider_session_id: null,
+        provider_payment_id: null,
         email,
         user_id: userId,
         product_slug: line.slug,
@@ -282,8 +279,9 @@ export async function POST(request: Request) {
         orderId: order.id,
         status: "paid",
         free: true,
-        mode: lemonSqueezyMode(),
-        gateway: "lemon-squeezy",
+        // No gateway processed anything — a fully-coupon-covered order never
+        // touches one, so naming either provider here would be a lie.
+        gateway: null,
         productName: line.name,
         quantity: line.qty,
         seats: tier.seats,
@@ -311,11 +309,11 @@ export async function POST(request: Request) {
     }
   }
 
-  // --- Guard: the declared payment provider must be configured ------------
-  // Provider selection is EXPLICIT: PAYMENT_PROVIDER decides, never the
-  // mere presence of Razorpay keys (see src/lib/payments/provider.ts).
-  // Fails closed either way — nothing is charged unless the declared
-  // provider is fully configured.
+  // --- Guard: Dodo must be configured before anything is charged ----------
+  // Provider selection is EXPLICIT (src/lib/payments/provider.ts): a leftover
+  // PAYMENT_PROVIDER from the Razorpay/Lemon Squeezy era is an error, and
+  // missing Dodo credentials refuse the charge. Fails closed either way —
+  // nothing is charged unless Dodo is fully configured for this product.
   const selected = selectCheckoutProvider(line.slug);
   if (!selected.ok) {
     console.error(`[checkout] refusing to charge: ${selected.message}`);
@@ -330,21 +328,17 @@ export async function POST(request: Request) {
       { status: selected.code === "payment_provider_invalid" ? 500 : 503 }
     );
   }
-  const useRazorpay = selected.provider === "razorpay";
 
-  // --- Create our order record, then the provider checkout --------------
-  // The order is inserted FIRST (pending) so the provider confirmation can
-  // resolve the payment back to this row even if the customer never
-  // returns to the site.
+  // --- Create our order record, then the Dodo checkout ------------------
+  // The order is inserted FIRST (pending) so the Dodo webhook can resolve the
+  // payment back to this row even if the customer never returns to the site.
   const orderId = randomUUID();
 
   try {
     const order = await insertOrder({
       id: orderId,
-      lemon_squeezy_order_id: null,
-      lemon_squeezy_payment_id: null,
-      razorpay_order_id: null,
-      razorpay_payment_id: null,
+      provider_session_id: null,
+      provider_payment_id: null,
       email,
       user_id: userId,
       product_slug: line.slug,
@@ -352,7 +346,7 @@ export async function POST(request: Request) {
       amount: amountMinor,
       currency: CURRENCY,
       status: "pending",
-      provider: useRazorpay ? "razorpay" : "lemon-squeezy",
+      provider: "dodo",
       // Coupon trail — cents, alongside the charged amount. used_count is
       // maintained by the DB's pending→paid trigger, never here.
       ...(couponApplied
@@ -365,72 +359,37 @@ export async function POST(request: Request) {
         : {}),
     });
 
-    // --- Razorpay test path (0022) --------------------------------------
-    // Server creates the Razorpay order (receipt = our order id), stores
-    // the provider reference, and returns only PUBLIC data: the key id,
-    // the amount, and the razorpay order id. Confirmation is never the
-    // browser's word — /api/checkout/razorpay/verify re-checks the
-    // signature AND the payment itself against the Payments API.
-    if (useRazorpay) {
-      const rpOrder = await createRazorpayOrder({
-        amountMinor,
-        currency: CURRENCY,
-        receipt: orderId,
-        internalOrderId: orderId,
-      });
-      await updateOrderStatus(order.id, "pending", {
-        razorpayOrderId: rpOrder.id,
-      });
-
-      return NextResponse.json({
-        orderId: order.id,
-        provider: "razorpay",
-        razorpayOrderId: rpOrder.id,
-        // Public key id — designed to be embedded in the browser checkout.
-        razorpayKeyId: process.env.RAZORPAY_KEY_ID!.trim(),
-        amount: amountMinor,
-        currency: rpOrder.currency,
-        mode: razorpayMode(),
-        gateway: "razorpay",
-        productName: line.name,
-        quantity: line.qty,
-        seats: tier.seats,
-        perSeat: tier.perSeat,
-        discountPercent: tier.discountPercent,
-        subtotal: tier.subtotal,
-        total: tier.total,
-        coupon: couponApplied
-          ? {
-              code: couponApplied.code,
-              label: couponApplied.label,
-              discountMinor: couponApplied.discountMinor,
-            }
-          : null,
-      });
-    }
-
-    const checkout = await createLemonSqueezyCheckout({
+    const checkout = await createDodoCheckout({
       productSlug: line.slug,
       amountMinor,
+      // Same currency the order row was just written with: Dodo must present
+      // and charge in it, or the webhook's amount guard compares two scales.
+      currency: CURRENCY,
       email,
       internalOrderId: orderId,
-      productName: line.name,
-      redirectUrl: `${site.url}/checkout/complete?order=${orderId}`,
+      returnUrl: `${site.url}/checkout/complete?order=${orderId}`,
       cmRef: readReferralToken(request.headers),
+    });
+
+    // The Dodo session id is the checkout-side reference: it is what an
+    // operator looks up in the dashboard if the buyer abandons, and it is
+    // stored before the redirect so a pending order is never anonymous.
+    await updateOrderStatus(order.id, "pending", {
+      providerSessionId: checkout.sessionId,
     });
 
     return NextResponse.json({
       orderId: order.id,
-      // The hosted Lemon Squeezy checkout the browser is redirected to.
-      // The URL is public by design (signed, expiring) — the API key never
-      // leaves the server.
+      // The hosted Dodo checkout the browser is redirected to. The URL is
+      // public by design (single-use, expiring) — the API key never leaves
+      // the server.
       checkoutUrl: checkout.url,
       amount: amountMinor,
       currency: CURRENCY,
-      // Safe public configuration: the resolved store mode. Display-only
+      // Safe public configuration: the resolved account mode. Display-only
       // fact, never a credential.
-      mode: lemonSqueezyMode(),
-      gateway: "lemon-squeezy",
+      mode: dodoMode(),
+      gateway: "dodo",
       productName: line.name,
       quantity: line.qty,
       // Server-resolved team pricing, for display only.

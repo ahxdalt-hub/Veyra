@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 /**
  * AnimatedNumber — transitions a displayed numeric value smoothly
- * (e.g. $79 → $77 on a seat change) instead of jumping.
+ * (e.g. $79 → $75 on a seat change) instead of jumping.
  *
  * Reduced motion renders the final value immediately, per the motion
  * guidelines the rest of the commerce UI follows.

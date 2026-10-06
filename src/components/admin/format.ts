@@ -1,4 +1,5 @@
 import type { OrderStatus } from "@/lib/orders";
+import { CURRENCY } from "@/lib/site";
 
 /**
  * Formatting helpers for the command center. Single source of truth for
@@ -6,20 +7,24 @@ import type { OrderStatus } from "@/lib/orders";
  * formatting.
  */
 
-/** Cents → "$79.00" (USD; storefront currency — see src/lib/site.ts). */
-export function money(cents: number, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(
-    cents / 100
-  );
+/** Smallest unit → "$79.00" in the storefront currency (src/lib/site.ts).
+ *  Legacy orders still carry INR, so the locale follows the currency code. */
+export function money(cents: number, currency = CURRENCY): string {
+  const code = currency || CURRENCY;
+  return new Intl.NumberFormat(code === "INR" ? "en-IN" : "en-US", {
+    style: "currency",
+    currency: code,
+  }).format(cents / 100);
 }
 
-/** Cents → compact "$1.2k" for chart axes and tight columns. */
+/** Smallest unit → compact "$12k" for chart axes and tight columns. */
 export function moneyCompact(cents: number): string {
-  const dollars = cents / 100;
-  if (Math.abs(dollars) >= 1000) {
-    return `$${(dollars / 1000).toFixed(dollars % 1000 === 0 ? 0 : 1)}k`;
-  }
-  return `$${Math.round(dollars)}`;
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: CURRENCY,
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(cents / 100);
 }
 
 export function dateShort(iso: string | null | undefined): string {
@@ -63,6 +68,19 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   paid: "Paid",
   refunded: "Refunded",
 };
+
+/**
+ * orders.provider is free text ('dodo' / 'free-claim', plus 'razorpay' and
+ * 'lemon-squeezy' on rows written before the Dodo switch), stamped per order
+ * at checkout. It — not this deployment's current PAYMENT_PROVIDER — is what
+ * says which processor a historical order went through.
+ */
+export function providerLabel(provider: string | null): string {
+  if (provider === "free-claim") return "Free claim";
+  if (provider === "razorpay") return "Razorpay (legacy)";
+  if (provider === "lemon-squeezy") return "Lemon Squeezy (legacy)";
+  return "Dodo Payments";
+}
 
 export function shortId(id: string): string {
   return id.slice(0, 8).toUpperCase();

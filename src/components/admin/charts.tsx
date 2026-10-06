@@ -2,6 +2,7 @@
 
 import { useId, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
+import { CURRENCY } from "@/lib/site";
 
 /**
  * RevenueChart — a hand-built SVG line/area chart in the command
@@ -237,18 +238,24 @@ function niceStep(raw: number): number {
   return mult * pow;
 }
 
+const axisFmt = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: CURRENCY,
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+const fullFmt = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: CURRENCY,
+});
+
+/** `cents` is the orders-table smallest unit (cents for USD). */
 function axisMoney(cents: number): string {
-  const d = cents / 100;
-  if (d >= 1000) return `$${(d / 1000).toFixed(d % 1000 === 0 ? 0 : 1)}k`;
-  if (d === 0) return "$0";
-  return `$${Math.round(d)}`;
+  return axisFmt.format(cents / 100);
 }
 
 export function moneyFull(cents: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(cents / 100);
+  return fullFmt.format(cents / 100);
 }
 
 /* — BarRows: horizontal bars for breakdowns (products, top customers). — */

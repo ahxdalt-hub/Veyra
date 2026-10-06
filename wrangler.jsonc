@@ -19,20 +19,20 @@
    * and re-attaching an already-attached hostname is a no-op — so this is safe
    * to leave in permanently and a deploy can never detach it by accident.
    *
-   * `veyra.ahxd.workers.dev` is deliberately left serving as well: Lemon
-   * Squeezy delivers payment webhooks to a URL configured in their dashboard,
-   * and any existing links keep resolving. Retire it only after those have
-   * been moved over.
+   * `veyra.ahxd.workers.dev` is kept serving as well. It existed because an
+   * earlier gateway could only reach the Workers subdomain; Dodo's webhook is
+   * registered on the custom domain, so this is now only a link-compat
+   * concern and can be retired at any time.
    */
   "routes": [
     { "pattern": "veyra.caelmont.in", "custom_domain": true }
   ],
   /*
-   * MUST stay `true`. Wrangler disables the workers.dev subdomain by default
-   * when this key is absent, which silently 404s `veyra.ahxd.workers.dev` —
-   * that is the origin Lemon Squeezy delivers payment webhooks to, so
-   * disabling it drops orders. Only set this to `false` once the webhook URL
-   * in the Lemon Squeezy dashboard has been repointed at veyra.caelmont.in.
+   * MUST stay `true` until the workers.dev URL is confirmed unused. Wrangler
+   * disables the subdomain by default when this key is absent, which silently
+   * 404s `veyra.ahxd.workers.dev`. Dodo's webhook is registered on
+   * veyra.caelmont.in, so nothing payment-critical depends on it anymore —
+   * set it to `false` whenever you want the subdomain gone.
    */
   "workers_dev": true,
   "preview_urls": false,
@@ -43,7 +43,7 @@
   // identifier (NEXT_PUBLIC_* values are shipped to browsers on purpose and
   // are protected by Supabase RLS) or a display-only mode flag. Anything
   // sensitive — SUPABASE_SERVICE_ROLE_KEY, VEYRA_LICENCE_SIGNING_KEY,
-  // LEMONSQUEEZY_API_KEY, LEMONSQUEEZY_WEBHOOK_SECRET, RESEND_API_KEY,
+  // DODO_PAYMENTS_API_KEY, DODO_PAYMENTS_WEBHOOK_KEY, RESEND_API_KEY,
   // PARTNER_WEBHOOK_SECRET (shared with Caelmont's /api/partners/webhook —
   // MUST equal the value on caelmont.in or signed attribution events are
   // rejected with 401), and
@@ -61,12 +61,38 @@
     "NEXT_PUBLIC_SUPABASE_URL": "https://otqucrqcefdychplbbtq.supabase.co",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90cXVjcnFjZWZkeWNocGxiYnRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMjA3MDksImV4cCI6MjEwNDY5NjcwOX0.k4lAS0BTHEqpi6GgVEymZK0-XCjLxYIsStBLxeFIs9g",
     "SUPABASE_DELIVERY_BUCKET": "product-downloads",
-    // Explicit provider selection (see src/lib/payments/provider.ts).
-    // "lemonsqueezy" is production; Razorpay keys never reroute checkout
-    // unless this is changed to "razorpay".
-    "PAYMENT_PROVIDER": "lemonsqueezy",
-    "LEMONSQUEEZY_MODE": "test",
-    "LEMONSQUEEZY_STORE_ID": "485404",
+    // Explicit provider selection (see src/lib/payments/provider.ts). Only
+    // "dodo" is accepted now — the Razorpay and Lemon Squeezy code paths are
+    // removed, and any other value fails closed with payment_provider_invalid.
+    // Dodo is a MERCHANT OF RECORD: it is the legal seller, it calculates and
+    // remits sales tax/VAT, and "Dodo Payments" is what appears on the
+    // customer's bank statement.
+    "PAYMENT_PROVIDER": "dodo",
+    // "test_mode" or "live_mode". Decides the API base URL
+    // (test.dodopayments.com / live.dodopayments.com) and the mode banner.
+    // Dodo API keys are mode-scoped, so this MUST match the bound
+    // DODO_PAYMENTS_API_KEY — a live key with test_mode here 401s at checkout.
+    // Held at test_mode: the live account is not enabled yet (Dodo business
+    // verification returns MERCHANT_NOT_LIVE), so a live-mode deploy would
+    // refuse every checkout. Flip when the live key is bound.
+    "DODO_PAYMENTS_ENVIRONMENT": "test_mode",
+    // One product id per PAID product, from the Dodo dashboard. Product ids
+    // are public identifiers, not secrets, so they live here. Each product
+    // MUST be "Pay What You Want" priced at $1.00, or Dodo ignores the amount
+    // Veyra computes server-side and silently charges the stored price.
+    // The Growth Audit is free — /api/claim never contacts a processor, so it
+    // needs no product id. Fill this in or bind it with `wrangler secret put`;
+    // `npm run dodo:setup` prints the exact lines.
+    // Product ids are MODE-SCOPED: this is the test-mode product
+    // ("Veyra Client Growth System", PWYW at $1.00 in USD, verified against
+    // the test API on 2026-10-05). When Dodo live mode is enabled, create the
+    // same product there and replace this id — a test id returns 404 from the
+    // live API and checkout fails closed.
+    "DODO_PAYMENTS_PRODUCT_ID_CLIENT_GROWTH_SYSTEM": "pdt_0Np5RynjbKvhYoRFnYtQj",
+    // DODO_PAYMENTS_API_KEY and DODO_PAYMENTS_WEBHOOK_KEY are secrets and are
+    // NOT here: `wrangler secret put DODO_PAYMENTS_API_KEY` etc. Without them
+    // checkout refuses to start (payments_not_configured) instead of
+    // mis-billing.
     // Sender for transactional email (checklist PDF, purchase receipts).
     // Currently the Resend SANDBOX sender — Resend only delivers it to the
     // account owner's inbox until a sending domain is verified at

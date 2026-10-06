@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { couponErrorMessage, validateCoupon } from "@/lib/coupons";
 import { checkoutAmountMinor, MAX_SEATS } from "@/lib/pricing";
+import { getFoundingStatus } from "@/lib/founding";
 
 /**
  * POST /api/coupons/validate — coupon preview at checkout.
@@ -37,7 +38,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ valid: false, reason: "not_found" }, { status: 422 });
   }
 
-  const subtotalDollars = Math.round(checkoutAmountMinor(seats) / 100);
+  // Same ladder the checkout charges from — a coupon's minimum-subtotal
+  // test must be measured against the price the buyer actually pays.
+  const foundingActive = (await getFoundingStatus()) === "active";
+  const subtotalDollars = Math.round(checkoutAmountMinor(seats, foundingActive) / 100);
   const verdict = await validateCoupon(code, email.trim().toLowerCase(), subtotalDollars);
   if (!verdict) {
     return NextResponse.json(

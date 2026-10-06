@@ -9,6 +9,7 @@ import {
   supabaseUrl,
 } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { describeAuthError, isDefinitiveSignOut } from "@/lib/supabase/errors";
 
 /**
  * Admin authentication — the gate to the Veyra Command Center.
@@ -36,6 +37,24 @@ export function adminAuthConfigured(): boolean {
   return supabaseAuthConfigured() && supabaseAdminConfigured();
 }
 
+/**
+ * The role check could not be COMPLETED — Supabase was unreachable, 5xx,
+ * rate-limited, or rejected our service-role key.
+ *
+ * This is deliberately NOT the same as a verdict of "not an admin". The two
+ * lead to different screens and conflating them is the bug this class fixes:
+ * a transient blip used to fall through to `null`, which bounced a signed-in
+ * admin to the sign-in page, where the missing session then looked like a
+ * problem with their account. Callers catch this and offer a retry; a real
+ * "you are not an admin" still returns null.
+ */
+export class AdminRoleCheckError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AdminRoleCheckError";
+  }
+}
+
 /** The authoritative admin check for one user id (fresh DB read). */
 async function isAdminUser(userId: string): Promise<boolean> {
   if (!supabaseAdminConfigured()) return false;
@@ -43,7 +62,14 @@ async function isAdminUser(userId: string): Promise<boolean> {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data, error } = await admin.auth.admin.getUserById(userId);
-  if (error) return false;
+  if (error) {
+    // A deleted/demoted account is a verdict: this session is not an
+    // admin's. Anything else is us failing to read, not an answer.
+    const status = (error as { status?: number } | undefined)?.status;
+    if (status === 404 || /not found/i.test(error.message ?? "")) return false;
+    console.error("[admin] role read unavailable:", describeAuthError(error));
+    throw new AdminRoleCheckError(`Admin role check failed: ${error.message}`);
+  }
   return (data.user?.app_metadata as { role?: string } | undefined)?.role === "admin";
 }
 
@@ -54,9 +80,31 @@ export async function requireAdmin(): Promise<
 > {
   if (!adminAuthConfigured()) return null;
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser(); // validates the JWT against the auth server
+  let session: Awaited<ReturnType<typeof supabase.auth.getUser>>;
+  try {
+    // Validates the JWT against the auth server — a local cookie decode is
+    // never enough.
+    session = await supabase.auth.getUser();
+  } catch (err) {
+    // @supabase/ssr also THROWS here (a refresh token Supabase has rotated
+    // out or no longer knows is the common case). An uncaught throw is what
+    // made every anonymous hit on /admin/sign-in a 500.
+    const auth = err as { name?: string; status?: number; message?: string };
+    if (isDefinitiveSignOut(auth)) return null;
+    console.error("[admin] session verification threw:", describeAuthError(err));
+    throw new AdminRoleCheckError(
+      `Session verification failed: ${auth.message ?? String(err)}`
+    );
+  }
+  const { data, error } = session;
+  if (error && !data.user) {
+    // A rejected/expired session is a verdict — sign in again. Only a
+    // Supabase we could not reach is a hiccup worth retrying.
+    if (isDefinitiveSignOut(error)) return null;
+    console.error("[admin] session verification unavailable:", describeAuthError(error));
+    throw new AdminRoleCheckError(`Session verification failed: ${error.message}`);
+  }
+  const user = data.user;
   if (!user) return null;
 
   // Fast path: JWT already carries app_metadata.role. Re-verify against
@@ -70,9 +118,17 @@ export async function requireAdmin(): Promise<
   return null;
 }
 
-/** Non-redirecting probe for the login page (already-signed-in check). */
+/** Non-redirecting probe for the login page (already-signed-in check).
+ *  Never throws: the sign-in page has no retry UI, and when the role check
+ *  can't complete the honest thing to show there is the form — submitting it
+ *  runs the real gate again. */
 export async function getAdminOrNull() {
-  return requireAdmin();
+  try {
+    return await requireAdmin();
+  } catch (err) {
+    if (err instanceof AdminRoleCheckError) return null;
+    throw err;
+  }
 }
 
 /** Sign out the current session (called from the server action). */

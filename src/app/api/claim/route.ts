@@ -147,10 +147,8 @@ export async function POST(request: Request) {
     const orderId = randomUUID();
     order = await insertOrder({
       id: orderId,
-      lemon_squeezy_order_id: null,
-      lemon_squeezy_payment_id: null,
-    razorpay_order_id: null,
-    razorpay_payment_id: null,
+      provider_session_id: null,
+      provider_payment_id: null,
       email,
       user_id: user.id,
       product_slug: slug,

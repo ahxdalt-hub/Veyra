@@ -16,19 +16,20 @@ import { AnimatedNumber } from "@/components/motion/animated-number";
  *
  * Flow:
  *   1. POST /api/checkout with slugs + email ONLY. The server resolves the
- *      amount from the catalog and creates a hosted Lemon Squeezy checkout.
+ *      amount from the catalog and creates a hosted Dodo Payments checkout.
  *   2. The browser is redirected to that checkout; the customer pays there.
- *   3. Lemon Squeezy redirects back to /checkout/complete?order=<id>, where
- *      the result page polls the ORDERS TABLE. Confirmation comes only from
- *      the signed order_created webhook — the redirect back here is
- *      decoration, never proof.
+ *   3. Dodo redirects back to /checkout/complete?order=<id>, where the
+ *      result page polls the ORDERS TABLE. Confirmation comes only from the
+ *      signed webhook — the redirect back here is decoration, never proof.
  *
  * UI states: idle → creating → redirecting on success; failed / cancelled /
  * not-configured are explicit, recoverable states.
  *
- * `mode` / `configured` are resolved SERVER-SIDE (page.tsx) from env
- * presence only — no credential ever crosses into this component. They are
- * display facts so a test-mode deployment says so honestly.
+ * `mode` / `configured` / `processorName` are resolved SERVER-SIDE
+ * (page.tsx) from env presence only — no credential ever crosses into this
+ * component. They are display facts so a test-mode deployment says so
+ * honestly, and so the page can name the processor that actually takes the
+ * money.
  */
 
 type CheckoutProps = {
@@ -37,9 +38,8 @@ type CheckoutProps = {
   /** Whether payment credentials exist. When false the page states
    *  plainly that payments aren't enabled yet. */
   configured: boolean;
-  /** 0022 — which gateway /api/checkout will use: Razorpay when its test
-   *  keys are set (local development), else Lemon Squeezy (production). */
-  provider: "lemon-squeezy" | "razorpay";
+  /** The processor taking checkout right now, from paymentProcessorCopy(). */
+  processorName: string;
 };
 
 type Phase =
@@ -49,52 +49,7 @@ type Phase =
   | "failed"
   | "not-configured";
 
-/* Razorpay Checkout.js — loaded on demand, typed minimally. The handler
- * response is POSTed to /api/checkout/razorpay/verify, which re-verifies
- * everything server-side; this client never asserts payment success. */
-type RazorpayHandlerResponse = {
-  razorpay_order_id: string;
-  razorpay_payment_id: string;
-  razorpay_signature: string;
-};
-
-type RazorpayOptions = {
-  key: string;
-  amount: number;
-  currency: string;
-  name: string;
-  description?: string;
-  order_id: string;
-  prefill?: { email?: string };
-  theme?: { color?: string };
-  handler: (response: RazorpayHandlerResponse) => void;
-  modal?: { ondismiss?: () => void };
-};
-
-declare global {
-  interface Window {
-    Razorpay?: new (options: RazorpayOptions) => { open: () => void };
-  }
-}
-
-function loadRazorpayScript(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (window.Razorpay) return resolve();
-    const existing = document.querySelector<HTMLScriptElement>(
-      'script[src="https://checkout.razorpay.com/v1/checkout.js"]'
-    );
-    const script = existing ?? document.createElement("script");
-    const done = () => (window.Razorpay ? resolve() : reject(new Error("Razorpay failed to load")));
-    script.addEventListener("load", done, { once: true });
-    script.addEventListener("error", () => reject(new Error("Razorpay failed to load")), { once: true });
-    if (!existing) {
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      document.head.appendChild(script);
-    }
-  });
-}
-
-export default function CheckoutClient({ mode, configured, provider }: CheckoutProps) {
+export default function CheckoutClient({ mode, configured, processorName }: CheckoutProps) {
   const router = useRouter();
   const { detailedLines } = useCart();
 
@@ -180,12 +135,8 @@ export default function CheckoutClient({ mode, configured, provider }: CheckoutP
         code?: string;
         orderId?: string;
         checkoutUrl?: string;
-        provider?: "lemon-squeezy" | "razorpay";
-        razorpayOrderId?: string;
-        razorpayKeyId?: string;
         amount?: number;
         currency?: string;
-        productName?: string;
         free?: boolean;
         status?: string;
       };
@@ -204,80 +155,11 @@ export default function CheckoutClient({ mode, configured, provider }: CheckoutP
         return;
       }
 
-      // Razorpay path (0022 test provider): open Razorpay Checkout in a
-      // modal. Confirmation is NOT this page's job — the handler's response
-      // goes to /api/checkout/razorpay/verify, which re-verifies the
-      // signature AND the payment server-side before the order turns paid.
-      if (res.ok && data.orderId && data.razorpayOrderId && data.razorpayKeyId) {
-        setPhase("redirecting");
-        try {
-          await loadRazorpayScript();
-          if (!window.Razorpay) throw new Error("Razorpay failed to load");
-          const rzp = new window.Razorpay({
-            key: data.razorpayKeyId,
-            amount: data.amount ?? 0,
-            currency: data.currency ?? "INR",
-            name: "Veyra",
-            description: data.productName ?? "Veyra purchase",
-            order_id: data.razorpayOrderId,
-            prefill: { email },
-            theme: { color: "#23201A" },
-            handler: (response) => {
-              void (async () => {
-                try {
-                  const vres = await fetch("/api/checkout/razorpay/verify", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      orderId: data.orderId,
-                      razorpay_order_id: response.razorpay_order_id,
-                      razorpay_payment_id: response.razorpay_payment_id,
-                      razorpay_signature: response.razorpay_signature,
-                    }),
-                  });
-                  const vdata = (await vres.json().catch(() => ({}))) as {
-                    ok?: boolean;
-                    error?: string;
-                  };
-                  if (vres.ok && vdata.ok) {
-                    router.replace(`/checkout/complete?order=${data.orderId}`);
-                    return;
-                  }
-                  setPhase("failed");
-                  setError(
-                    vdata.error ??
-                      "We couldn't confirm your payment. If money left your account it is safe — try again in a moment."
-                  );
-                } catch {
-                  setPhase("failed");
-                  setError(
-                    "We lost the connection while confirming your payment. If money left your account it is safe — try again in a moment."
-                  );
-                }
-              })();
-            },
-            modal: {
-              ondismiss: () => {
-                setPhase("failed");
-                setError(
-                  "The payment window was closed before completing. Nothing was confirmed — you can try again whenever you're ready."
-                );
-              },
-            },
-          });
-          rzp.open();
-        } catch {
-          setPhase("failed");
-          setError("We couldn't open the payment window. Please try again.");
-        }
-        return;
-      }
-
       if (!res.ok || !data.orderId || !data.checkoutUrl) {
         throw new Error(data.error ?? "We couldn't start your payment.");
       }
 
-      // 2. Hand the customer over to Lemon Squeezy's hosted checkout.
+      // 2. Hand the customer over to the hosted processor checkout.
       //    Confirmation is NOT this page's job — the webhook confirms, and
       //    /checkout/complete reads the orders table.
       setPhase("redirecting");
@@ -360,10 +242,7 @@ export default function CheckoutClient({ mode, configured, provider }: CheckoutP
                   One product, one payment, delivered digitally. You&rsquo;re
                   buying licences for{" "}
                   {tier.seats === 1 ? "1 seat" : `${tier.seats} seats`} —
-                  confirm the amount in{" "}
-                  {provider === "razorpay"
-                    ? "the secure payment window"
-                    : "Lemon Squeezy’s secure checkout"}{" "}
+                  confirm the amount in {processorName}&rsquo;s secure checkout
                   before anything is charged.
                 </>
               )}
@@ -421,19 +300,13 @@ export default function CheckoutClient({ mode, configured, provider }: CheckoutP
                 </Button>
 
                 <p className="mt-3 text-center text-xs text-ink-4">
-                  {provider === "razorpay"
-                    ? "Processed through a secure payment gateway"
-                    : "Processed by Lemon Squeezy"}{" "}
-                  · {REFUND_WINDOW_LABEL}
+                  Processed by {processorName} · {REFUND_WINDOW_LABEL}
                 </p>
 
                 {mode === "test" ? (
                   <p className="mt-4 rounded-sm border border-line bg-paper px-3 py-2 text-center text-xs leading-relaxed text-ink-3">
                     <span className="font-medium text-ink-2">Test mode.</span>{" "}
-                    This deployment runs{" "}
-                    {provider === "razorpay"
-                      ? "Razorpay’s test checkout"
-                      : "Lemon Squeezy’s test checkout"}{" "}
+                    This deployment runs {processorName}&rsquo;s test checkout
                     — no real money moves and live cards are never accepted.
                   </p>
                 ) : null}

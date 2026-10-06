@@ -7,6 +7,7 @@ import {
   supabaseUrl,
 } from "@/lib/supabase/config";
 import type { Database } from "@/lib/supabase/types";
+import { CURRENCY } from "@/lib/site";
 
 /**
  * Notification writers — the single funnel from server events to the
@@ -60,11 +61,13 @@ async function insert(row: {
   }
 }
 
-/** Format cents → $12.00 (USD is the storefront currency). */
-export function money(cents: number, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(
-    cents / 100
-  );
+/** Smallest unit → "$79.00" in the storefront currency. */
+export function money(cents: number, currency = CURRENCY): string {
+  const code = currency || CURRENCY;
+  return new Intl.NumberFormat(code === "INR" ? "en-IN" : "en-US", {
+    style: "currency",
+    currency: code,
+  }).format(cents / 100);
 }
 
 export function notifyNewSale(input: {

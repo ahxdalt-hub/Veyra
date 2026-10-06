@@ -10,18 +10,23 @@
  * Status lifecycle — deliberate three-state machine for one-time
  * purchases (0026 tightened the DB check to match; nothing else is
  * reachable, so nothing else is representable):
- *   pending → paid      (verified Lemon Squeezy order_created webhook or
- *                        the re-verified Razorpay callback)
- *   paid   → refunded   (Lemon Squeezy order_refunded webhook / dashboard)
+ *   pending → paid      (verified Dodo Payments payment.succeeded webhook)
+ *   paid   → refunded   (Dodo payment_refunded webhook / dashboard)
  * An abandoned hosted checkout simply stays pending — no event fires, and
  * inventing a "failed"/"cancelled" marker from silence would be a lie.
  *
- * WEBHOOKS: /api/webhooks/lemonsqueezy confirms 'pending' orders through
- * the checkout's custom data (the internal order id rides along on every
- * order event), making this table the source of truth even when the
- * customer's browser never returns from the hosted checkout. The
- * conditional status transitions prevent a late event from overwriting a
- * resolved order.
+ * WEBHOOKS: /api/webhooks/dodo confirms 'pending' orders through the
+ * checkout's metadata (the internal order id rides along on every payment
+ * event), making this table the source of truth even when the customer's
+ * browser never returns from the hosted checkout. The conditional status
+ * transitions prevent a late event from overwriting a resolved order.
+ *
+ * Provider references live in the processor-agnostic columns the schema has
+ * carried since the Stripe era (0010): `provider_session_id` holds the Dodo
+ * checkout session id (`cks_…`) created at checkout, `provider_payment_id`
+ * the Dodo payment id (`pay_…`) confirmed by the webhook. 0028 backfills the
+ * pre-Dodo rows into them and drops the gateway-named columns, so history
+ * survives in one pair — `provider` names the processor that took the money.
  */
 
 import { FLAGSHIP_SLUG, revalidateFoundingStatus } from "@/lib/founding";
@@ -29,16 +34,14 @@ import { FLAGSHIP_SLUG, revalidateFoundingStatus } from "@/lib/founding";
 export type OrderStatus = "pending" | "paid" | "refunded";
 
 export type Order = {
-  /** Internal order id (uuid, used in URLs and in the checkout's custom data). */
+  /** Internal order id (uuid, used in URLs and in the checkout's metadata). */
   id: string;
-  /** Lemon Squeezy's human order id (e.g. "VEYRA-XXXX"), set on confirmation. */
-  lemon_squeezy_order_id: string | null;
-  /** Lemon Squeezy order uuid — the provider payment reference. */
-  lemon_squeezy_payment_id: string | null;
-  /** 0022 — Razorpay order id (test provider); null on Lemon Squeezy checkout. */
-  razorpay_order_id: string | null;
-  /** 0022 — Razorpay payment id, written when the payment signature verifies. */
-  razorpay_payment_id: string | null;
+  /** The processor's checkout reference — Dodo's session id (`cks_…`),
+   *  stamped when checkout creates the hosted session. */
+  provider_session_id: string | null;
+  /** The processor's payment reference — Dodo's payment id, written on
+   *  confirmation. This is what a refund is issued against. */
+  provider_payment_id: string | null;
   email: string;
   /** Owning auth user, when the purchase is (or becomes) tied to a
    *  Veyra account. Guest orders stay null until claimed by the
@@ -47,8 +50,8 @@ export type Order = {
   product_slug: string;
   quantity: number;
   /** Smallest currency unit — cents. Always server-computed. This is the
-   *  authoritative CHARGED amount: what Lemon Squeezy was asked for
-   *  (custom_price), pre-tax. */
+   *  authoritative CHARGED amount: what Dodo was asked for, excluding any
+   *  sales tax the merchant of record adds on top. */
   amount: number;
   currency: string;
   status: OrderStatus;
@@ -65,7 +68,7 @@ export type Order = {
   coupon_code: string | null;
   /** When the payment was confirmed (set on the pending→paid transition). */
   paid_at: string | null;
-  /** Payment provider label ('lemon-squeezy' / 'free-claim'); informational. */
+  /** Payment processor label ('dodo' / 'free-claim'); informational. */
   provider: string | null;
   created_at: string;
   updated_at: string;
@@ -87,8 +90,6 @@ export type NewOrder = Omit<
       | "total"
       | "coupon_code"
       | "provider"
-      | "razorpay_order_id"
-      | "razorpay_payment_id"
     >
   >;
 
@@ -146,8 +147,6 @@ export async function insertOrder(
       paid_at: null,
       provider: null,
       ...order,
-      razorpay_order_id: order.razorpay_order_id ?? null,
-      razorpay_payment_id: order.razorpay_payment_id ?? null,
       created_at: now,
       updated_at: now,
     };
@@ -189,77 +188,27 @@ export async function getOrder(id: string): Promise<Order | null> {
   return rows[0] ?? null;
 }
 
-/** Look up an order by its Lemon Squeezy order id — the provider reference
- *  written at confirmation. Reconciliation aid; the webhook itself keys on
- *  the internal order id carried in the checkout's custom data. */
-export async function getOrderByLemonSqueezyOrderId(
-  lemonSqueezyOrderId: string
+/** Look up an order by the processor's confirmed payment id — how a refund
+ *  webhook resolves a refund back to the internal order row when the event
+ *  carries no metadata of ours. */
+export async function getOrderByProviderPaymentId(
+  providerPaymentId: string
 ): Promise<Order | null> {
-  if (!supabaseConfigured()) {
-    for (const row of devStore.values()) {
-      if (row.lemon_squeezy_order_id === lemonSqueezyOrderId) return row;
-    }
-    return null;
-  }
-
-  const url = `${supabaseUrl()}?lemon_squeezy_order_id=eq.${encodeURIComponent(
-    lemonSqueezyOrderId
-  )}&select=*`;
-  const res = await fetch(url, {
-    headers: supabaseHeaders(),
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`Order fetch failed (${res.status}): ${detail}`);
-  }
-  const rows = (await res.json()) as Order[];
-  return rows[0] ?? null;
+  return fetchOneByColumn("provider_payment_id", providerPaymentId);
 }
 
-/** Look up an order by its Razorpay order id (0022 test provider) — how
- *  the signed webhook and the verify route resolve a payment back to the
- *  internal order row. */
-export async function getOrderByRazorpayOrderId(
-  razorpayOrderId: string
+async function fetchOneByColumn(
+  column: "provider_session_id" | "provider_payment_id",
+  value: string
 ): Promise<Order | null> {
   if (!supabaseConfigured()) {
     for (const row of devStore.values()) {
-      if (row.razorpay_order_id === razorpayOrderId) return row;
+      if (row[column] === value) return row;
     }
     return null;
   }
 
-  const url = `${supabaseUrl()}?razorpay_order_id=eq.${encodeURIComponent(
-    razorpayOrderId
-  )}&select=*`;
-  const res = await fetch(url, {
-    headers: supabaseHeaders(),
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`Order fetch failed (${res.status}): ${detail}`);
-  }
-  const rows = (await res.json()) as Order[];
-  return rows[0] ?? null;
-}
-
-/** Look up an order by its Razorpay payment id (0022) — how the refund
- *  webhook resolves a refund back to the internal order row. */
-export async function getOrderByRazorpayPaymentId(
-  razorpayPaymentId: string
-): Promise<Order | null> {
-  if (!supabaseConfigured()) {
-    for (const row of devStore.values()) {
-      if (row.razorpay_payment_id === razorpayPaymentId) return row;
-    }
-    return null;
-  }
-
-  const url = `${supabaseUrl()}?razorpay_payment_id=eq.${encodeURIComponent(
-    razorpayPaymentId
-  )}&select=*`;
+  const url = `${supabaseUrl()}?${column}=eq.${encodeURIComponent(value)}&select=*`;
   const res = await fetch(url, {
     headers: supabaseHeaders(),
     cache: "no-store",
@@ -318,10 +267,8 @@ export async function updateOrderStatus(
   status: OrderStatus,
   options?: {
     expectedCurrent?: OrderStatus;
-    lemonSqueezyOrderId?: string | null;
-    lemonSqueezyPaymentId?: string | null;
-    razorpayOrderId?: string | null;
-    razorpayPaymentId?: string | null;
+    providerSessionId?: string | null;
+    providerPaymentId?: string | null;
   }
 ): Promise<Order | null> {
   if (!supabaseConfigured()) {
@@ -337,14 +284,9 @@ export async function updateOrderStatus(
       ...row,
       status,
       updated_at: new Date().toISOString(),
-      lemon_squeezy_order_id:
-        options?.lemonSqueezyOrderId ?? row.lemon_squeezy_order_id,
-      lemon_squeezy_payment_id:
-        options?.lemonSqueezyPaymentId ?? row.lemon_squeezy_payment_id,
-      razorpay_order_id:
-        options?.razorpayOrderId ?? row.razorpay_order_id,
-      razorpay_payment_id:
-        options?.razorpayPaymentId ?? row.razorpay_payment_id,
+      provider_session_id: options?.providerSessionId ?? row.provider_session_id,
+      provider_payment_id:
+        options?.providerPaymentId ?? row.provider_payment_id,
       paid_at: status === "paid" && !row.paid_at ? new Date().toISOString() : row.paid_at,
     };
     devStore.set(id, next);
@@ -361,17 +303,11 @@ export async function updateOrderStatus(
     status,
     updated_at: new Date().toISOString(),
   };
-  if (options?.lemonSqueezyOrderId) {
-    body.lemon_squeezy_order_id = options.lemonSqueezyOrderId;
+  if (options?.providerSessionId) {
+    body.provider_session_id = options.providerSessionId;
   }
-  if (options?.lemonSqueezyPaymentId) {
-    body.lemon_squeezy_payment_id = options.lemonSqueezyPaymentId;
-  }
-  if (options?.razorpayOrderId) {
-    body.razorpay_order_id = options.razorpayOrderId;
-  }
-  if (options?.razorpayPaymentId) {
-    body.razorpay_payment_id = options.razorpayPaymentId;
+  if (options?.providerPaymentId) {
+    body.provider_payment_id = options.providerPaymentId;
   }
   // Confirm the payment instant. The DB trigger (0014) is the authoritative
   // stamper; writing it here keeps the API layer self-describing and the

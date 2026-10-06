@@ -4,6 +4,8 @@ import { LOGO_URL, ORGANIZATION_ID } from "@/lib/seo";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { FoundingBanner } from "@/components/layout/founding-banner";
+import { getFoundingStatus } from "@/lib/founding";
+import { FoundingActiveProvider } from "@/components/layout/founding-context";
 import { CartProvider } from "@/components/cart/cart-context";
 import { HeaderSearchProvider } from "@/components/search/search-context";
 
@@ -47,11 +49,14 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function SiteLayout({
+export default async function SiteLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // One read of the founding allocation for the whole tree: the banner shows
+  // it and the cart prices from it, so no surface can quote the other ladder.
+  const foundingActive = (await getFoundingStatus()) === "active";
   const orgJsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -74,7 +79,8 @@ export default function SiteLayout({
         Skip to content
       </a>
       <HeaderSearchProvider>
-        <CartProvider>
+        <FoundingActiveProvider value={foundingActive}>
+        <CartProvider foundingActive={foundingActive}>
           <FoundingBanner />
           <Header />
           <main id="main" className="flex-1">
@@ -82,6 +88,7 @@ export default function SiteLayout({
           </main>
           <Footer />
         </CartProvider>
+        </FoundingActiveProvider>
       </HeaderSearchProvider>
       <script
         type="application/ld+json"

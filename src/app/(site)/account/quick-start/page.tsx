@@ -210,11 +210,11 @@ export default async function QuickStartPage() {
           </h2>
           <ol className="mt-4 space-y-3">
             {[
-              "Download the latest version for Windows or Mac from your product page.",
-              "Install it — on Windows, run the installer (no admin rights required); on Mac, drag the app into Applications.",
-              "Launch the app and sign in with your Veyra account (the email on your order).",
-              "The app verifies your licence with Veyra automatically — your seats and entitlement are confirmed server-side.",
-              "Once verified, the system unlocks and the in-app welcome walks you through setup.",
+              "Download the latest build for Windows or Mac from your product page.",
+              "Install it — on Windows, run the installer (no admin rights required); on Mac, open the disk image and drag Client Growth System into Applications.",
+              "Launch the app and fill in the two fields on the activation screen: your licence key (it looks like VY-XXXX-XXXX-XXXX and is listed under Account → Licences) and the email address on your order.",
+              "The app verifies your licence with Veyra once — your seats and entitlement are confirmed server-side — then runs fully offline.",
+              "You open on the dashboard. Start in BUILD, complete Foundation, then work the remaining phases in order.",
             ].map((line, i) => (
               <li key={line} className="flex gap-3.5">
                 <span
@@ -237,9 +237,33 @@ export default async function QuickStartPage() {
               Open your product page
             </Button>
           </div>
+
+          <div className="mt-4 space-y-3">
+            <div className="rounded-sm border border-line bg-paper px-4 py-3.5">
+              <h3 className="spec text-ink-3">Note for macOS users</h3>
+              <p className="mt-1.5 max-w-lg text-sm leading-relaxed text-ink-2">
+                Because the app is independently built, you will see a
+                &ldquo;developer cannot be verified&rdquo; warning the first time
+                you open it. To open it past that warning, right-click
+                (or Control-click) the application icon in your Applications
+                folder and select &ldquo;Open&rdquo; from the menu. It launches
+                normally from then on.
+              </p>
+            </div>
+            <div className="rounded-sm border border-line bg-paper px-4 py-3.5">
+              <h3 className="spec text-ink-3">Note for Windows users</h3>
+              <p className="mt-1.5 max-w-lg text-sm leading-relaxed text-ink-2">
+                On a fresh build, SmartScreen can show &ldquo;Windows protected
+                your PC&rdquo;. Choose &ldquo;More info&rdquo;, then
+                &ldquo;Run anyway&rdquo;. The installer runs per-user and needs no
+                administrator rights.
+              </p>
+            </div>
+          </div>
+
           <p className="mt-3 text-xs leading-relaxed text-ink-4">
             Your licence stays active after installation — verification happens
-            at sign-in, so updates never need a new purchase.
+            when you activate a device, so updates never need a new purchase.
           </p>
         </AccountCard>
 

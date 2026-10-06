@@ -12,10 +12,12 @@ import { clampSeats } from "@/lib/pricing";
 import { insertOrder, updateOrderStatus, type Order } from "@/lib/orders";
 import { grantPurchaseForOrder } from "@/lib/fulfillment";
 import { revokeAccessForOrder } from "@/lib/refunds";
-import { refundLemonSqueezyOrder } from "@/lib/lemon-squeezy";
+import { refundDodoPayment } from "@/lib/dodo-payments";
+import { providerLabel } from "@/components/admin/format";
 import { notifyLicenceEvent } from "@/lib/admin/notifications";
 import { getCustomerProfile, getOrderDetail } from "@/lib/admin/data";
 import type { Database } from "@/lib/supabase/types";
+import { CURRENCY } from "@/lib/site";
 
 /**
  * Terminal — operational commands for the command center, one step past
@@ -79,15 +81,23 @@ function dbGuard(): TerminalResult | null {
 }
 
 /**
- * Resolve an order from a pasted reference: the internal uuid, or Lemon
- * Squeezy's human order id (e.g. "VEYRA-ABCD1").
+ * Resolve an order from a pasted reference: the internal uuid, or the
+ * provider's own references (a Dodo session `cks_…` / payment `pay_…`, or
+ * whatever a pre-Dodo row carries in the same columns), since orders
+ * outlive whichever processor is active.
  */
 async function resolveOrder(
   db: ReturnType<typeof admin>,
   query: string
 ): Promise<{ order: Order | null; error?: string }> {
   const q = query.trim();
-  if (!q) return { order: null, error: "Enter an order reference — the internal id or the Lemon Squeezy order id (VEYRA-…)." };
+  if (!q) {
+    return {
+      order: null,
+      error:
+        "Enter an order reference — the internal id, a Dodo payment id (pay_…), or a Dodo checkout session id (cks_…).",
+    };
+  }
 
   if (UUID_RE.test(q)) {
     const { data, error } = await db.from("orders").select("*").eq("id", q).maybeSingle();
@@ -95,21 +105,29 @@ async function resolveOrder(
     return { order: (data as Order) ?? null };
   }
 
-  const { data, error } = await db
-    .from("orders")
-    .select("*")
-    .ilike("lemon_squeezy_order_id", q)
-    .limit(2);
-  if (error) return { order: null, error: `Order lookup failed: ${error.message}` };
-  if (!data?.length) return { order: null, error: `No order found for "${q}".` };
-  if (data.length > 1) return { order: null, error: `That reference matched ${data.length} orders — paste the full id.` };
-  return { order: data[0] as Order };
+  // Sequential, not an .or() filter: the query is operator-typed free text,
+  // and a comma in it would rewrite a filter string.
+  for (const column of ["provider_payment_id", "provider_session_id"] as const) {
+    const { data, error } = await db
+      .from("orders")
+      .select("*")
+      .ilike(column, q)
+      .limit(2);
+    if (error) return { order: null, error: `Order lookup failed: ${error.message}` };
+    if (data?.length) {
+      if (data.length > 1) {
+        return { order: null, error: `That reference matched ${data.length} orders — paste the full id.` };
+      }
+      return { order: data[0] as Order };
+    }
+  }
+  return { order: null, error: `No order found for "${q}".` };
 }
 
 function orderSummaryLines(order: Order): TerminalLine[] {
   const product = getProduct(order.product_slug);
   return [
-    info(`order      ${shortRef(order.id)}  (${order.lemon_squeezy_order_id ?? "no LS ref"})`),
+    info(`order      ${shortRef(order.id)}  (${order.provider_session_id ?? order.provider_payment_id ?? "no provider ref"})`),
     info(`customer   ${order.email}`),
     info(`product    ${product?.name ?? order.product_slug}  ×${order.quantity}`),
     info(`status     ${order.status} · ${fmtMoney(order.amount, order.currency)} · ${order.created_at.slice(0, 10)}`),
@@ -255,16 +273,14 @@ export async function terminalGrantAccessAction(params: {
 
   const order = await insertOrder({
     id: crypto.randomUUID(),
-    lemon_squeezy_order_id: null,
-    lemon_squeezy_payment_id: null,
-    razorpay_order_id: null,
-    razorpay_payment_id: null,
+    provider_session_id: null,
+    provider_payment_id: null,
     email,
     user_id: userId,
     product_slug: params.productSlug,
     quantity: seats,
     amount,
-    currency: "USD",
+    currency: CURRENCY,
     status: "paid",
     provider: "manual-grant",
   });
@@ -282,7 +298,7 @@ export async function terminalGrantAccessAction(params: {
     return {
       ok: false,
       lines: [
-        info(`order      ${shortRef(order.id)} created (manual-grant, ${fmtMoney(amount, "USD")})`),
+        info(`order      ${shortRef(order.id)} created (manual-grant, ${fmtMoney(amount, CURRENCY)})`),
         err("The order was recorded but fulfillment did not complete — check the server logs and re-run grant once fixed (it is idempotent)."),
       ],
     };
@@ -299,13 +315,13 @@ export async function terminalGrantAccessAction(params: {
     "terminal.grant",
     "orders",
     order.id,
-    `Granted ${product.name} to ${email} (${seats} seat${seats === 1 ? "" : "s"}, ${fmtMoney(amount, "USD")})`
+    `Granted ${product.name} to ${email} (${seats} seat${seats === 1 ? "" : "s"}, ${fmtMoney(amount, CURRENCY)})`
   );
 
   return {
     ok: true,
     lines: [
-      info(`order      ${shortRef(order.id)}  manual-grant · ${fmtMoney(amount, "USD")}`),
+      info(`order      ${shortRef(order.id)}  manual-grant · ${fmtMoney(amount, CURRENCY)}`),
       ok(`entitlement granted — ${product.name}, ${seats} seat${seats === 1 ? "" : "s"}`),
       lic ? ok(`licence    ${lic.licence_reference}`) : dim("licence    pending"),
       ok(`receipt emailed to ${email} with licence + download steps`),
@@ -319,8 +335,10 @@ export async function terminalGrantAccessAction(params: {
 /* ------------------------------------------------------------------ */
 
 /**
- * A payment arrived (customer forward, bank statement, LS dashboard) but
- * the order is still pending — confirm it and run fulfillment now.
+ * A payment arrived (customer forward, bank statement, Dodo dashboard)
+ * but the order is still pending — confirm it and run fulfillment.
+ * The operator is the only authority on "the money arrived", which is why
+ * the dialog spells out the failure mode: pending also means abandoned.
  */
 export async function terminalConfirmPaymentAction(orderRef: string): Promise<TerminalResult> {
   const actor = await requireAdmin();
@@ -358,6 +376,16 @@ export async function terminalConfirmPaymentAction(orderRef: string): Promise<Te
 
   if (lic) lines.push(ok(`licence    ${lic.licence_reference} — receipt emailed to ${order.email}`));
   else lines.push(warn("Paid, but fulfillment hasn't completed yet — it will heal on the next webhook replay or sign-in. Re-run lookup to check."));
+
+  // Partner attribution. Veyra never stores the referral marker — the only
+  // copy rides in the Dodo checkout's metadata, and Dodo echoes it on its
+  // webhook payloads only (there is no read-back). A manual confirm therefore
+  // credits nobody: say so plainly instead of pretending the loop closed.
+  lines.push(
+    dim(
+      "partner    referral markers only arrive on Dodo webhooks — if this was a partner sale, credit it at caelmont.in"
+    )
+  );
 
   await audit(actor, "terminal.confirm-payment", "orders", order.id, `Manually confirmed payment for ${order.email}`);
   return { ok: true, lines };
@@ -412,8 +440,8 @@ export async function terminalResendReceiptAction(orderRef: string): Promise<Ter
 /* ------------------------------------------------------------------ */
 
 /**
- * Refund an order: attempts the Lemon Squeezy refund API when the order
- * carries a provider payment reference (the webhook then re-confirms the
+ * Refund an order: attempts the Dodo refunds API when the order carries a
+ * Dodo payment reference (the `refund.succeeded` webhook then re-confirms the
  * local revocation), and revokes the whole access chain locally either
  * way — devices released, licence + entitlement revoked, seats deleted,
  * refund email sent.
@@ -443,20 +471,56 @@ export async function terminalRefundAction(
   }
 
   if (refundMoney) {
-    if (!order.lemon_squeezy_payment_id) {
-      lines.push(dim("money      no Lemon Squeezy reference (manual grant) — nothing to charge back"));
+    if (!order.provider_payment_id) {
+      lines.push(
+        dim("money      no provider payment reference (manual grant / free claim) — nothing to charge back")
+      );
+    } else if (order.provider !== "dodo") {
+      // Orders outlive the processor that took the money. This deployment no
+      // longer integrates with Razorpay or Lemon Squeezy, so refusing is the
+      // only honest option: revoking here would mark the order refunded and
+      // email the customer that their money is on its way when nothing moved.
+      lines.push(
+        err(
+          `money      this order was paid through ${providerLabel(order.provider)} ` +
+            `(${order.provider_payment_id}) — the terminal has no refund path for that processor, so nothing was revoked.`
+        )
+      );
+      lines.push(
+        dim(
+          "Issue the refund in that processor's dashboard; its refund webhook revokes access " +
+            "and emails the customer. Use revoke-access only if you mean to cut access WITHOUT refunding."
+        )
+      );
+      await audit(
+        actor,
+        "terminal.refund",
+        "orders",
+        order.id,
+        `Legacy ${order.provider} order — refund must be issued in that processor's dashboard; nothing revoked`
+      );
+      return { ok: false, lines };
     } else {
-      const refund = await refundLemonSqueezyOrder({
-        paymentId: order.lemon_squeezy_payment_id,
-        amountMinor: order.amount,
-      });
+      // Omitting the line items refunds the payment in full.
+      const refund = await refundDodoPayment({ paymentId: order.provider_payment_id });
       if (!refund.ok) {
-        lines.push(err(`Lemon Squeezy refund failed: ${refund.error}`));
-        lines.push(dim("Nothing was revoked — refund in the dashboard; the webhook then revokes automatically, or run revoke-access after."));
+        lines.push(err(`Dodo refund failed: ${refund.error}`));
+        lines.push(dim("Nothing was revoked — refund in the Dodo dashboard; the webhook then revokes automatically, or run revoke-access after."));
         await audit(actor, "terminal.refund", "orders", order.id, `Refund API failed for ${order.email}: ${refund.error}`);
         return { ok: false, lines };
       }
-      lines.push(ok(`money      refunded via Lemon Squeezy (refund ${refund.refundId ?? "queued"})`));
+      lines.push(
+        ok(
+          `money      refund ${refund.status ?? "accepted"} via Dodo (refund ${refund.refundId ?? "queued"})`
+        )
+      );
+      if (refund.status === "pending" || refund.status === "review") {
+        lines.push(
+          dim(
+            "Dodo still has the refund under review — access is cut now, and refund.succeeded re-confirms it when the money actually moves."
+          )
+        );
+      }
     }
   }
 
@@ -485,7 +549,7 @@ export async function terminalRefundAction(
 /**
  * Revoke everything an order granted, without a refund: devices released,
  * licence + entitlement revoked, seats freed. For manual grants the order
- * flips to refunded (there was never money to move); for real LS orders
+ * flips to refunded (there was never money to move); for real Dodo orders
  * the status stays paid so the ledger matches the provider — handle the
  * money in the dashboard and the webhook stays the source of truth.
  */
@@ -546,7 +610,13 @@ export async function terminalRevokeAccessAction(orderRef: string): Promise<Term
     await updateOrderStatus(order.id, "refunded", { expectedCurrent: "paid" });
     lines.push(dim("order      manual grant → marked refunded (no refund email — no money moved)"));
   } else {
-    lines.push(dim("order      status left as paid — refund the money in Lemon Squeezy; its webhook keeps the ledger honest"));
+    // Name the processor the ORDER was actually paid with, not the one this
+    // deployment happens to use today — orders outlive a provider switch.
+    const refundHome =
+      order.provider_payment_id
+        ? `${providerLabel(order.provider)} (${order.provider_payment_id})`
+        : providerLabel(order.provider);
+    lines.push(dim(`order      status left as paid — refund the money in ${refundHome}; its webhook keeps the ledger honest`));
   }
   lines.push(dim("email      no email sent (use refund if the customer should be notified)"));
 

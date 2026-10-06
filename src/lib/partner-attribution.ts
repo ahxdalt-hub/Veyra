@@ -4,8 +4,8 @@
  * A visitor who arrives through a Caelmont partner link carries a signed,
  * opaque `cm_ref` marker set on `.caelmont.in` by caelmont.in/r/<code>.
  * Veyra never decodes it (the key lives only on Caelmont); it captures the
- * string from the request cookie, rides it through the Lemon Squeezy
- * checkout custom data, and hands it back on the order events below.
+ * string from the request cookie, rides it through the Dodo checkout's
+ * metadata, and hands it back on the order events below.
  *
  * Credit is minted exclusively by Caelmont after it verifies the marker's
  * HMAC and the click window. This module can therefore never name a
@@ -14,7 +14,7 @@
  *
  * Replay safety is Caelmont's job: its ledger is unique on `order_id`, so
  * delivering the same event twice returns the original conversion. That is
- * why a failed delivery can safely make the Lemon Squeezy webhook retry.
+ * why a failed delivery can safely make the Dodo webhook retry.
  */
 
 import { createHmac } from "node:crypto";
@@ -58,7 +58,7 @@ export function readReferralToken(headers: Headers): ReferralToken | null {
   return null;
 }
 
-/** Validate a marker read back out of a webhook's custom_event_data. */
+/** Validate a marker read back out of a webhook's metadata. */
 export function parseReferralToken(value: unknown): ReferralToken | null {
   if (typeof value !== "string") return null;
   const token = value.slice(0, 512);
@@ -72,8 +72,8 @@ export type AttributionOutcome =
   | "no_secret"
   /** 2xx — Caelmont accepted (credited, duplicate, or knowingly ignored). */
   | "delivered"
-  /** 5xx / network — transient. The caller should fail the LS delivery so
-   *  Lemon Squeezy retries and Caelmont's order_id dedupe keeps it safe. */
+  /** 5xx / network — transient. The caller should fail the webhook delivery
+   *  so Dodo retries and Caelmont's order_id dedupe keeps it safe. */
   | "retry"
   /** 4xx — permanent rejection (bad signature/product). Retrying is useless;
    *  surface loudly in the log but never hold up the customer's purchase. */
@@ -133,19 +133,19 @@ async function deliver(event: CaelmontEvent): Promise<AttributionOutcome> {
 
 /**
  * Credit a paid, partner-referred order. Cents in, major units out —
- * Veyra's ledger and Lemon Squeezy both speak cents; Caelmont's ledger
- * records commission on the sale amount in major units.
+ * Veyra's ledger and Dodo both speak cents; Caelmont's ledger records
+ * commission on the sale amount in major units.
  */
 export async function notifyOrderPaid(params: {
-  lsOrderId: string;
+  providerOrderId: string;
   token: ReferralToken;
   amountMinor: number;
   currency: string;
 }): Promise<AttributionOutcome> {
   return deliver({
-    id: `veyra:${params.lsOrderId}:paid`,
+    id: `veyra:${params.providerOrderId}:paid`,
     type: "order.paid",
-    order_id: params.lsOrderId,
+    order_id: params.providerOrderId,
     product_slug: CAELMONT_PRODUCT_SLUG,
     referral_code: null,
     cm_ref: params.token,
@@ -160,13 +160,13 @@ export async function notifyOrderPaid(params: {
  * so a refund for an order this store never credited is a no-op.
  */
 export async function notifyOrderRefunded(params: {
-  lsOrderId: string;
+  providerOrderId: string;
   token: ReferralToken | null;
 }): Promise<AttributionOutcome> {
   return deliver({
-    id: `veyra:${params.lsOrderId}:refunded`,
+    id: `veyra:${params.providerOrderId}:refunded`,
     type: "order.refunded",
-    order_id: params.lsOrderId,
+    order_id: params.providerOrderId,
     product_slug: CAELMONT_PRODUCT_SLUG,
     referral_code: null,
     ...(params.token ? { cm_ref: params.token } : {}),

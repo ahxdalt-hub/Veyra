@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProduct, getProducts, phaseMeta, PHASE_ORDER } from "@/lib/products";
-import { FOUNDING_PRICE, seatTier } from "@/lib/pricing";
+import { FOUNDING_PRICE, REGULAR_PRICE, seatTier } from "@/lib/pricing";
+import { getFoundingStatus } from "@/lib/founding";
 import { CURRENCY, formatPrice, REFUND_WINDOW_DAYS, site } from "@/lib/site";
 import { Reveal } from "@/components/motion/reveal";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,9 @@ export async function generateMetadata({
   // out of the index until the product ships with substantial content.
   // `follow` stays on so their outbound links still carry weight.
   const comingSoon = product.status === "coming-soon";
+  // Shared with the page body so the social card never promises the founding
+  // price after the allocation is spent.
+  const foundingActive = (await getFoundingStatus()) === "active";
   return {
     title: product.name,
     description: product.shortDescription,
@@ -50,7 +54,9 @@ export async function generateMetadata({
       title: product.free
         ? `${product.name} — Free`
         : product.price !== null
-          ? `${product.name} — ${formatPrice(FOUNDING_PRICE)} (founding price)`
+          ? `${product.name} — ${formatPrice(
+              foundingActive ? FOUNDING_PRICE : REGULAR_PRICE
+            )}${foundingActive ? " (founding price)" : ""}`
           : `${product.name} — coming soon`,
       description: product.shortDescription,
       url: `/products/${product.slug}`,
@@ -69,6 +75,9 @@ export default async function ProductPage({
   if (!product) notFound();
 
   const available = product.status === "available" && product.price !== null;
+  // Structured data must carry the same number the register charges, so the
+  // ladder is resolved from the founding allocation rather than assumed.
+  const foundingActive = (await getFoundingStatus()) === "active";
 
   const jsonLd = available
     ? {
@@ -79,9 +88,9 @@ export default async function ProductPage({
         brand: { "@type": "Brand", name: site.name },
         offers: {
           "@type": "Offer",
-          // Free tools are $0; paid products advertise what a customer
-          // actually pays today — the founding price.
-          price: product.free ? 0 : FOUNDING_PRICE,
+          // Free tools are $0; paid products advertise the amount a
+          // customer actually pays today, from the same ladder checkout uses.
+          price: product.free ? 0 : foundingActive ? FOUNDING_PRICE : REGULAR_PRICE,
           priceCurrency: CURRENCY,
           availability: "https://schema.org/InStock",
           url: `${site.url}/products/${product.slug}`,
@@ -142,7 +151,11 @@ export default async function ProductPage({
                   {product.cardDescription}
                 </p>
               </div>
-              <PurchasePanel product={product} available={available} />
+              <PurchasePanel
+                product={product}
+                available={available}
+                foundingActive={foundingActive}
+              />
             </div>
           </Reveal>
         </div>
@@ -198,14 +211,14 @@ export default async function ProductPage({
               <section aria-labelledby="how-heading" className="mt-16 lg:mt-24">
                 <p className="text-eyebrow mb-3">How claiming works</p>
                 <h2 id="how-heading" className="text-display-2 max-w-2xl">
-                  Three steps, zero dollars.
+                  Three steps, nothing to pay.
                 </h2>
                 <ol className="mt-10 grid gap-x-10 gap-y-8 sm:grid-cols-3">
                   {[
                     {
                       n: "01",
                       t: "Claim it — one click",
-                      d: "No card, no trial, no drip campaign. A free order is recorded like any purchase, at $0.",
+                      d: "No card, no trial, no drip campaign. A free order is recorded like any purchase, for nothing.",
                     },
                     {
                       n: "02",
@@ -483,9 +496,11 @@ export default async function ProductPage({
 function PurchasePanel({
   product,
   available,
+  foundingActive,
 }: {
   product: NonNullable<ReturnType<typeof getProduct>>;
   available: boolean;
+  foundingActive: boolean;
 }) {
   // Free tools get their own panel: the claim path, never the seat-tier
   // founding framing (which is semantically wrong for a $0 product).
@@ -552,14 +567,18 @@ function PurchasePanel({
       <div className="rounded-md border border-line bg-surface p-6 shadow-sm">
         <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
           <span className="text-3xl font-medium tnum text-ink">
-            {formatPrice(FOUNDING_PRICE)}
+            {formatPrice(foundingActive ? FOUNDING_PRICE : REGULAR_PRICE)}
           </span>
-          <span className="text-sm text-ink-4 line-through tnum">
-            {formatPrice(product.price!)}
-          </span>
-          <span className="text-sm font-medium text-accent-ink">
-            founding price
-          </span>
+          {foundingActive ? (
+            <>
+              <span className="text-sm text-ink-4 line-through tnum">
+                {formatPrice(product.price!)}
+              </span>
+              <span className="text-sm font-medium text-accent-ink">
+                founding price
+              </span>
+            </>
+          ) : null}
         </div>
         <p className="mt-1.5 text-xs text-ink-3">
           One-time purchase · No subscription · Instant digital delivery
@@ -571,7 +590,7 @@ function PurchasePanel({
           <p className="spec text-ink-4">Team pricing — per seat</p>
           <ul className="mt-2.5 space-y-1.5">
             {[1, 2, 3, 4, 5].map((seats) => {
-              const t = seatTier(seats);
+              const t = seatTier(seats, foundingActive);
               return (
                 <li
                   key={seats}

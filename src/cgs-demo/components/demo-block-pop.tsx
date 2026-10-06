@@ -2,7 +2,7 @@
 
 /**
  * Demo block popup — the answer to every "what if I…" in the web demo.
- * A small red-glowing card, an X, a shake, a soft bonk. It rotates copy,
+ * A small red-glowing card, an X, a shake, and a two-tone "denied" buzz. It rotates copy,
  * counts attempts, and re-shakes instead of stacking when you keep poking.
  */
 
@@ -44,8 +44,13 @@ const COPY: Record<BlockedKind, string[]> = {
 
 const TAIL = ["", "", " (attempt {n} — the door is still a demo)", " ({n}). Still nothing to change here."];
 
-/** Soft descending "bonk" — two short tones, quiet, gesture-triggered. */
-function useBonk() {
+/**
+ * "Restricted" buzzer — two gated pulses of a detuned low sawtooth pair,
+ * the classic wrong-answer buzz. Synthesized, so no audio file ships and it
+ * stays gesture-triggered (browser autoplay policies allow exactly this).
+ * Plays on every block, even rapid-fire ones.
+ */
+function useDeniedSound() {
   const ctxRef = useRef<AudioContext | null>(null);
   return () => {
     try {
@@ -54,19 +59,35 @@ function useBonk() {
       if (!ctxRef.current) ctxRef.current = new AC();
       const ctx = ctxRef.current;
       if (ctx.state === "suspended") void ctx.resume();
-      const t = ctx.currentTime;
-      const gain = ctx.createGain();
-      gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.exponentialRampToValueAtTime(0.09, t + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
-      gain.connect(ctx.destination);
-      const osc = ctx.createOscillator();
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(300, t);
-      osc.frequency.exponentialRampToValueAtTime(120, t + 0.18);
-      osc.connect(gain);
-      osc.start(t);
-      osc.stop(t + 0.3);
+      const t0 = ctx.currentTime;
+
+      const master = ctx.createGain();
+      master.gain.setValueAtTime(0.0001, t0);
+      master.gain.exponentialRampToValueAtTime(0.18, t0 + 0.008);
+      master.gain.setValueAtTime(0.18, t0 + 0.34);
+      master.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.4);
+
+      // Sawtooth through a lowpass = harsh buzz without ear-piercing edge.
+      const soften = ctx.createBiquadFilter();
+      soften.type = "lowpass";
+      soften.frequency.setValueAtTime(700, t0);
+      soften.Q.setValueAtTime(0.7, t0);
+      master.connect(soften);
+      soften.connect(ctx.destination);
+
+      // Two detuned saws beat against each other — that's the "buzz".
+      const pulse = (at: number, dur: number) => {
+        for (const freq of [130, 137]) {
+          const osc = ctx.createOscillator();
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(freq, at);
+          osc.connect(master);
+          osc.start(at);
+          osc.stop(at + dur);
+        }
+      };
+      pulse(t0, 0.14); // bzz—
+      pulse(t0 + 0.2, 0.18); // —zzt
     } catch {
       /* autoplay policy or no audio device — the visual still answers */
     }
@@ -75,7 +96,7 @@ function useBonk() {
 
 export function DemoBlockPop() {
   const reduce = useReducedMotion();
-  const bonk = useBonk();
+  const denied = useDeniedSound();
   const [shown, setShown] = useState<{ kind: BlockedKind; n: number; nonce: number } | null>(null);
   const attempts = useRef<{ n: number; lastAt: number }>({ n: 0, lastAt: 0 });
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -87,9 +108,7 @@ export function DemoBlockPop() {
         const st = attempts.current;
         st.n = now - st.lastAt < 60_000 ? st.n + 1 : 1;
         st.lastAt = now;
-        // Rapid keystrokes inside one action: re-shake, don't re-sound.
-        const fresh = now - (shown?.nonce ?? 0) > 1200;
-        if (fresh) bonk();
+        denied();
         setShown({ kind, n: st.n, nonce: now });
         if (hideTimer.current) clearTimeout(hideTimer.current);
         hideTimer.current = setTimeout(() => setShown(null), 3400);

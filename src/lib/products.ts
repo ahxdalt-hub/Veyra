@@ -126,8 +126,8 @@ export const products: Product[] = [
     status: "available",
     // Regular retail price — the struck-through anchor during the launch.
     // What customers actually pay during launch is the founding price in
-    // src/lib/pricing.ts ($79, with per-seat team tiers), which checkout,
-    // cart, and receipts all resolve through.
+    // src/lib/pricing.ts ($79, with per-seat team tiers), which
+    // checkout, cart, and receipts all resolve through.
     price: REGULAR_PRICE,
     version: "1.0",
     tagline: "The complete operating system for the client-growth journey.",
@@ -450,6 +450,15 @@ export function getComingSoonProducts(): Product[] {
 /** True when a product is a free tool (claimed via /api/claim, never sold). */
 export function isFreeProduct(product: Product): boolean {
   return product.free === true;
+}
+
+/**
+ * Products that are actually sold through a payment processor — available
+ * and not free. This is exactly the set that must have a processor product
+ * id configured; free tools are claimed via /api/claim and never touch one.
+ */
+export function getPaidProducts(): Product[] {
+  return products.filter((p) => p.status === "available" && !isFreeProduct(p));
 }
 
 /**

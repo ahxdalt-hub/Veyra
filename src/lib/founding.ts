@@ -16,14 +16,20 @@
  * truthful state — including in local dev without Supabase, where the
  * count is unavailable and we fail open.
  *
- * Caching: the result is wrapped in unstable_cache under the "founding"
- * tag and refreshed instantly when an order flips to paid
- * (see revalidateFoundingStatus in src/lib/orders.ts), with an hourly
- * revalidate as a safety net. Marketing pages stay statically rendered.
+ * Caching: memoised in-module for FOUNDED_STATE_TTL_MS per isolate, NOT with
+ * `unstable_cache`. On this app's Cloudflare Worker build (open-next with no
+ * R2 / Durable-Object cache binding — see open-next.config.ts) a cached read
+ * awaited during a *page render* never resolves: the route hangs, then the
+ * Worker fails with Cloudflare error 1102. The same call from a route handler
+ * is fine, which is why only the marketing pages went dark. `no-store` keeps
+ * the read out of Next's data cache, so pages render like `/api/*` does, and
+ * the memo holds the cost to roughly one HEAD request per isolate per minute.
+ * A paid order still refreshes the state immediately via
+ * revalidateFoundingStatus (see src/lib/orders.ts), which drops the memo.
  */
 
 import "server-only";
-import { revalidatePath, unstable_cache, updateTag } from "next/cache";
+import { revalidatePath } from "next/cache";
 import { supabaseServiceRoleKey, supabaseUrl } from "@/lib/supabase/config";
 
 /** The flagship product whose founding allocation the banner announces. */
@@ -34,6 +40,12 @@ export const FLAGSHIP_SLUG = "client-growth-system";
 export const FOUNDING_LIMIT = 30;
 
 export type FoundingState = "active" | "closed";
+
+/** How long one isolate may reuse a counted allocation. */
+const FOUNDING_STATE_TTL_MS = 60_000;
+
+/** A page render must never wait on Supabase; fail open to "active" instead. */
+const FOUNDING_READ_TIMEOUT_MS = 2_000;
 
 /**
  * Count of paid flagship orders, or null when it cannot be determined
@@ -60,11 +72,11 @@ async function paidFoundingOrderCount(): Promise<number | null> {
         "Range-Unit": "items",
         Prefer: "count=exact",
       },
-      // The data cache defers to this function's own policy: unstable_cache
-      // holds the result (tag "founding" + hourly revalidate), so the fetch
-      // must not add its own no-store, which would mark every marketing
-      // route dynamic during prerender.
-      cache: "default",
+      // no-store: this must not enter Next's data cache, or every page render
+      // awaits the cache handler this Worker does not have (see the file
+      // header). The memo below is what bounds the cost.
+      cache: "no-store",
+      signal: AbortSignal.timeout(FOUNDING_READ_TIMEOUT_MS),
     });
     if (!res.ok) return null;
     const range = res.headers.get("content-range"); // e.g. "0-0/12"
@@ -77,33 +89,43 @@ async function paidFoundingOrderCount(): Promise<number | null> {
 
 /**
  * Current founding-release state for the marketing surfaces.
- * Tag "founding" is invalidated by updateOrderStatus on pending→paid,
- * so the banner reacts to real sales without polling.
+ * Memoised per isolate (see file header) and invalidated on paid/refunded
+ * transitions by revalidateFoundingStatus, so the banner reacts to real sales
+ * without a cache binding. Fails open to "active" when the count is unknown,
+ * which is the truthful state below the limit and the conservative one above:
+ * it never turns the founding offer off on a network blip.
  */
-export const getFoundingStatus = unstable_cache(
-  async (): Promise<FoundingState> => {
-    const count = await paidFoundingOrderCount();
-    if (count === null) return "active";
-    return count >= FOUNDING_LIMIT ? "closed" : "active";
-  },
-  ["founding-status"],
-  { tags: ["founding"], revalidate: 3600 }
-);
+let memo: { state: FoundingState; at: number } | null = null;
+let inflight: Promise<FoundingState> | null = null;
+
+async function readFoundingState(): Promise<FoundingState> {
+  const count = await paidFoundingOrderCount();
+  const state: FoundingState =
+    count === null || count < FOUNDING_LIMIT ? "active" : "closed";
+  memo = { state, at: Date.now() };
+  return state;
+}
+
+export function getFoundingStatus(): Promise<FoundingState> {
+  if (memo && Date.now() - memo.at < FOUNDING_STATE_TTL_MS) {
+    return Promise.resolve(memo.state);
+  }
+  // Concurrent first renders on a cold isolate share one read.
+  if (!inflight) inflight = readFoundingState().finally(() => (inflight = null));
+  return inflight;
+}
 
 /**
- * Invalidate the cached founding state after an order changes to a
+ * Invalidate the memoised founding state after an order changes to a
  * state that moves the allocation (pending→paid consumes a slot; a
- * refund releases one). Prerendered marketing pages carry the banner
- * from the (site) layout, so the layout is revalidated on demand too —
- * the next request renders fresh state. Called from src/lib/orders.ts;
- * a no-op if nothing is cached.
+ * refund releases one). Called from src/lib/orders.ts.
  */
 export function revalidateFoundingStatus(): void {
+  memo = null;
   try {
-    updateTag("founding");
     revalidatePath("/", "layout");
   } catch {
-    // Revalidation outside a request context (e.g. scripts/tests) —
-    // the hourly revalidate on the tag is the safety net.
+    // Outside a request context (scripts, tests) there is nothing rendered
+    // to revalidate; dropping the memo is the part that matters.
   }
 }

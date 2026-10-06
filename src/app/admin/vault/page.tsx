@@ -1,7 +1,12 @@
 import { redirect } from "next/navigation";
-import { adminAuthConfigured, requireAdmin } from "@/lib/admin/auth";
+import {
+  adminAuthConfigured,
+  requireAdmin,
+  AdminRoleCheckError,
+} from "@/lib/admin/auth";
 import { vaultCleared } from "@/lib/admin/vault";
 import { VaultGate } from "@/components/admin/vault-gate";
+import { RoleCheckRetry } from "@/components/admin/retry-gate";
 
 /**
  * The vault re-entry page — reached from the (protected) gate when the
@@ -15,7 +20,12 @@ export const dynamic = "force-dynamic";
 
 export default async function VaultPage() {
   if (!adminAuthConfigured()) redirect("/admin");
-  if (!(await requireAdmin())) redirect("/admin/sign-in");
+  try {
+    if (!(await requireAdmin())) redirect("/admin/sign-in");
+  } catch (err) {
+    if (err instanceof AdminRoleCheckError) return <RoleCheckRetry />;
+    throw err;
+  }
   if (await vaultCleared()) redirect("/admin");
 
   return (

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/admin/auth";
 import { listOrders, type RangeKey, rangeBounds } from "@/lib/admin/data";
-import { money, dateTime, dateShort, timeAgo, shortId } from "@/components/admin/format";
+import { money, dateTime, dateShort, timeAgo, shortId, providerLabel } from "@/components/admin/format";
 import { ScrollFadeX } from "@/components/admin/smooth-scroll";import { Panel, PageHeading, EmptyState, StatusPill } from "@/components/admin/admin-ui";
 import { UrlSearchInput } from "@/components/admin/url-search-input";
 import { UrlSelect } from "@/components/admin/url-select";
@@ -15,9 +15,9 @@ export const metadata: Metadata = { title: "Payments" };
 export const dynamic = "force-dynamic";
 
 /**
- * Payments — the Lemon Squeezy view of the same ledger: one row per payment
+ * Payments — the Dodo Payments view of the same ledger: one row per payment
  * attempt, filterable by outcome and window. Payments ARE orders in this
- * architecture (orders.lemon_squeezy_payment_id is the provider reference),
+ * architecture (orders.provider_payment_id is the provider reference),
  * so this view reads real payment data without duplicating anything.
  * No card data exists in our schema at all — nothing sensitive can leak.
  */
@@ -103,9 +103,9 @@ export default async function PaymentsPage({
                     {orders.rows.map((o) => (
                       <tr key={o.id}>
                         <td>
-                          {o.lemon_squeezy_payment_id ? (
+                          {o.provider_payment_id ? (
                             <Link href={`/admin/orders/${o.id}`} className="font-mono text-xs hover:underline" style={{ color: "var(--cc-accent-ink)" }}>
-                              {o.lemon_squeezy_payment_id}
+                              {o.provider_payment_id}
                             </Link>
                           ) : (
                             <span className="font-mono text-xs" style={{ color: "var(--cc-text-4)" }}>—</span>
@@ -120,7 +120,7 @@ export default async function PaymentsPage({
                         <td className="text-right font-medium tnum" style={{ color: "var(--cc-text)" }}>
                           {money(o.amount, o.currency)}
                         </td>
-                        <td style={{ color: "var(--cc-text-3)" }}>Lemon Squeezy</td>
+                        <td style={{ color: "var(--cc-text-3)" }}>{providerLabel(o.provider)}</td>
                         <td><StatusPill status={o.status} /></td>
                         <td className="whitespace-nowrap" title={dateTime(o.created_at)} style={{ color: "var(--cc-text-4)" }}>
                           {range === "today" ? timeAgo(o.created_at) : dateShort(o.created_at)}
@@ -137,10 +137,10 @@ export default async function PaymentsPage({
       </div>
 
       <p className="mt-3 text-xs" style={{ color: "var(--cc-text-4)" }}>
-        Card details are never stored or displayed by design — Lemon Squeezy
-        holds the instrument; we hold the outcome. Refunds are issued in
-        the Lemon Squeezy dashboard; this view confirms them when the
-        webhook reports.
+        Card details are never stored or displayed by design — Dodo Payments
+        is the merchant of record and holds the instrument; we hold the
+        outcome. Refunds are issued from the admin terminal or the Dodo
+        dashboard; this view confirms them when the webhook reports.
       </p>
     </div>
   );

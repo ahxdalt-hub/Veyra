@@ -1,20 +1,23 @@
 /**
- * Stage 8 E2E — the purchase-to-delivery pipeline, Lemon Squeezy edition.
+ * Stage 8 E2E — the purchase-to-delivery pipeline, Dodo Payments edition.
  *
- * Lemon Squeezy's confirmation is webhook-only (there is no browser-side
- * signature to verify), so this test drives the durable path directly:
- * it seeds a pending order exactly as /api/checkout would, then delivers
- * SIGNED order_created / order_refunded webhook payloads to
- * /api/webhooks/lemonsqueezy — the same HMAC scheme Lemon Squeezy uses —
- * and checks fulfillment, idempotency, revocation, downloads, and
- * activation. The live Supabase project is cleaned up at the end.
+ * Dodo's confirmation is webhook-only (there is no browser-side signature to
+ * verify), so this test drives the durable path directly: it seeds a pending
+ * order exactly as /api/checkout would, then delivers SIGNED
+ * payment.succeeded / refund.succeeded webhook payloads to
+ * /api/webhooks/dodo — the Standard Webhooks scheme Dodo uses — and checks
+ * fulfillment, idempotency, revocation, downloads, and activation. The live
+ * Supabase project is cleaned up at the end.
  *
  *   node supabase/test/delivery.e2e.mjs [http://localhost:3000]
  *
  * The Veyra server must run with (inline env, dotenv never overrides):
- *   LEMONSQUEEZY_WEBHOOK_SECRET=test_webhook_secret_zzz
+ *   DODO_PAYMENTS_WEBHOOK_KEY=whsec_<base64 of test_webhook_secret_zzz>
  *   SUPABASE_DELIVERY_BUCKET=<bucket with a published release>
- * plus the normal Supabase vars.
+ * plus the normal Supabase vars. The test signs with the raw
+ * `test_webhook_secret_zzz`, so the key above is its base64 encoding —
+ * generate it with:
+ *   node -e "console.log('whsec_'+Buffer.from('test_webhook_secret_zzz').toString('base64'))"
  *
  * Covers:
  *   1 successful webhook confirmation (+entitlement/licence/seat/receipt)
@@ -49,7 +52,7 @@ if (existsSync(envPath)) {
 const SUPA_URL = ENV.NEXT_PUBLIC_SUPABASE_URL;
 const ANON = ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const SERVICE = ENV.SUPABASE_SERVICE_ROLE_KEY;
-// The dev server must be started with this same secret inline.
+// The dev server must be started with this same secret (base64-wrapped) inline.
 const WEBHOOK_SECRET = "test_webhook_secret_zzz";
 const REF = new URL(SUPA_URL).hostname.split(".")[0];
 const TOKEN =
@@ -60,10 +63,19 @@ if (!SUPA_URL || !ANON || !SERVICE) {
   process.exit(2);
 }
 
-/* Lemon Squeezy signs webhooks with HMAC-SHA256, hex digest, over the
- * raw body. Same scheme we verify server-side. */
-const hmacHex = (key, data) =>
-  createHmac("sha256", key).update(data).digest("hex");
+/* Dodo follows the Standard Webhooks scheme: the verification key is the
+ * webhook secret base64-decoded (dashboard value minus the `whsec_` prefix),
+ * the signed string is `${webhook-id}.${webhook-timestamp}.${raw body}`, the
+ * digest is HMAC-SHA256 → base64, and the header carries space-separated
+ * `v1,<base64>` items. Mirror that exactly: WEBHOOK_SECRET below is the
+ * decoded secret bytes, as the server will see them. */
+function signDodoWebhook(rawSecret, id, timestamp, body) {
+  const key = Buffer.from(rawSecret, "utf8");
+  const signature = createHmac("sha256", key)
+    .update(`${id}.${timestamp}.${body}`)
+    .digest("base64");
+  return { id, timestamp: String(timestamp), signature: `v1,${signature}` };
+}
 
 /* ---- Supabase management API (seed/verify/teardown SQL) ----------- */
 async function sql(query) {
@@ -150,13 +162,14 @@ async function signIn(email, password) {
 /* ---- order + webhook helpers --------------------------------------- */
 /**
  * Seed a pending order exactly as /api/checkout would (the checkout API
- * itself needs real Lemon Squeezy credentials; the confirmation logic we
- * test lives entirely in the webhook path). Amounts mirror
- * src/lib/pricing.ts seat tiers: 1 seat → $79, 2 seats → $77/seat.
+ * itself needs real Dodo credentials; the confirmation logic we test lives
+ * entirely in the webhook path). Amounts mirror src/lib/pricing.ts seat
+ * tiers in CENTS: 1 seat → $79, 2 seats → $75/seat.
  */
+const FOUNDING_SEAT_TIERS_CENTS = [7900, 7500, 7100, 6700, 6300];
+
 async function seedPendingOrder({ email, qty, userId = null, status = "pending" }) {
-  const perSeat = [79, 77, 75, 73, 71][qty - 1];
-  const amount = perSeat * qty * 100;
+  const amount = FOUNDING_SEAT_TIERS_CENTS[qty - 1] * qty;
   const id = randomUUID();
   const res = await jfetch(`${SUPA_URL}/rest/v1/orders`, {
     method: "POST",
@@ -171,7 +184,10 @@ async function seedPendingOrder({ email, qty, userId = null, status = "pending" 
         amount,
         currency: "USD",
         status,
-        provider: "lemon-squeezy",
+        provider: "dodo",
+        // /api/checkout writes the Dodo session id (`cks_…`) right after
+        // inserting the row; the webhook only ever adds the payment id.
+        provider_session_id: `cks_E2E${randomUUID().replace(/-/g, "").slice(0, 16)}`,
       },
     ]),
   });
@@ -179,42 +195,47 @@ async function seedPendingOrder({ email, qty, userId = null, status = "pending" 
   return { orderId: id, amount, currency: "USD", qty };
 }
 
-/** Build + deliver a signed Lemon Squeezy order webhook. */
-async function lsWebhook({
-  eventName,
+/** Build + deliver a signed Dodo payment webhook, as the dashboard sends it.
+ *  The payment id is stable per order, so a repeat call is a byte-identical
+ *  redelivery — which is exactly what Dodo's retry queue does. */
+async function dodoWebhook({
+  eventType,
   veyraOrderId,
-  subtotal,
+  totalAmount,
   currency = "USD",
-  status = "paid",
-  orderIdLabel,
+  paymentId,
   badSignature = false,
 }) {
   const body = JSON.stringify({
-    meta: { event_name: eventName },
+    type: eventType,
+    // Dodo echoes the checkout metadata verbatim — that is the seam the
+    // webhook keys the internal order on (GET /checkouts/{id} does not
+    // return metadata, so nothing else could resolve it).
     data: {
-      id: randomUUID(),
-      type: "orders",
-      meta: {
-        event_name: eventName,
-        custom_event_data: { veyra_order_id: veyraOrderId },
-      },
-      attributes: {
-        order_id: orderIdLabel ?? `E2E-${veyraOrderId.slice(0, 6).toUpperCase()}`,
-        status,
-        subtotal,
-        discount_total: 0,
-        tax: 0,
-        total: subtotal,
-        currency,
-        user_email: "e2e@veyra.test",
-        created_at: new Date().toISOString(),
-      },
+      payload_type: "event",
+      payment_id: paymentId ?? `pay_E2E_${veyraOrderId.slice(0, 8)}`,
+      status: "succeeded",
+      total_amount: totalAmount,
+      tax: 0,
+      currency,
+      customer: { customer_id: "cust_e2e", email: "e2e@veyra.test" },
+      metadata: veyraOrderId ? { veyra_order_id: veyraOrderId } : {},
     },
   });
-  const sig = badSignature ? "0".repeat(64) : hmacHex(WEBHOOK_SECRET, body);
-  return veyra("/api/webhooks/lemonsqueezy", {
+  const id = `evt_e2e_${randomUUID()}`;
+  const timestamp = Math.floor(Date.now() / 1000);
+  const { signature } = signDodoWebhook(WEBHOOK_SECRET, id, timestamp, body);
+  return veyra("/api/webhooks/dodo", {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Signature": sig },
+    headers: {
+      "Content-Type": "application/json",
+      "webhook-id": id,
+      "webhook-timestamp": String(timestamp),
+      // A correctly shaped but wrong digest — what a forger produces.
+      "webhook-signature": badSignature
+        ? `v1,${Buffer.from("not-the-right-key").toString("base64")}`
+        : signature,
+    },
     body,
   });
 }
@@ -233,17 +254,22 @@ async function main() {
   if (ping.status === 404 || ping.status === 422) {
     console.log(`server reachable at ${BASE}`);
   } else {
-    throw new Error(`Veyra server not answering at ${BASE} (${ping.status}) — start it with LEMONSQUEEZY_WEBHOOK_SECRET=test_webhook_secret_zzz`);
+    throw new Error(`Veyra server not answering at ${BASE} (${ping.status}) — start it with DODO_PAYMENTS_WEBHOOK_KEY=whsec_<base64 of test_webhook_secret_zzz>`);
   }
   // The webhook endpoint must be live (503 = server started without the
   // webhook secret; the whole test depends on it).
-  const probe = await veyra("/api/webhooks/lemonsqueezy", {
+  const probe = await veyra("/api/webhooks/dodo", {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Signature": "probe" },
+    headers: {
+      "Content-Type": "application/json",
+      "webhook-id": "evt_probe",
+      "webhook-timestamp": String(Math.floor(Date.now() / 1000)),
+      "webhook-signature": "v1,cHJvYmU=",
+    },
     body: "{}",
   });
   if (probe.status === 503) {
-    throw new Error("webhook endpoint answers 503 — restart the server with LEMONSQUEEZY_WEBHOOK_SECRET=test_webhook_secret_zzz");
+    throw new Error("webhook endpoint answers 503 — restart the server with DODO_PAYMENTS_WEBHOOK_KEY=whsec_<base64 of test_webhook_secret_zzz>");
   }
 
   const salt = Math.random().toString(16).slice(2, 8);
@@ -259,22 +285,22 @@ async function main() {
   let orderA, orderB, orderD, orderE;
 
   try {
-    /* === 1. successful purchase (signed-in customer, order_created) === */
+    /* === 1. successful purchase (signed-in customer, payment.succeeded) === */
     orderA = await seedPendingOrder({ email: buyerEmail, qty: 2, userId });
-    check("pending order seeded (2 seats, tier price)", Boolean(orderA.orderId) && orderA.amount === 15400, `amount ${orderA.amount}`);
-    const whA = await lsWebhook({
-      eventName: "order_created",
+    check("pending order seeded (2 seats, tier price)", Boolean(orderA.orderId) && orderA.amount === 15000, `amount ${orderA.amount}`);
+    const whA = await dodoWebhook({
+      eventType: "payment.succeeded",
       veyraOrderId: orderA.orderId,
-      subtotal: orderA.amount,
+      totalAmount: orderA.amount,
     });
-    check("signed order_created webhook → acknowledged 200", whA.status === 200, JSON.stringify(whA.json));
+    check("signed payment.succeeded webhook → acknowledged 200", whA.status === 200, JSON.stringify(whA.json));
 
     await wait(300); // fulfillment is awaited inline; give the ledger write a beat
     const stA = await sql(`select status from orders where id='${orderA.orderId}'`);
     check("order flipped to paid", stA[0]?.status === "paid");
-    const idsA = await sql(`select lemon_squeezy_order_id, lemon_squeezy_payment_id, paid_at from orders where id='${orderA.orderId}'`);
-    check("provider references stamped at confirmation",
-      Boolean(idsA[0]?.lemon_squeezy_order_id) && Boolean(idsA[0]?.lemon_squeezy_payment_id) && Boolean(idsA[0]?.paid_at));
+    const idsA = await sql(`select provider_session_id, provider_payment_id, paid_at from orders where id='${orderA.orderId}'`);
+    check("provider references present at confirmation (session from checkout, payment from webhook)",
+      Boolean(idsA[0]?.provider_session_id) && Boolean(idsA[0]?.provider_payment_id) && Boolean(idsA[0]?.paid_at));
     const cA = await counts(buyerEmail);
     check("entitlement created (1)", cA[0].entitlements === 1);
     check("licence created (1)", cA[0].licences === 1);
@@ -288,8 +314,8 @@ async function main() {
       ledgerA.length === 1 && ledgerA[0].status === "sent", JSON.stringify(ledgerA));
 
     /* === 2. duplicate webhook delivery === */
-    const wh1 = await lsWebhook({ eventName: "order_created", veyraOrderId: orderA.orderId, subtotal: orderA.amount });
-    const wh2 = await lsWebhook({ eventName: "order_created", veyraOrderId: orderA.orderId, subtotal: orderA.amount }); // exact replay
+    const wh1 = await dodoWebhook({ eventType: "payment.succeeded", veyraOrderId: orderA.orderId, totalAmount: orderA.amount });
+    const wh2 = await dodoWebhook({ eventType: "payment.succeeded", veyraOrderId: orderA.orderId, totalAmount: orderA.amount }); // exact replay
     check("duplicate webhook deliveries acknowledged (200)", wh1.status === 200 && wh2.status === 200);
     const cA2 = await counts(buyerEmail);
     check("replay created no duplicate order/entitlement/licence/seat",
@@ -301,19 +327,19 @@ async function main() {
     /* === 3. tamper attempts === */
     // Unsigned/forged signature → 400, order untouched.
     orderD = await seedPendingOrder({ email: tamperEmail, qty: 1 });
-    const forged = await lsWebhook({
-      eventName: "order_created",
+    const forged = await dodoWebhook({
+      eventType: "payment.succeeded",
       veyraOrderId: orderD.orderId,
-      subtotal: orderD.amount,
+      totalAmount: orderD.amount,
       badSignature: true,
     });
     check("forged webhook signature rejected (400)", forged.status === 400, JSON.stringify(forged.json));
     // Valid signature but the amount DOESN'T match what we priced →
-    // never paid (custom_price is the contract).
-    const mismatch = await lsWebhook({
-      eventName: "order_created",
+    // never paid (the amount we sent in the checkout is the contract).
+    const mismatch = await dodoWebhook({
+      eventType: "payment.succeeded",
       veyraOrderId: orderD.orderId,
-      subtotal: 1, // one cent for a $79 order
+      totalAmount: 1, // one cent for a $79 order
     });
     check("amount-mismatch webhook acknowledged but NOT applied", mismatch.status === 200);
     const stD = await sql(`select status from orders where id='${orderD.orderId}'`);
@@ -324,7 +350,7 @@ async function main() {
     orderB = await seedPendingOrder({ email: guestEmail, qty: 1, status: "pending" });
     // The customer never returned to the site; the signed webhook is the
     // only durable confirmation and must complete the purchase.
-    const whB = await lsWebhook({ eventName: "order_created", veyraOrderId: orderB.orderId, subtotal: orderB.amount });
+    const whB = await dodoWebhook({ eventType: "payment.succeeded", veyraOrderId: orderB.orderId, totalAmount: orderB.amount });
     check("late webhook confirms pending → paid", whB.status === 200);
     const cB = await sql(`select status from orders where id='${orderB.orderId}'`);
     const cbCounts = await counts(guestEmail);
@@ -335,11 +361,11 @@ async function main() {
 
     /* === 5. refund webhook revokes access === */
     orderE = await seedPendingOrder({ email: refundEmail, qty: 1 });
-    await lsWebhook({ eventName: "order_created", veyraOrderId: orderE.orderId, subtotal: orderE.amount });
+    await dodoWebhook({ eventType: "payment.succeeded", veyraOrderId: orderE.orderId, totalAmount: orderE.amount });
     const paidE = await sql(`select status from orders where id='${orderE.orderId}'`);
     check("refund-scenario order confirmed paid first", paidE[0]?.status === "paid");
-    const whR = await lsWebhook({ eventName: "order_refunded", veyraOrderId: orderE.orderId, subtotal: orderE.amount });
-    check("order_refunded webhook acknowledged", whR.status === 200);
+    const whR = await dodoWebhook({ eventType: "refund.succeeded", veyraOrderId: orderE.orderId, totalAmount: orderE.amount });
+    check("refund.succeeded webhook acknowledged", whR.status === 200);
     const refunded = await sql(`select o.status, e.status as ent_status from orders o left join entitlements e on e.order_id=o.id where o.id='${orderE.orderId}'`);
     check("refund flips order to refunded + revokes entitlement",
       refunded[0]?.status === "refunded" && refunded[0]?.ent_status === "revoked",
@@ -350,12 +376,12 @@ async function main() {
     check("refund confirmation email recorded", ledgerE.some((r) => r.email_type === "refund_confirmation" && r.status === "sent"),
       JSON.stringify(ledgerE));
 
-    // A late order_created replay after the refund must NOT resurrect the
+    // A late payment.succeeded replay after the refund must NOT resurrect the
     // order or re-activate access — refunded is terminal.
-    const whReplay = await lsWebhook({ eventName: "order_created", veyraOrderId: orderE.orderId, subtotal: orderE.amount });
-    check("post-refund order_created replay acknowledged", whReplay.status === 200);
+    const whReplay = await dodoWebhook({ eventType: "payment.succeeded", veyraOrderId: orderE.orderId, totalAmount: orderE.amount });
+    check("post-refund payment.succeeded replay acknowledged", whReplay.status === 200);
     const resurrected = await sql(`select o.status, e.status as ent_status from orders o left join entitlements e on e.order_id=o.id where o.id='${orderE.orderId}'`);
-    check("refunded order NOT resurrected by late order_created replay",
+    check("refunded order NOT resurrected by a late payment.succeeded replay",
       resurrected[0]?.status === "refunded" && resurrected[0]?.ent_status === "revoked",
       JSON.stringify(resurrected[0]));
 

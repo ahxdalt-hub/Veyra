@@ -42,7 +42,7 @@ export function CgsPricing({
   foundingLimit: number;
 }) {
   const [seats, setSeats] = useState(1);
-  const tier = seatTier(seats);
+  const tier = seatTier(seats, foundingActive);
 
   return (
     <section
@@ -211,7 +211,7 @@ export function CgsPricing({
               <dl className="mt-8 divide-y divide-line border-y border-line">
                 {Array.from({ length: MAX_SEATS }, (_, i) => i + 1).map(
                   (n) => {
-                    const t = seatTier(n);
+                    const t = seatTier(n, foundingActive);
                     return (
                       <div
                         key={n}

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/legal/legal-page";
 import { REFUND_WINDOW_DAYS, site } from "@/lib/site";
+import { paymentProcessorCopy } from "@/lib/payments/provider";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
@@ -10,12 +11,22 @@ export const metadata: Metadata = {
   openGraph: { title: "Terms of Service — Veyra", url: "/terms" },
 };
 
+/**
+ * The payment section names the ACTUAL gateway and its actual legal role, so
+ * this must render per-request. The deploy build deliberately ships without
+ * server env (scripts/deploy.mjs), so a static render would freeze whichever
+ * provider was in the build into a legal page — and "merchant of record"
+ * means something different for each gateway.
+ */
+export const dynamic = "force-dynamic";
+
 export default function TermsPage() {
+  const processor = paymentProcessorCopy();
   return (
     <LegalPage
       eyebrow="Legal"
       title="Terms of Service"
-      updated="September 2026"
+      updated="October 2026"
       intro="These terms govern every purchase, download, and licence from Veyra. They're written to be read in one sitting and to be fair on both sides — the licence section and the liability section are the two that matter most."
       summary={[
         { label: "You get", value: "A perpetual licence for one business, with the seats you purchased" },
@@ -94,13 +105,25 @@ export default function TermsPage() {
           heading: "Payment and pricing",
           body: (
             <p>
-              Checkout is processed by Lemon Squeezy, our merchant of record.
-              We see your email, the order
-              amount, and its status — never your card details. Lemon Squeezy
-              calculates and remits any applicable sales tax or VAT at
-              checkout. Prices may
-              change between offers, but a change never affects a purchase
-              you&rsquo;ve already made.
+              {processor.isMerchantOfRecord ? (
+                <>
+                  Checkout is processed by {processor.name}, our merchant of
+                  record. We see your email, the order amount, and its status
+                  — never your card details. {processor.name} calculates and
+                  remits any applicable sales tax or VAT at checkout.
+                </>
+              ) : (
+                <>
+                  Checkout is processed by {processor.name}, our payment
+                  gateway, and Veyra is the merchant of record for your
+                  purchase. We see your email, the order amount, and its
+                  status — never your card details, which the gateway holds
+                  directly. Any applicable sales tax or VAT is ours to
+                  calculate and remit.
+                </>
+              )}{" "}
+              Prices may change between offers, but a change never affects a
+              purchase you&rsquo;ve already made.
             </p>
           ),
         },

@@ -2,20 +2,20 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/admin/auth";
 import {
-  lemonSqueezyConfigured,
-  lemonSqueezyMode,
-  lemonSqueezyWebhookConfigured,
-} from "@/lib/lemon-squeezy";
-import { razorpayConfigured, razorpayMode } from "@/lib/razorpay";
-import { paymentProvider, paymentProviderInvalid } from "@/lib/payments/provider";
+  dodoConfigured,
+  dodoMode,
+  dodoProductId,
+  dodoWebhookConfigured,
+} from "@/lib/dodo-payments";
+import { paymentProviderInvalid } from "@/lib/payments/provider";
 import {
   supabaseAdminConfigured,
   supabaseAuthConfigured,
   supabaseUrl,
 } from "@/lib/supabase/config";
-import { site, CURRENCY, REFUND_WINDOW_LABEL } from "@/lib/site";
+import { site, CURRENCY, REFUND_WINDOW_LABEL, formatPrice } from "@/lib/site";
 import { FOUNDING_PRICE, REGULAR_PRICE, MAX_SEATS } from "@/lib/pricing";
-import { products } from "@/lib/products";
+import { getPaidProducts, products } from "@/lib/products";
 import { pingDatabase } from "@/app/admin/mutations";
 import { Panel, PageHeading, StatusPill, KV } from "@/components/admin/admin-ui";
 
@@ -37,6 +37,10 @@ export default async function SettingsPage() {
 
   const db = await pingDatabase();
 
+  // Everything the Payments panel states must describe the processor that is
+  // actually taking money, not the one this page was originally written for.
+  const dodoReady = dodoConfigured();
+
   return (
     <div>
       <PageHeading title="Settings" meta="Configuration status of the Veyra operation" />
@@ -51,7 +55,7 @@ export default async function SettingsPage() {
             <KV k="Currency" v={`${CURRENCY} · prices in whole dollars`} />
             <KV k="Refund policy" v={REFUND_WINDOW_LABEL} />
             <KV k="Pricing authority" v={<code className="font-mono text-xs" style={{ color: "var(--cc-text-3)" }}>src/lib/pricing.ts</code>} />
-            <KV k="Founding / regular price" v={`$${FOUNDING_PRICE} / $${REGULAR_PRICE} per seat (1–${MAX_SEATS})`} />
+            <KV k="Founding / regular price" v={`${formatPrice(FOUNDING_PRICE)} / ${formatPrice(REGULAR_PRICE)} per seat (1–${MAX_SEATS})`} />
           </div>
           <Note>
             Brand, pricing, and catalog ship with the code — editing them
@@ -82,53 +86,78 @@ export default async function SettingsPage() {
         </Panel>
 
         {/* Payments */}
-        <Panel title="Payments · Lemon Squeezy">
+        <Panel title="Payments · Dodo Payments">
           <div className="space-y-0">
             <KV
               k="Active provider"
               v={
                 paymentProviderInvalid()
                   ? <StatusPill status="pending-config" />
-                  : paymentProvider() === "razorpay"
-                    ? `Razorpay (${razorpayMode()}) — set by PAYMENT_PROVIDER`
-                    : `Lemon Squeezy (${lemonSqueezyMode()}) — set by PAYMENT_PROVIDER`
+                  : `Dodo Payments (${dodoMode()})`
               }
             />
-            <KV k="API credentials" v={<StatusPill status={lemonSqueezyConfigured() ? "connected" : "pending-config"} />} />
-            <KV k="Webhook verification" v={<StatusPill status={lemonSqueezyWebhookConfigured() ? "connected" : "pending-config"} />} />
+            <KV k="API credentials" v={<StatusPill status={dodoReady ? "connected" : "pending-config"} />} />
+            <KV k="Webhook verification" v={<StatusPill status={dodoWebhookConfigured() ? "connected" : "pending-config"} />} />
             <KV
               k="Mode"
               v={
-                lemonSqueezyMode() === "test"
-                  ? "Test mode — no real money moves"
+                dodoMode() === "test"
+                  ? "Test mode — no real money moves; live cards are refused"
                   : "Live mode"
               }
             />
-            <KV k="Checkout style" v="Hosted Lemon Squeezy checkout; Veyra sets the price (custom_price)" />
-            <KV k="Webhook endpoint" v={<code className="font-mono text-xs" style={{ color: "var(--cc-text-3)" }}>{site.url}/api/webhooks/lemonsqueezy</code>} />
-            <KV k="Events required" v="Order created · Order refunded" />
+            <KV k="Merchant of record" v="Dodo Payments — it is the legal seller, so sales tax/VAT is its duty to calculate and remit; chargebacks stay ours" />
+            <KV k="Checkout style" v="Hosted Dodo checkout; Veyra sets the amount server-side (Pay-What-You-Want product)" />
+            <KV k="Webhook endpoint" v={<code className="font-mono text-xs" style={{ color: "var(--cc-text-3)" }}>{site.url}/api/webhooks/dodo</code>} />
+            <KV k="Events required" v="payment.succeeded · refund.succeeded" />
+            {/* Paid products only: a free tool is claimed via /api/claim and
+                never has a processor product id, so listing it here would
+                show an unfixable "pending config" pill. */}
+            {getPaidProducts().map((p) => {
+              const id = dodoProductId(p.slug);
+              return (
+                <KV
+                  key={p.slug}
+                  k={`Product · ${p.name}`}
+                  v={
+                    id ? (
+                      <code className="font-mono text-xs" style={{ color: "var(--cc-text-3)" }}>{id}</code>
+                    ) : (
+                      <StatusPill status="pending-config" />
+                    )
+                  }
+                />
+              );
+            })}
             <KV k="Key handling" v="Secrets live server-side only; card data never touches Veyra" />
           </div>
-          {!lemonSqueezyConfigured() ? (
-            <Note>Lemon Squeezy credentials are set in .env.local (LEMONSQUEEZY_API_KEY / LEMONSQUEEZY_STORE_ID / LEMONSQUEEZY_VARIANT_ID_*). Values are never displayed here — only whether they exist.</Note>
-          ) : null}
-          {razorpayConfigured() ? (
+          {!dodoReady ? (
             <Note>
-              Razorpay credentials exist ({razorpayMode()} mode), but the
-              active provider is decided solely by PAYMENT_PROVIDER —
-              currently &ldquo;{paymentProvider()}&rdquo;. Keys alone never
-              reroute checkout. To run checkout through Razorpay, set
-              PAYMENT_PROVIDER=razorpay in the deployment environment;
-              orders are then confirmed via /api/checkout/razorpay/verify
-              and webhook endpoint {site.url}/api/webhooks/razorpay.
-              Values are never displayed here.
+              Dodo credentials are set in .env.local / the Worker environment
+              (DODO_PAYMENTS_API_KEY, DODO_PAYMENTS_WEBHOOK_KEY,
+              DODO_PAYMENTS_ENVIRONMENT, DODO_PAYMENTS_PRODUCT_ID_&lt;SLUG&gt;).
+              Values are never displayed here — only whether they exist.
+              Checkout fails closed (503) until the API key and a product id
+              are present, so nothing can be charged by accident.
+            </Note>
+          ) : null}
+          {!dodoWebhookConfigured() ? (
+            <Note>
+              DODO_PAYMENTS_WEBHOOK_KEY is unset, so {site.url}/api/webhooks/dodo
+              answers 503 and delivers nothing. Paid orders would never be
+              confirmed, so no licence, download or receipt email is issued,
+              and a dashboard refund will not revoke access or email the
+              customer. Register the endpoint in the Dodo dashboard with
+              payment.succeeded and refund.succeeded selected.
             </Note>
           ) : null}
           {paymentProviderInvalid() ? (
             <Note>
-              PAYMENT_PROVIDER holds an unrecognized value — checkout fails
-              closed (500) until it is set to &ldquo;lemonsqueezy&rdquo; or
-              &ldquo;razorpay&rdquo;.
+              PAYMENT_PROVIDER holds a leftover value
+              (&ldquo;{process.env.PAYMENT_PROVIDER?.trim()}&rdquo;) from the
+              Razorpay / Lemon Squeezy era — Dodo is the only supported
+              provider, so checkout fails closed (500) until it is set to
+              &ldquo;dodo&rdquo; or removed.
             </Note>
           ) : null}
         </Panel>

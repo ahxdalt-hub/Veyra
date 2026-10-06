@@ -5,12 +5,13 @@ import {
   supabaseAuthConfigured,
   supabaseUrl,
 } from "@/lib/supabase/config";
+import { describeAuthError, isDefinitiveSignOut } from "@/lib/supabase/errors";
 
 /**
  * Middleware — customer session guard:
  *
  * The @supabase/ssr refresh pattern plus route guarding for the account
- * area (/account), unchanged.
+ * (/account) and admin (/admin) areas, unchanged.
  */
 
 export async function middleware(request: NextRequest) {
@@ -41,7 +42,22 @@ export async function middleware(request: NextRequest) {
   // server before the request is trusted.
   const {
     data: { user },
+    error,
   } = await supabase.auth.getUser();
+
+  // A failed verification is NOT the same as "signed out". On a transient
+  // failure, skip every redirect below and pass through: signing an admin
+  // out on a network blip is worse than one extra round trip, and nothing
+  // leaks — every protected page/action re-verifies authoritatively
+  // (requireAccountUser / requireAdmin). The refreshed cookies still ride
+  // back on `response`.
+  if (error && !isDefinitiveSignOut(error)) {
+    console.warn(
+      "[middleware] session verification unavailable; skipping route gating:",
+      describeAuthError(error)
+    );
+    return response;
+  }
 
   /* Server actions POST back to the page that rendered them. Rerouting one
    * of those replaces the action's flight payload with an HTML redirect, and

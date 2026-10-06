@@ -5,7 +5,7 @@ import { requireAdmin } from "@/lib/admin/auth";
 import { getProductStats } from "@/lib/admin/data";
 import { products } from "@/lib/products";
 import { REGULAR_PRICE, FOUNDING_PRICE } from "@/lib/pricing";
-import { site } from "@/lib/site";
+import { formatPrice, site } from "@/lib/site";
 import { money } from "@/components/admin/format";
 import { ScrollFadeX } from "@/components/admin/smooth-scroll";import { Panel, PageHeading, StatusPill } from "@/components/admin/admin-ui";
 
@@ -48,7 +48,7 @@ export default async function ProductsPage({
                 {product.description}
               </p>
               <dl className="mt-5 space-y-2 text-sm">
-                <Row k="Pricing" v={`Founding $${FOUNDING_PRICE}/seat · regular $${REGULAR_PRICE}/seat (1–5 seats)`} />
+                <Row k="Pricing" v={`Founding ${formatPrice(FOUNDING_PRICE)}/seat · regular ${formatPrice(REGULAR_PRICE)}/seat (1–5 seats)`} />
                 <Row k="Current version" v={product.version ?? "not set"} />
                 <Row k="Availability" v={product.status === "available" ? "On sale" : "Coming soon"} />
                 <Row k="Category" v={product.tagline} />
@@ -109,7 +109,7 @@ export default async function ProductsPage({
                       {p.free
                         ? "Free · claim"
                         : p.price !== null
-                          ? `$${p.price} · founding $${FOUNDING_PRICE}`
+                          ? `${formatPrice(p.price)} · founding ${formatPrice(FOUNDING_PRICE)}`
                           : "—"}
                     </td>
                     <td className="text-right tnum">{s?.units ?? 0}</td>

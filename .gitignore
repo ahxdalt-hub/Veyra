@@ -59,3 +59,9 @@ supabase/.temp/
 
 # Local demo backup wiped from prod 2026-10-03 — stays on disk, out of git
 _archive/
+
+# Local prospecting artifacts (internal, never shipped) — contains contact PII, keep out of git
+/_prospects/
+/_*.js
+/_*.json
+/_*.txt

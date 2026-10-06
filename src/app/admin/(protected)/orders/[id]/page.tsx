@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/admin/auth";
 import { getOrderDetail } from "@/lib/admin/data";
 import { getProduct } from "@/lib/products";
-import { money, dateTime, timeAgo, shortId } from "@/components/admin/format";
+import { money, dateTime, timeAgo, shortId, providerLabel } from "@/components/admin/format";
 import { Panel, PageHeading, StatusPill, CopyChip, KV } from "@/components/admin/admin-ui";
 import { ArrowUpRightIcon } from "@/components/admin/icons";
 
@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
  * activations, downloads, and every notification raised about it.
  * Read-only by design: order records are financial truth and the system
  * supports no legitimate admin mutation of them (refunds run through
- * the Lemon Squeezy dashboard, which the webhook confirms honestly).
+ * the gateway that charged the order, which the webhook confirms honestly).
  */
 
 export default async function OrderDetailPage({
@@ -85,9 +85,9 @@ export default async function OrderDetailPage({
             ) : null}
             <KV k="Currency" v={order.currency} />
             <KV k="Payment status" v={<StatusPill status={order.status} />} />
-            <KV k="Provider" v={order.provider === "free-claim" ? "Free claim" : "Lemon Squeezy"} />
-            {order.lemon_squeezy_order_id ? <KV k="Lemon Squeezy order" v={<CopyChip value={order.lemon_squeezy_order_id} />} /> : null}
-            {order.lemon_squeezy_payment_id ? <KV k="Lemon Squeezy payment" v={<CopyChip value={order.lemon_squeezy_payment_id} />} /> : null}
+            <KV k="Provider" v={providerLabel(order.provider)} />
+            {order.provider_session_id ? <KV k="Dodo checkout session" v={<CopyChip value={order.provider_session_id} />} /> : null}
+            {order.provider_payment_id ? <KV k="Dodo payment" v={<CopyChip value={order.provider_payment_id} />} /> : null}
             <KV k="Purchased" v={dateTime(order.created_at)} />
             <KV k="Confirmed" v={order.paid_at ? dateTime(order.paid_at) : order.status === "paid" ? "—" : "—"} />
           </div>

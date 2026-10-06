@@ -11,9 +11,9 @@ import { Button } from "@/components/ui/button";
  *
  * The status comes from GET /api/orders/[id], which reads the orders
  * table — never from anything the browser received during payment. While
- * confirmation is still pending (e.g. the Lemon Squeezy webhook hasn't
+ * confirmation is still pending (e.g. the Dodo webhook hasn't
  * landed yet), the page polls briefly and communicates honestly that
- * confirmation is in flight. Lemon Squeezy webhooks resolve pending orders
+ * confirmation is in flight. Dodo webhooks resolve pending orders
  * durably even if this page is never opened again.
  */
 

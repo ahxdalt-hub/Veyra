@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/legal/legal-page";
 import { REFUND_WINDOW_DAYS, site } from "@/lib/site";
+import { paymentProcessorCopy } from "@/lib/payments/provider";
 
 export const metadata: Metadata = {
   title: "Refund Policy",
@@ -13,11 +14,12 @@ export const metadata: Metadata = {
 };
 
 export default function RefundPolicyPage() {
+  const processor = paymentProcessorCopy();
   return (
     <LegalPage
       eyebrow="Legal"
       title="Refund Policy"
-      updated="September 2026"
+      updated="October 2026"
       intro={`A refund policy you don't need a lawyer to use: if a system isn't right for you, we refund it — in full, within ${REFUND_WINDOW_DAYS} days, without interrogation.`}
       summary={[
         { label: "Window", value: `${REFUND_WINDOW_DAYS} days from purchase, for any reason` },
@@ -51,6 +53,20 @@ export default function RefundPolicyPage() {
           ),
         },
         {
+          heading: "If you bought Veyra through another store",
+          body: (
+            <p>
+              A purchase made on a marketplace is refundable under{" "}
+              <em>that store&rsquo;s</em> window, not the {REFUND_WINDOW_DAYS}{" "}
+              days above, and the request goes to them rather than to us — they
+              hold the payment, so only they can return it. Tell us there and
+              we deactivate the licence as soon as their notice arrives. Buying
+              through a store never changes what the licence does while it is
+              active.
+            </p>
+          ),
+        },
+        {
           heading: "What happens after you request one",
           body: (
             <>
@@ -62,10 +78,11 @@ export default function RefundPolicyPage() {
                 receive an email confirming the refund.
               </p>
               <p>
-                The money returns to your original payment method. We process
-                approved refunds promptly; how long the credit takes to appear —
-                usually a few business days — depends on your bank or card
-                issuer.
+                The money returns to your original payment method through{" "}
+                {processor.name}, the merchant of record that took the payment.
+                We issue approved refunds promptly; how long the credit takes to
+                appear — usually a few business days — depends on your bank or
+                card issuer.
               </p>
             </>
           ),

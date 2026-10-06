@@ -336,16 +336,33 @@ try {
       flood.status === 422, `status ${flood.status} body ${JSON.stringify(flood.json)}`);
 
     // F. Webhook forgery: a signature made with the WRONG secret is
-    // rejected and changes nothing.
+    // rejected and changes nothing. Dodo uses the Standard Webhooks scheme —
+    // HMAC-SHA256 over `${id}.${timestamp}.${rawBody}`, base64, keyed by the
+    // webhook secret (here: an attacker's guess of it).
     const forgedOrder = uuid();
     const body = JSON.stringify({
-      meta: { event_name: "order_created", custom_event_data: { veyra_order_id: forgedOrder } },
-      data: { id: `forged-${STAMP}`, attributes: { status: "paid", currency: "USD", subtotal: 7900, discount_total: 0 } },
+      type: "payment.succeeded",
+      data: {
+        payload_type: "event",
+        payment_id: `forged-${STAMP}`,
+        status: "succeeded",
+        total_amount: 7900,
+        tax: 0,
+        currency: "USD",
+        metadata: { veyra_order_id: forgedOrder },
+      },
     });
-    const badSig = createHmac("sha256", "attacker-does-not-know-the-secret").update(body).digest("hex");
-    const forged = await jfetch(`${BASE}/api/webhooks/lemonsqueezy`, {
+    const forgeKey = createHmac("sha256", "attacker-does-not-know-the-secret")
+      .update(body)
+      .digest("base64");
+    const forged = await jfetch(`${BASE}/api/webhooks/dodo`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-signature": badSig },
+      headers: {
+        "Content-Type": "application/json",
+        "webhook-id": `evt_forged_${STAMP}`,
+        "webhook-timestamp": String(Math.floor(Date.now() / 1000)),
+        "webhook-signature": `v1,${forgeKey}`,
+      },
       body,
     });
     check("webhook with FORGED signature is rejected (403/400)", forged.status === 403 || forged.status === 400, `status ${forged.status}`);

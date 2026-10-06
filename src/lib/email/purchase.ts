@@ -2,7 +2,7 @@
  * Stage 8 — customer email (Resend), with an at-most-once send ledger.
  *
  * The purchase path has THREE callers that can all finish the same order:
- * the checkout route (free orders), the Lemon Squeezy webhook (which retries,
+ * the checkout route (free orders), the Dodo webhook (which retries,
  * so the same event arrives repeatedly), and the sign-in claim routine. A
  * naive "send receipt" call in each would triple-email customers. So every
  * send
@@ -23,7 +23,8 @@
 
 import "server-only";
 import { supabaseUrl, supabaseServiceRoleKey } from "@/lib/supabase/config";
-import { site } from "@/lib/site";
+import { paymentProcessorCopy } from "@/lib/payments/provider";
+import { CURRENCY, site } from "@/lib/site";
 
 /* ------------------------------------------------------------------ */
 /* Config                                                              */
@@ -221,9 +222,22 @@ export type PurchaseEmailInput = {
   purchasedAt: string;    // ISO
 };
 
+/** Render an amount in the currency the order was actually charged in, so a
+ *  dollar receipt never prints a rupee sign and an older INR order still
+ *  reads correctly. Falls back to "4999.00 INR" if a code ever arrives that
+ *  Intl doesn't know. */
 function money(minor: number, currency: string): string {
-  const v = (minor / 100).toFixed(2).replace(/\.00$/, "");
-  return currency === "USD" ? `$${v}` : `${v} ${currency}`;
+  const major = minor / 100;
+  const code = (currency || CURRENCY).toUpperCase();
+  try {
+    return new Intl.NumberFormat(code === "INR" ? "en-IN" : "en-US", {
+      style: "currency",
+      currency: code,
+      maximumFractionDigits: 2,
+    }).format(major);
+  } catch {
+    return `${major.toFixed(2)} ${code}`;
+  }
 }
 
 function shortRef(id: string): string {
@@ -252,15 +266,25 @@ export async function sendPurchaseEmail(input: PurchaseEmailInput): Promise<void
       `Thank you for your purchase of ${input.productName}.`,
       ``,
       `Order:      ${orderRef} (${date})`,
-      `Total:      ${money(input.amountMinor, input.currency)}`,
+      `Price paid: ${money(input.amountMinor, input.currency)} (before tax)`,
       `Seats:      ${input.seats}`,
       `Licence:    ${input.licenceReference}`,
       input.version ? `Version:    ${input.version}` : null,
       ``,
+      `Tax is calculated at checkout by our merchant of record, Dodo`,
+      `Payments, and appears on their receipt and on your card statement.`,
+      ``,
       `Get started:`,
       `1. Sign in to your Veyra account: ${accountUrl}`,
       `2. Open your library and download the installer for Windows or Mac: ${libraryUrl}`,
-      `3. Run the installer, then activate with your licence key above.`,
+      `3. Windows: run the installer — no admin rights needed. If`,
+      `   SmartScreen says "Windows protected your PC", choose`,
+      `   "More info", then "Run anyway".`,
+      `4. Mac: open the disk image and drag the app into Applications.`,
+      `   On the first launch only, right-click (or Control-click) the`,
+      `   app and choose "Open" — that gets you past "developer cannot`,
+      `   be verified". After that it launches normally.`,
+      `5. Launch the app and activate with your licence key above.`,
       ``,
       `Activations can be managed (and moved between machines) from`,
       `Account → Licences. Everything you buy includes all future`,
@@ -278,19 +302,22 @@ export async function sendPurchaseEmail(input: PurchaseEmailInput): Promise<void
   <h1 style="font-size:26px;margin:6px 0 14px">Thank you — ${escapeHtml(input.productName)} is yours.</h1>
   <table style="width:100%;border-collapse:collapse;font-size:14px;margin:0 0 18px">
     <tr><td style="padding:7px 0;color:#6f6a5d;border-bottom:1px solid #e7e4da">Order</td><td align="right" style="padding:7px 0;border-bottom:1px solid #e7e4da"><b>${escapeHtml(orderRef)}</b> · ${escapeHtml(date)}</td></tr>
-    <tr><td style="padding:7px 0;color:#6f6a5d;border-bottom:1px solid #e7e4da">Total paid</td><td align="right" style="padding:7px 0;border-bottom:1px solid #e7e4da">${escapeHtml(money(input.amountMinor, input.currency))}</td></tr>
+    <tr><td style="padding:7px 0;color:#6f6a5d;border-bottom:1px solid #e7e4da">Price paid</td><td align="right" style="padding:7px 0;border-bottom:1px solid #e7e4da">${escapeHtml(money(input.amountMinor, input.currency))} <span style="color:#8a8474;font-size:12px">(before tax)</span></td></tr>
     <tr><td style="padding:7px 0;color:#6f6a5d;border-bottom:1px solid #e7e4da">Seats</td><td align="right" style="padding:7px 0;border-bottom:1px solid #e7e4da">${input.seats}</td></tr>
     ${input.version ? `<tr><td style="padding:7px 0;color:#6f6a5d;border-bottom:1px solid #e7e4da">Version</td><td align="right" style="padding:7px 0;border-bottom:1px solid #e7e4da">${escapeHtml(input.version)}</td></tr>` : ""}
   </table>
+  <p style="font-size:12px;color:#8a8474;margin:-10px 0 18px">Applicable sales tax/VAT is calculated at checkout by our merchant of record, Dodo Payments, and appears on their receipt and on your card statement.</p>
   <div style="background:#f4f2ec;border:1px solid #e7e4da;border-radius:8px;padding:16px;margin:0 0 22px;text-align:center">
     <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#8a8474">Your licence key</div>
     <div style="font-family:'Courier New',monospace;font-size:20px;font-weight:bold;letter-spacing:.06em;margin-top:6px">${escapeHtml(input.licenceReference)}</div>
   </div>
-  <h2 style="font-size:16px;margin:0 0 10px">Install in three steps</h2>
+  <h2 style="font-size:16px;margin:0 0 10px">How to install</h2>
   <ol style="font-size:14px;padding-left:20px;margin:0 0 22px">
     <li style="margin-bottom:6px">Sign in to your <a href="${escapeHtml(accountUrl)}" style="color:#2f5d3a">Veyra account</a> — your purchase and licence are already there.</li>
     <li style="margin-bottom:6px">Open the <a href="${escapeHtml(libraryUrl)}" style="color:#2f5d3a">Delivery Center</a> and download the installer for Windows or Mac.</li>
-    <li>Install it and activate with the licence key above.</li>
+    <li style="margin-bottom:6px"><b>Windows:</b> run the installer — no admin rights needed. If SmartScreen says &ldquo;Windows protected your PC&rdquo;, choose &ldquo;More info&rdquo;, then &ldquo;Run anyway&rdquo;.</li>
+    <li style="margin-bottom:6px"><b>Mac:</b> open the disk image and drag the app into Applications. On the first launch only, right-click (or Control-click) the app and choose &ldquo;Open&rdquo; — that gets you past &ldquo;developer cannot be verified&rdquo;. After that it launches normally.</li>
+    <li>Launch the app and activate with the licence key above.</li>
   </ol>
   <p style="font-size:13px;color:#6f6a5d">Activations are managed from <a href="${escapeHtml(accountUrl)}/licences" style="color:#2f5d3a">Account → Licences</a> — a seat can move between machines anytime. Every future version is included.</p>
   <p style="font-size:13px;color:#6f6a5d;margin-top:18px">Questions? Just reply to this email.</p>
@@ -416,11 +443,15 @@ export async function sendRefundEmail(input: RefundEmailInput): Promise<void> {
     if (!(await beginSend(orderId, "refund_confirmation", toEmail))) return;
 
     const orderRef = shortRef(orderId);
+    const processor = paymentProcessorCopy();
+    const refundLine =
+      `${processor.name} typically completes refunds to the original payment ` +
+      `method within 5–10 business days.`;
     const subject = `Your refund is on its way — ${input.productName}`;
     const text = [
       `Your payment for ${input.productName} (order ${orderRef}) has been refunded`,
-      `${money(input.amountMinor, input.currency)}. Lemon Squeezy typically completes`,
-      `refunds to the original payment method within 5–10 business days.`,
+      `${money(input.amountMinor, input.currency)}.`,
+      refundLine,
       ``,
       `Access to the product has been closed: the licence is revoked and the`,
       `download is no longer available from your account.`,
@@ -433,7 +464,7 @@ export async function sendRefundEmail(input: RefundEmailInput): Promise<void> {
     const html = `<div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;color:#17150f;line-height:1.6">
   <p style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#8a8474">Veyra · Refund</p>
   <h1 style="font-size:26px;margin:6px 0 14px">Your refund is on its way.</h1>
-  <p style="font-size:14px;margin:0 0 14px">We've refunded <b>${escapeHtml(money(input.amountMinor, input.currency))}</b> for <b>${escapeHtml(input.productName)}</b> (order ${escapeHtml(orderRef)}). Lemon Squeezy typically completes refunds to the original payment method within 5–10 business days.</p>
+  <p style="font-size:14px;margin:0 0 14px">We've refunded <b>${escapeHtml(money(input.amountMinor, input.currency))}</b> for <b>${escapeHtml(input.productName)}</b> (order ${escapeHtml(orderRef)}). ${refundLine}</p>
   <p style="font-size:14px;margin:0 0 18px">Access to the product has been closed — the licence is revoked and downloads are no longer available from your account.</p>
   <p style="font-size:13px;color:#6f6a5d">If this refund wasn't expected, just reply to this email and we'll sort it out.</p>
   <p style="font-size:13px;color:#8a8474;margin-top:14px">— Veyra</p>

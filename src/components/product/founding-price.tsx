@@ -1,13 +1,16 @@
+"use client";
+
 import { FOUNDING_PRICE } from "@/lib/pricing";
 import { formatPrice } from "@/lib/site";
+import { useFoundingActive } from "@/components/layout/founding-context";
 
 /**
  * FoundingPrice — compact price display for cards and CTA strips.
  *
- * While launch pricing is in effect (catalog price above the founding
- * price), the founding price leads and the regular catalog price is
- * struck through. Otherwise the catalog price renders alone. Amounts
- * resolve from the pricing module — the same authority checkout uses.
+ * While the founding allocation is open, the founding price leads and the
+ * regular catalog price is struck through. Once it is spent, the regular
+ * price renders alone — read from the same allocation the checkout charges
+ * against, so a card can never advertise a price the register won't take.
  */
 export function FoundingPrice({
   price,
@@ -22,7 +25,8 @@ export function FoundingPrice({
   note?: string;
   className?: string;
 }) {
-  const launchActive = price > FOUNDING_PRICE;
+  const foundingActive = useFoundingActive();
+  const launchActive = foundingActive && price > FOUNDING_PRICE;
 
   if (!launchActive) {
     return (

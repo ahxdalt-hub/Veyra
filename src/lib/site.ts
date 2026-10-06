@@ -57,6 +57,7 @@ export const footerNav = {
   ] as NavItem[],
   support: [
     { label: "FAQ", href: "/#faq" },
+    { label: "Redeem a code", href: "/redeem" },
     { label: "Resources", href: "/resources" },
     { label: "Growth Audit — free", href: "/products/growth-audit" },
   ] as NavItem[],
@@ -79,10 +80,16 @@ export const REFUND_WINDOW_LABEL = `${REFUND_WINDOW_DAYS}-day refund window`;
 
 /** Customer-facing pricing is USD across the entire storefront — product
  *  pages, cards, cart, checkout, and the server-side order amount all
- *  resolve through the catalog, never through client input. */
+ *  resolve through the catalog, never through client input.
+ *
+ *  USD is load-bearing, not cosmetic: checkout runs on Dodo Payments, a
+ *  global merchant of record that charges and settles in dollars (see
+ *  src/lib/payments/provider.ts). This constant and src/lib/pricing.ts move
+ *  together or not at all — a number and its currency are one decision. */
 export const CURRENCY = "USD";
 
-/** Format a price in USD, whole dollars (products are priced flat). */
+/** Format a price in the storefront currency, whole dollars (products are
+ *  priced flat). en-US gives the $1,234 grouping the storefront promises. */
 export function formatPrice(value: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",

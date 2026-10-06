@@ -3,17 +3,20 @@ import { Button } from "@/components/ui/button";
 import { getFeaturedProduct } from "@/lib/products";
 import { formatPrice, REFUND_WINDOW_LABEL } from "@/lib/site";
 import { FOUNDING_PRICE } from "@/lib/pricing";
+import { getFoundingStatus } from "@/lib/founding";
 
 /**
  * FinalCta — Section J.
  * A calm close focused on the flagship. No countdown timers, no urgency.
- * During launch pricing, the founding price is what's quoted — the same
- * number checkout charges.
+ * The founding price is quoted only while the allocation is genuinely open,
+ * because that is the only state in which checkout will actually take it.
  */
-export function FinalCta() {
+export async function FinalCta() {
   const product = getFeaturedProduct();
   const price = product.price;
-  const launchActive = price !== null && price > FOUNDING_PRICE;
+  const foundingActive = (await getFoundingStatus()) === "active";
+  const launchActive =
+    foundingActive && price !== null && price > FOUNDING_PRICE;
 
   return (
     <section className="bg-paper">

@@ -8,6 +8,7 @@ import {
 } from "@/lib/products";
 import { formatPrice } from "@/lib/site";
 import { FOUNDING_PRICE } from "@/lib/pricing";
+import { useFoundingActive } from "@/components/layout/founding-context";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/motion/reveal";
 import { FeaturedPreview } from "@/components/product/featured-preview";
@@ -41,6 +42,9 @@ function LeadParagraph({ description }: { description: string }) {
 
 export function Featured() {
   const product = getFeaturedProduct();
+  // The catalog price is the regular price, so `price > FOUNDING_PRICE` alone
+  // would advertise founding framing forever. The allocation decides.
+  const foundingActive = useFoundingActive();
 
   const byPhase = PHASE_ORDER.map((phase) => ({
     phase,
@@ -155,7 +159,9 @@ export function Featured() {
             <Reveal delay={0.25}>
               <div className="mt-10 flex flex-col gap-5 border-t border-line pt-8 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  {product.price !== null && product.price > FOUNDING_PRICE ? (
+                  {product.price !== null &&
+                  foundingActive &&
+                  product.price > FOUNDING_PRICE ? (
                     <p className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
                       <span className="text-3xl font-medium tnum text-ink">
                         {formatPrice(FOUNDING_PRICE)}

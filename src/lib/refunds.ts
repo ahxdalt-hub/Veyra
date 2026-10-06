@@ -14,8 +14,8 @@ import { sendRefundEmail } from "@/lib/email/purchase";
 /**
  * Refunds — the paid → refunded half of the lifecycle.
  *
- * A refund can be issued from the Lemon Squeezy dashboard (and the API), so
- * the ONLY durable signal Veyra gets is the `order_refunded` webhook. This
+ * A refund can be issued from the Dodo dashboard (and the API), so the ONLY
+ * durable signal Veyra gets is the `refund.succeeded` webhook. This
  * module is what makes the advertised refund window honest: when money comes
  * back, access goes away in the same breath.
  *

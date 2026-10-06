@@ -28,6 +28,10 @@ const bundleEnv = path.join(root, ".open-next", "cloudflare", "next-env.mjs");
 /** Anything a browser may already see. Everything else is server-only. */
 const PUBLIC_PREFIX = "NEXT_PUBLIC_";
 
+/* Snapshotted before the swap below, because the build runs while
+ * .env.local is temporarily public-only — see localValue(). */
+const rawEnvLocal = existsSync(envLocal) ? readFileSync(envLocal, "utf8") : "";
+
 function publicLines() {
   if (!existsSync(envLocal)) return "";
   return readFileSync(envLocal, "utf8")
@@ -36,12 +40,23 @@ function publicLines() {
     .join("\n");
 }
 
+/** The real value of a NON-SECRET variable in .env.local, or null. The build
+ *  needs the actual mode: `dodoMode()` renders the mode banner, and a
+ *  placeholder would bake the wrong one into a static route. Never call this
+ *  for a name in FORBIDDEN. */
+function localValue(name) {
+  const line = rawEnvLocal
+    .split(/\r?\n/)
+    .find((l) => l.startsWith(`${name}=`));
+  const value = line ? line.slice(name.length + 1).trim() : "";
+  return value ? value : null;
+}
+
 /** Keys that must never appear in the uploaded artifact. */
 const FORBIDDEN = [
   "SUPABASE_SERVICE_ROLE_KEY",
-  "LEMONSQUEEZY_API_KEY",
-  "LEMONSQUEEZY_WEBHOOK_SECRET",
-  "RAZORPAY_KEY_SECRET",
+  "DODO_PAYMENTS_API_KEY",
+  "DODO_PAYMENTS_WEBHOOK_KEY",
   "RESEND_API_KEY",
   "VEYRA_LICENCE_SIGNING_KEY",
   "VEYRA_ADMIN_PASSWORD",
@@ -50,9 +65,48 @@ const FORBIDDEN = [
   "PARTNER_WEBHOOK_SECRET",
 ];
 
-function run(command, args) {
-  const result = spawnSync(command, args, { cwd: root, stdio: "inherit", shell: true });
+function run(command, args, env) {
+  const result = spawnSync(command, args, {
+    cwd: root,
+    stdio: "inherit",
+    shell: true,
+    ...(env ? { env } : {}),
+  });
   if (result.status !== 0) throw new Error(`${command} ${args.join(" ")} exited with ${result.status}`);
+}
+
+/**
+ * The build must see the same variable SHAPE as the Worker, or `next build`
+ * misclassifies routes. Stripping server-only vars is what did the damage:
+ * with `SUPABASE_SERVICE_ROLE_KEY` absent, `adminAuthConfigured()` is false
+ * during the build, so `/admin/sign-in` took its early `redirect()` before
+ * ever touching `cookies()` — and Next baked it as a STATIC route. At runtime
+ * the secret is present, the code reaches `cookies()`, and every anonymous
+ * hit on the admin door was a 500 ("Page changed from static to dynamic").
+ * `/account/sign-in`, `/account/sign-up`, `/account/forgot-password`,
+ * `/account/reset-password` and `/checkout/complete` were baked the same way.
+ *
+ * So the names are restored with an unmistakable placeholder VALUE. Nothing
+ * secret is in play, and the leak check below still runs against the built
+ * artifact — if any of these names ever gets inlined anyway, the deploy
+ * aborts rather than shipping it.
+ */
+const BUILD_PLACEHOLDER = "deploy-build-placeholder-not-a-secret";
+
+/** Non-secret Dodo names the build must still SEE, for the same static-bake
+ *  reason as above: `dodoConfigured()` and `dodoMode()` are read by server
+ *  components (/checkout, /checkout/complete, /admin/settings), so a route
+ *  that renders differently with them absent gets baked wrong. */
+const BUILD_SHAPE = [
+  "DODO_PAYMENTS_ENVIRONMENT",
+  "DODO_PAYMENTS_PRODUCT_ID_CLIENT_GROWTH_SYSTEM",
+];
+
+function buildEnv() {
+  const env = { ...process.env };
+  for (const name of FORBIDDEN) env[name] = BUILD_PLACEHOLDER;
+  for (const name of BUILD_SHAPE) env[name] = localValue(name) ?? BUILD_PLACEHOLDER;
+  return env;
 }
 
 let swapped = false;
@@ -71,7 +125,7 @@ try {
   }
   if (publicOnly) writeFileSync(envLocal, `${publicOnly}\n`);
 
-  run("npx", ["opennextjs-cloudflare", "build"]);
+  run("npx", ["opennextjs-cloudflare", "build"], buildEnv());
 
   if (!existsSync(bundleEnv)) throw new Error(`${bundleEnv} missing after build — refusing to deploy blind`);
   const built = readFileSync(bundleEnv, "utf8");
@@ -80,6 +134,30 @@ try {
     throw new Error(`build inlined server-only variables: ${leaked.join(", ")} — deploy aborted`);
   }
   console.log(`[deploy] artifact carries ${FORBIDDEN.length} server-only keys: none inlined`);
+
+  // A deploy is a live-money action, so refuse on an incoherent payment
+  // config rather than shipping it: the mode and the API key are mode-scoped,
+  // and the paid product must map to a Dodo product id.
+  const mode = (localValue("DODO_PAYMENTS_ENVIRONMENT") ?? "").toLowerCase();
+  const apiKey = localValue("DODO_PAYMENTS_API_KEY") ?? "";
+  const productId = localValue("DODO_PAYMENTS_PRODUCT_ID_CLIENT_GROWTH_SYSTEM") ?? "";
+  if (apiKey) {
+    if (mode !== "live_mode" && mode !== "test_mode") {
+      throw new Error(
+        `DODO_PAYMENTS_API_KEY is set but DODO_PAYMENTS_ENVIRONMENT is "${mode || "unset"}" — ` +
+          `must be live_mode or test_mode. Keys are mode-scoped; a mismatch 401s at checkout.`
+      );
+    }
+    if (mode === "live_mode" && !productId) {
+      throw new Error(
+        "DODO_PAYMENTS_ENVIRONMENT=live_mode but no product id is configured — " +
+          "checkout would fail closed. Set DODO_PAYMENTS_PRODUCT_ID_CLIENT_GROWTH_SYSTEM."
+      );
+    }
+    console.log(`[deploy] payment config: ${mode}, api key bound (${apiKey.length} chars), product ${productId || "NOT SET"}`);
+  } else {
+    console.log("[deploy] no DODO_PAYMENTS_API_KEY locally — checkout will refuse until the Worker secret is bound");
+  }
 
   run("npx", ["opennextjs-cloudflare", "deploy"]);
 } finally {

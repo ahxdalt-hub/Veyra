@@ -121,7 +121,19 @@ type CartContextValue = {
 
 const CartContext = createContext<CartContextValue | null>(null);
 
-export function CartProvider({ children }: { children: ReactNode }) {
+export function CartProvider({
+  children,
+  foundingActive = true,
+}: {
+  children: ReactNode;
+  /**
+   * Which price ladder the checkout will charge from, resolved server-side
+   * once per layout render (src/lib/founding.ts). The cart is display-only,
+   * but it must display the SAME ladder /api/checkout charges, or the drawer
+   * quotes one price and the gateway takes another.
+   */
+  foundingActive?: boolean;
+}) {
   // SSR renders the empty cart; hydration upgrades to real state.
   const lines = useSyncExternalStore(
     subscribe,
@@ -170,7 +182,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       .map((line) => {
         const product = resolvePurchasableProduct(line.slug);
         return product
-          ? { product, qty: line.qty, tier: seatTier(line.qty) }
+          ? { product, qty: line.qty, tier: seatTier(line.qty, foundingActive) }
           : null;
       })
       .filter((l): l is DetailedLine => l !== null);
@@ -190,7 +202,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       openCart,
       closeCart,
     };
-  }, [lines, isOpen, add, remove, setQty, clear, openCart, closeCart]);
+  }, [lines, isOpen, foundingActive, add, remove, setQty, clear, openCart, closeCart]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

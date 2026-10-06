@@ -1,6 +1,15 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/legal/legal-page";
+import { paymentProcessorCopy } from "@/lib/payments/provider";
 import { site } from "@/lib/site";
+
+/*
+ * Runtime-rendered for the same reason /terms is: which gateway names the
+ * card handler is a legal statement, and the deploy build runs without server
+ * env, so a static render would freeze whichever provider happened to be
+ * configured at build time.
+ */
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
@@ -11,11 +20,12 @@ export const metadata: Metadata = {
 };
 
 export default function PrivacyPage() {
+  const processor = paymentProcessorCopy();
   return (
     <LegalPage
       eyebrow="Legal"
       title="Privacy Policy"
-      updated="September 2026"
+      updated="October 2026"
       intro="We collect as little as possible, use it only for what you'd expect when you buy software, and never sell it. This page explains exactly what that means — in plain language, section by section."
       summary={[
         { label: "Collected", value: "Email, order and licence records, device identifiers for activations" },
@@ -42,9 +52,9 @@ export default function PrivacyPage() {
             <>
               <p>
                 <strong>Order information.</strong> When you purchase, our
-                payment processor, Lemon Squeezy, collects what checkout
+                payment processor, {processor.name}, collects what checkout
                 requires — your name, billing address, and payment details.
-                Card numbers are handled entirely by Lemon Squeezy and never
+                Card numbers are handled entirely by {processor.name} and never
                 touch our servers. We receive and
                 store your email, the product purchased, the amount paid, and
                 the order&rsquo;s status, so we can deliver your licence and
@@ -127,7 +137,7 @@ export default function PrivacyPage() {
                   file storage for accounts, orders, licences, and downloads
                 </li>
                 <li>
-                  <strong>Lemon Squeezy</strong> — payment processing at
+                  <strong>{processor.name}</strong> — payment processing at
                   checkout
                 </li>
                 <li>

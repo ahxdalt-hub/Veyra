@@ -1,12 +1,13 @@
 name: CI
 
 # Runs the checks that catch regressions without needing any production
-# secrets: typecheck, lint, and the licensing suite (token crypto + the
-# activation engine, which runs on an in-memory PGlite database).
+# secrets: typecheck, lint, the licensing suite (token crypto + the
+# activation engine, which runs on an in-memory PGlite database), and the
+# Dodo webhook signature tests (pure crypto, no network).
 #
-# The delivery / razorpay e2e suites are deliberately NOT wired here —
+# The delivery / payments e2e suites are deliberately NOT wired here —
 # they need live test-mode credentials and a reachable gateway, so they
-# stay operator-run (`npm run test:delivery:e2e`, `test:razorpay:testmode`).
+# stay operator-run (`npm run test:delivery:e2e`, `npm run dodo:setup`).
 
 on:
   push:
@@ -38,3 +39,6 @@ jobs:
 
       - name: Licensing tests
         run: npm run test:licensing
+
+      - name: Dodo webhook signature tests
+        run: npm run test:dodo

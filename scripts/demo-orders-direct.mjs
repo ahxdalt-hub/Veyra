@@ -20,7 +20,7 @@
  *   node scripts/demo-orders-direct.mjs --interval=4000 --count=999
  *   node scripts/demo-orders-direct.mjs --cleanup      # wipe all demo rows
  *
- * Demo rows are tagged (demo+…@veyra.test emails, chk_DEMO ids) so
+ * Demo rows are tagged (demo+…@veyra.test emails, cks_DEMO session ids) so
  * --cleanup deletes every trace. No fulfillment is run — licences,
  * emails and download records are deliberately NOT created.
  */
@@ -69,12 +69,14 @@ if (!process.argv.includes("--yes-i-mean-prod")) {
   process.exit(1);
 }
 
-/* — catalog (slugs must exist in src/lib/products.ts; amounts are
-   cents, matching the real USD checkout totals). — */
+/* — catalog. Paid entries only: the Dodo charge is a function of the seat
+   count, so amounts are the real per-seat founding ladder in CENTS
+   (src/lib/pricing.ts: 79 / 75 / 71 / 67 / 63 per seat). The Growth Audit is
+   a free claim, never a payment, so it is not in this list. — */
 const CATALOG = [
-  { slug: "client-growth-system", name: "Client Growth System", amounts: [14900, 19900, 24900, 29900] },
-  { slug: "growth-audit", name: "Veyra Growth Audit", amounts: [4900] },
+  { slug: "client-growth-system", name: "Client Growth System", perSeatCents: [7900, 7500, 7100, 6700, 6300] },
 ];
+const FREE_PRODUCT = { slug: "growth-audit", name: "The Growth Audit" };
 const Payers = [
   "aarav.shah", "priya.nair", "jonas.weber", "mara.dutt",
   "sam.ortiz", "lena.kovac", "noah.lindqvist", "zara.ahmed",
@@ -100,15 +102,14 @@ async function simulateOneCustomer(seq) {
   // Free-product claims (real path: /api/claim → notifyNewSale with
   // amountMinor 0) — notification only, exactly what the admin sees.
   if (ALL_PAID && seq % 6 === 0) {
-    const product = pick(CATALOG);
     const email = `demo+${pick(Payers)}.${seq}@veyra.test`;
-    console.log(`[${ts()}] ◦ #${seq} FREE     ${product.name}  ${email}`);
+    console.log(`[${ts()}] ◦ #${seq} FREE     ${FREE_PRODUCT.name}  ${email}`);
     await notify(
       {
         kind: "sale",
         severity: "success",
         title: "New sale",
-        message: `${product.name} — ${usd(0)} · ${email}`,
+        message: `${FREE_PRODUCT.name} — ${usd(0)} · ${email}`,
       },
       `claim_DEMO${rnd()}`
     );
@@ -116,17 +117,22 @@ async function simulateOneCustomer(seq) {
   }
 
   const product = pick(CATALOG);
-  const amount = pick(product.amounts);
+  // Seats drive the price, exactly as the real seat ladder does.
+  const quantity = 1 + Math.floor(Math.random() * product.perSeatCents.length);
+  const amount = product.perSeatCents[quantity - 1] * quantity;
   const email = `demo+${pick(Payers)}.${seq}@veyra.test`;
   const now = new Date().toISOString();
 
   const { data: order, error } = await supabase
     .from("orders")
     .insert({
-      lemon_squeezy_order_id: `chk_DEMO${rnd()}`,
+      // provider_session_id mirrors the Dodo checkout session (`cks_…`) that
+      // /api/checkout writes; the payment id only lands on confirmation.
+      provider: "dodo",
+      provider_session_id: `cks_DEMO${rnd()}`,
       email,
       product_slug: product.slug,
-      quantity: 1,
+      quantity,
       amount,
       currency: "USD",
       status: "pending",
@@ -139,7 +145,9 @@ async function simulateOneCustomer(seq) {
     console.error("orders insert:", error.message);
     return;
   }
-  console.log(`[${ts()}] · #${seq} PENDING  ${usd(amount)}  ${product.name}  ${email}`);
+  console.log(
+    `[${ts()}] · #${seq} PENDING  ${usd(amount)}  ${product.name}${quantity > 1 ? ` (${quantity} seats)` : ""}  ${email}`
+  );
   await notify(
     {
       kind: "system",
@@ -159,8 +167,8 @@ async function simulateOneCustomer(seq) {
         .from("orders")
         .update({
           status: "paid",
-          lemon_squeezy_payment_id: `pay_DEMO${rnd()}`,
-          provider: "lemon-squeezy",
+          provider_payment_id: `pay_DEMO${rnd()}`,
+          provider: "dodo",
           paid_at: stamp,
           updated_at: stamp,
         })
@@ -183,11 +191,15 @@ async function simulateOneCustomer(seq) {
   }, 2400);
 }
 
+/** Demo rows were tagged `chk_DEMO…` before Dodo and `cks_DEMO…` after —
+ *  sweep both so an old run can never survive --cleanup. */
+const DEMO_TAG = "provider_session_id.like.cks_DEMO*,provider_session_id.like.chk_DEMO*";
+
 async function cleanup() {
   const { data: orders, error } = await supabase
     .from("orders")
     .select("id")
-    .like("lemon_squeezy_order_id", "chk_DEMO%");
+    .or(DEMO_TAG);
   if (error) throw new Error(error.message);
   const ids = (orders ?? []).map((o) => o.id);
   // Every notification this script writes embeds a demo email, so one
@@ -204,7 +216,7 @@ async function cleanup() {
   const { error: e2 } = await supabase
     .from("orders")
     .delete()
-    .like("lemon_squeezy_order_id", "chk_DEMO%");
+    .or(DEMO_TAG);
   if (e2) throw new Error(e2.message);
   console.log(`Removed ${ids.length} demo order(s) and their notifications.`);
 }

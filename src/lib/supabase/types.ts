@@ -11,14 +11,11 @@ import type { OrderStatus } from "@/lib/orders";
 
 export type OrderRow = {
   id: string;
-  /** Lemon Squeezy human order id, stamped at confirmation (0020). */
-  lemon_squeezy_order_id: string | null;
-  /** Lemon Squeezy order uuid — the provider payment reference. */
-  lemon_squeezy_payment_id: string | null;
-  /** 0022 — Razorpay order id (test provider); null on LS checkout. */
-  razorpay_order_id: string | null;
-  /** 0022 — Razorpay payment id, written when the signature verifies. */
-  razorpay_payment_id: string | null;
+  /** The processor's checkout reference (Dodo session id, `cks_…`). */
+  provider_session_id: string | null;
+  /** The processor's confirmed payment id (`pay_…`) — what a refund is
+   *  issued against (0028 replaced the provider-named columns). */
+  provider_payment_id: string | null;
   email: string;
   user_id: string | null;
   product_slug: string;

@@ -112,7 +112,7 @@ export function ProductCard({ product }: { product: Product }) {
                 <span className="text-lg font-medium text-ink">
                   Free
                   <span className="ml-1.5 text-xs font-normal text-ink-4">
-                    · $0
+                    · no card
                   </span>
                 </span>
                 <Button

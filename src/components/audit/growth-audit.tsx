@@ -19,6 +19,7 @@ import {
   type AuditResult,
 } from "@/lib/audit";
 import { FOUNDING_PRICE, REGULAR_PRICE } from "@/lib/pricing";
+import { useFoundingActive } from "@/components/layout/founding-context";
 import { formatPrice } from "@/lib/site";
 import { useUiSounds } from "@/components/audit/use-sounds";
 import { Button } from "@/components/ui/button";
@@ -533,6 +534,7 @@ function Results({
   retake: () => void;
 }) {
   const weakest = result.gaps[0];
+  const foundingActive = useFoundingActive();
   return (
     <div className="max-w-2xl">
       <p className="text-eyebrow text-center">Your growth audit</p>
@@ -642,15 +644,19 @@ function Results({
           </p>
           <div className="mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-1.5">
             <span className="text-3xl font-medium tnum text-paper">
-              {formatPrice(FOUNDING_PRICE)}
+              {formatPrice(foundingActive ? FOUNDING_PRICE : REGULAR_PRICE)}
             </span>
-            <span className="text-sm line-through tnum text-paper/40">
-              {formatPrice(REGULAR_PRICE)}
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-paper/25 px-3 py-1 text-xs">
-              <SparkIcon className="h-3 w-3" />
-              Founding price
-            </span>
+            {foundingActive ? (
+              <>
+                <span className="text-sm line-through tnum text-paper/40">
+                  {formatPrice(REGULAR_PRICE)}
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-paper/25 px-3 py-1 text-xs">
+                  <SparkIcon className="h-3 w-3" />
+                  Founding price
+                </span>
+              </>
+            ) : null}
           </div>
           <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
             <Button

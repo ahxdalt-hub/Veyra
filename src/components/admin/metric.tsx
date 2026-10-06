@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "framer-motion";
+import { CURRENCY } from "@/lib/site";
 
 /**
  * CountUp — mounts once, eases to the value; re-animates (quietly) when
@@ -51,7 +52,10 @@ export function CountUp({
   return <>{render(kind, reduced ? value : display)}</>;
 }
 
-const moneyFmt = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+const moneyFmt = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: CURRENCY,
+});
 
 function render(kind: "money" | "number" | "percent", v: number): string {
   if (kind === "money") return moneyFmt.format(Math.round(v) / 100);
