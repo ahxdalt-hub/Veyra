@@ -66,6 +66,9 @@ export type Order = {
   total: number | null;
   /** Coupon code applied, lowercase, if any. */
   coupon_code: string | null;
+  /** Set only by a marketplace redemption (0029): the code whose claim
+   *  created this order. Null for anything that came through checkout. */
+  redemption_code: string | null;
   /** When the payment was confirmed (set on the pending→paid transition). */
   paid_at: string | null;
   /** Payment processor label ('dodo' / 'free-claim'); informational. */
@@ -80,7 +83,7 @@ export type OrderRow = Order;
  *  coupon-trail columns are optional (absent = no discount applied). */
 export type NewOrder = Omit<
   Order,
-  "created_at" | "updated_at" | "subtotal" | "discount" | "total" | "coupon_code" | "paid_at" | "provider"
+  "created_at" | "updated_at" | "subtotal" | "discount" | "total" | "coupon_code" | "redemption_code" | "paid_at" | "provider"
 > &
   Partial<
     Pick<
@@ -89,6 +92,7 @@ export type NewOrder = Omit<
       | "discount"
       | "total"
       | "coupon_code"
+      | "redemption_code"
       | "provider"
     >
   >;
@@ -144,6 +148,7 @@ export async function insertOrder(
       discount: null,
       total: null,
       coupon_code: null,
+      redemption_code: null,
       paid_at: null,
       provider: null,
       ...order,

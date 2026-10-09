@@ -46,10 +46,11 @@ export async function POST(request: Request) {
   // Shared throttle (src/lib/rate-limit.ts). Revalidate authenticates
   // with only {activation_id, device_id}, so without a limiter this was
   // an unauthenticated, unthrottled state oracle and last_seen_at writer.
-  const limited =
-    !(await takeRateLimit(`licence:revalidate:${activation_id}`, 30, 60))
-      .allowed ||
-    !(await takeRateLimit(`licence:revalidate:ip:${clientIp(request)}`, 120, 60)).allowed;
+  const [byKey, byIp] = await Promise.all([
+    takeRateLimit(`licence:revalidate:${activation_id}`, 30, 60),
+    takeRateLimit(`licence:revalidate:ip:${clientIp(request)}`, 120, 60),
+  ]);
+  const limited = !byKey.allowed || !byIp.allowed;
   if (limited) {
     return jsonCORS(
       {

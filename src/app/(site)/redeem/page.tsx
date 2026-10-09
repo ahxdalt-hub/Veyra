@@ -18,13 +18,13 @@ export const metadata: Metadata = {
 /**
  * Redeem — the door for a purchase made somewhere other than this site.
  *
- * A code is a 100% coupon, so redemption is ordinary checkout: this page
- * POSTs /api/checkout, whose free-order branch skips the payment gateway,
- * walks the order pending → paid, and runs the same
- * grantPurchaseForOrder() (entitlement + licence + seat + receipt) the
- * processor webhook uses. No parallel fulfillment path exists here, and
- * none should — a second code path would be a second thing that can
- * disagree with the ledger.
+ * A code is a marketplace licence key (`redeem_codes`, 0029), not a discount:
+ * the buyer paid the full price to the store that sold it. So this page POSTs
+ * /api/redeem, whose claim is one guarded UPDATE (no double-spend), and whose
+ * fulfillment runs the same grantPurchaseForOrder() (entitlement + licence +
+ * seat + receipt) the processor webhook uses. The order it writes carries the
+ * real amount with zero discount, so marketplace revenue shows up in the
+ * ledger as what it is.
  *
  * The buyer ends up with a guest order until they register with the same
  * email; claimPurchasesForUser() links it on sign-up (see

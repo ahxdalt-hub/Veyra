@@ -65,3 +65,8 @@ _archive/
 /_*.js
 /_*.json
 /_*.txt
+
+# Redemption-code batches ARE the product for marketplace deals. The CSV is a
+# credential — generating it never makes it committable.
+/*codes*.csv
+/codes/

@@ -46,10 +46,11 @@ export async function POST(request: Request) {
 
   // Shared throttle (src/lib/rate-limit.ts): deactivation is seat-moving
   // and was previously unthrottled; keep brute hammering off the RPC.
-  const limited =
-    !(await takeRateLimit(`licence:deactivate:${licence_reference}:${email}`, 10, 60))
-      .allowed ||
-    !(await takeRateLimit(`licence:deactivate:ip:${clientIp(request)}`, 60, 60)).allowed;
+  const [byKey, byIp] = await Promise.all([
+    takeRateLimit(`licence:deactivate:${licence_reference}:${email}`, 10, 60),
+    takeRateLimit(`licence:deactivate:ip:${clientIp(request)}`, 60, 60),
+  ]);
+  const limited = !byKey.allowed || !byIp.allowed;
   if (limited) {
     return jsonCORS(
       {

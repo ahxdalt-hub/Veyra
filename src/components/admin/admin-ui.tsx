@@ -162,6 +162,9 @@ export function StatusPill({
     cancelled: "var(--cc-text-4)",
     deactivated: "var(--cc-text-4)",
     unavailable: "var(--cc-text-4)",
+    claimed: "var(--cc-success)",
+    unclaimed: "var(--cc-info)",
+    pulled: "var(--cc-text-4)",
     refunded: "var(--cc-info)",
   };
   const key = status.toLowerCase().replace(/[^a-z]/g, "");

@@ -229,7 +229,14 @@ export async function POST(request: Request) {
     const admin = await requireAdmin();
     if (!admin) {
       await supabase.auth.signOut(); // never leave a half-usable session
-      return NextResponse.json({ ok: false, notAdmin: true }, { status: 403 });
+      return NextResponse.json(
+        {
+          ok: false,
+          notAdmin: true,
+          error: "That account isn't an administrator.",
+        },
+        { status: 403 }
+      );
     }
     if (pinStepEnabled()) {
       await supabase.auth.signOut(); // hold the vault shut for stage 2
@@ -276,7 +283,14 @@ export async function POST(request: Request) {
   const finalAdmin = await requireAdmin();
   if (!finalAdmin) {
     await supabase.auth.signOut();
-    return NextResponse.json({ ok: false, notAdmin: true }, { status: 403 });
+    return NextResponse.json(
+      {
+        ok: false,
+        notAdmin: true,
+        error: "That account isn't an administrator.",
+      },
+      { status: 403 }
+    );
   }
 
   return vaultedOk();

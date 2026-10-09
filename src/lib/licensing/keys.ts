@@ -27,10 +27,20 @@ function licenceSigningPem(): string | null {
 }
 
 /** The signing key, imported for WebCrypto signing. Null when unusable —
- *  callers fail closed. */
+ *  callers fail closed. Imported once per isolate and reused: `importKey`
+ *  bills CPU on every activation otherwise, and the PEM cannot change while
+ *  the isolate lives. */
+let cachedPem: string | null = null;
+let cachedKey: CryptoKey | null = null;
+
 export async function licenceSigningKey(): Promise<CryptoKey | null> {
   const pem = licenceSigningPem();
-  return pem ? importSigningKey(pem) : null;
+  if (!pem) return null;
+  if (pem !== cachedPem) {
+    cachedPem = pem;
+    cachedKey = await importSigningKey(pem);
+  }
+  return cachedKey;
 }
 
 /** True when a well-formed PKCS#8 signing key is configured on this

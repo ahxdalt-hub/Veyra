@@ -2,12 +2,20 @@
  * Founding-release status — the banner's honest scarcity signal.
  *
  * The founding offer ("first 30 customers") is a real commercial limit, not
- * marketing theatre: a customer has claimed a founding slot once their order
- * for the flagship is paid. The count is derived from the existing
- * public.orders table (the single source of truth for purchases) — no new
- * tables, no duplicated commerce state. One paid order = one customer,
- * regardless of seats; a refunded order releases its slot because it stops
- * counting as paid.
+ * marketing theatre: a customer has claimed a founding slot once they have
+ * bought the flagship at the founding price, on this site. The count is
+ * derived from the existing public.orders table (the single source of truth
+ * for purchases) — no new tables, no duplicated commerce state. One paid
+ * order = one customer, regardless of seats; a refunded order releases its
+ * slot because it stops counting as paid.
+ *
+ * Two kinds of paid row are excluded, and both exclusions exist for the same
+ * reason — a marketplace or coupon order reaching 'paid' must not close the
+ * allocation and reprice the storefront:
+ *   - amount = 0 (a 100% coupon, a comped seat): nobody paid.
+ *   - redemption_code set (AppSumo and any other marketplace): they paid, in
+ *     full, but not as a founding customer of this site. A 10,001-code batch
+ *     would otherwise end the offer on day one.
  *
  * The banner NEVER renders a live remaining-count: it only distinguishes
  * ACTIVE (fewer than FOUNDING_LIMIT paid flagship orders) from CLOSED
@@ -60,7 +68,15 @@ async function paidFoundingOrderCount(): Promise<number | null> {
 
   const endpoint =
     `${url.replace(/\/$/, "")}/rest/v1/orders` +
-    `?select=id&product_slug=eq.${FLAGSHIP_SLUG}&status=eq.paid`;
+    /* Two exclusions, both about what "founding customer" means:
+     *  - amount: cents. A paid $0 order (100% coupon, comped seat) is money
+     *    nobody received, so it must not spend a slot and silently reprice
+     *    the storefront to $149.
+     *  - redemption_code: null. A marketplace redemption IS paid in full —
+     *    to AppSumo, on their terms, at their price — but the buyer did not
+     *    take the founding offer on this site. Ten thousand of them would
+     *    otherwise close the allocation on day one. */
+    `?select=id&product_slug=eq.${FLAGSHIP_SLUG}&status=eq.paid&amount=gt.0&redemption_code=is.null`;
 
   try {
     const res = await fetch(endpoint, {

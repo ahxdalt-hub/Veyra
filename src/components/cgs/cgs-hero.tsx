@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { CheckIcon } from "@/components/ui/icons";
 import { JourneyPreview } from "@/components/product/journey-preview";
 import { PurchaseCta } from "@/components/cgs/purchase-cta";
+import { DemoCta } from "@/components/cgs/demo-cta";
 import { formatPrice } from "@/lib/site";
 
 /**
@@ -57,10 +58,13 @@ export function CgsHero({
 
       {/* Two-column composition. The container-page grid is centered at
           its 76rem cap on normal desktops, but on 2xl+ we lift the cap
-          and expand the width to ~86rem so the hero fills a 1920px
+          and expand the width to ~92rem so the hero fills a 1920px
           viewport instead of floating centered with huge gutters. The
-          preview column gets the larger share so it reads as the product. */}
-      <div className="relative mx-auto grid w-full max-w-[76rem] gap-14 px-5 py-16 sm:px-8 sm:py-20 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-center lg:gap-16 lg:px-10 lg:py-28 2xl:max-w-[86rem] 2xl:gap-24">
+          preview column keeps the larger share so it reads as the product,
+          but the 2xl split is eased toward the text side just enough for
+          the purchase row — Add-to-cart, Explore, and the far-right demo
+          button — to hold one line at 1920 without overflowing. */}
+      <div className="relative mx-auto grid w-full max-w-[76rem] gap-14 px-5 py-16 sm:px-8 sm:py-20 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-center lg:gap-16 lg:px-10 lg:py-28 2xl:max-w-[92rem] 2xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] 2xl:gap-24">
         {/* ---------------------------------------------------------- */}
         {/* Left — the promise and the purchase moment                   */}
         {/* ---------------------------------------------------------- */}
@@ -144,11 +148,16 @@ export function CgsHero({
           </Rise>
 
           <Rise delay={0.56} className="mt-8">
-            <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+            {/* 2xl: the widest purchase label ("Get Client Growth System")
+                makes the trio need ~657px against the 616px text column, so
+                the row borrows 56px of the inter-column gutter — the demo
+                button stays on the same line, pushed far right. */}
+            <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center 2xl:-mr-14">
               <PurchaseCta slug={slug} name={name} />
               <Button href="#workflow" variant="outline" size="lg">
                 Explore the system
               </Button>
+              <DemoCta className="sm:ml-auto" />
             </div>
           </Rise>
         </div>

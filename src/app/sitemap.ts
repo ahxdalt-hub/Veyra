@@ -28,6 +28,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${site.url}/terms`, changeFrequency: "yearly", priority: 0.2 },
     { url: `${site.url}/cookie-policy`, changeFrequency: "yearly", priority: 0.2 },
     { url: `${site.url}/refund-policy`, changeFrequency: "yearly", priority: 0.2 },
+    
+    /* SEO keyword cluster pages */
+    { url: `${site.url}/seo/client-growth-system`, changeFrequency: "weekly", priority: 0.9 },
+    { url: `${site.url}/seo/freelance-client-acquisition`, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${site.url}/seo/agency-client-retention-system`, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${site.url}/seo/freelance-project-management`, changeFrequency: "weekly", priority: 0.7 },
+    { url: `${site.url}/seo/agency-scaling-system`, changeFrequency: "weekly", priority: 0.7 },
+    { url: `${site.url}/seo/service-business-framing`, changeFrequency: "weekly", priority: 0.7 },
   ];
 
   const productRoutes: MetadataRoute.Sitemap = getProducts().map((p) => ({

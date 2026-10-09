@@ -17,6 +17,7 @@ import { getProduct } from "@/lib/products";
 import { AccountShell, AccountCard } from "@/components/account/account-shell";
 import { TeamSeats, type SeatView } from "@/components/account/team-seats";
 import { LicenceDevices, type DeviceView } from "@/components/account/licence-devices";
+import { LicenceKey } from "@/components/account/licence-key";
 import { formatDate, shortOrderRef } from "@/components/account/account-format";
 import { ShieldIcon } from "@/components/ui/icons";
 
@@ -164,7 +165,6 @@ export default async function LicencesPage() {
                         {product?.name ?? licence.product_slug}
                       </p>
                       <p className="mt-0.5 spec text-ink-4">
-                        {licence.licence_reference} ·{" "}
                         {product?.version ? `Version ${product.version} · ` : ""}
                         One-time purchase
                       </p>
@@ -173,6 +173,8 @@ export default async function LicencesPage() {
                       Licence active
                     </span>
                   </div>
+
+                  <LicenceKey reference={licence.licence_reference} />
 
                   <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-line pt-5 sm:grid-cols-4">
                     <div>

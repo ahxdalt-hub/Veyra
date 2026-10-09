@@ -8,6 +8,25 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  /*
+   * Incremental cache for OpenNext (see open-next.config.ts). Without this
+   * binding, every route Next bakes as static hangs instead of rendering —
+   * the storefront homepage outage of 2026-10-06.
+   *
+   * The binding NAME is fixed: the kvIncrementalCache override looks up
+   * exactly `NEXT_INC_CACHE_KV`. Created with:
+   *   npx wrangler kv namespace create NEXT_INC_CACHE_KV
+   * R2 was the first choice but this account has not enabled R2
+   * (API error 10042, dashboard opt-in required), and KV is free-included and
+   * already active. `opennextjs-cloudflare deploy` writes the build's
+   * prerendered entries in as part of the deploy.
+   */
+  "kv_namespaces": [
+    {
+      "binding": "NEXT_INC_CACHE_KV",
+      "id": "4f31af2eecab4bb691b7b748395f3514"
+    }
+  ],
   "observability": {
     "enabled": true
   },
@@ -72,10 +91,8 @@
     // (test.dodopayments.com / live.dodopayments.com) and the mode banner.
     // Dodo API keys are mode-scoped, so this MUST match the bound
     // DODO_PAYMENTS_API_KEY — a live key with test_mode here 401s at checkout.
-    // Held at test_mode: the live account is not enabled yet (Dodo business
-    // verification returns MERCHANT_NOT_LIVE), so a live-mode deploy would
-    // refuse every checkout. Flip when the live key is bound.
-    "DODO_PAYMENTS_ENVIRONMENT": "test_mode",
+    // LIVE since 2026-10-07: the live secret key is bound as a wrangler secret.
+    "DODO_PAYMENTS_ENVIRONMENT": "live_mode",
     // One product id per PAID product, from the Dodo dashboard. Product ids
     // are public identifiers, not secrets, so they live here. Each product
     // MUST be "Pay What You Want" priced at $1.00, or Dodo ignores the amount
@@ -83,12 +100,11 @@
     // The Growth Audit is free — /api/claim never contacts a processor, so it
     // needs no product id. Fill this in or bind it with `wrangler secret put`;
     // `npm run dodo:setup` prints the exact lines.
-    // Product ids are MODE-SCOPED: this is the test-mode product
-    // ("Veyra Client Growth System", PWYW at $1.00 in USD, verified against
-    // the test API on 2026-10-05). When Dodo live mode is enabled, create the
-    // same product there and replace this id — a test id returns 404 from the
-    // live API and checkout fails closed.
-    "DODO_PAYMENTS_PRODUCT_ID_CLIENT_GROWTH_SYSTEM": "pdt_0Np5RynjbKvhYoRFnYtQj",
+    // Product ids are MODE-SCOPED: this is the live-mode product
+    // ("Veyra Client Growth System", live business "Caelmont",
+    // bus_0Np5C4pkhZhFlzckYplOY). The test-mode twin was
+    // pdt_0Np5RynjbKvhYoRFnYtQj.
+    "DODO_PAYMENTS_PRODUCT_ID_CLIENT_GROWTH_SYSTEM": "pdt_0Np5Ph7FnG2PbOkPoQtdI",
     // DODO_PAYMENTS_API_KEY and DODO_PAYMENTS_WEBHOOK_KEY are secrets and are
     // NOT here: `wrangler secret put DODO_PAYMENTS_API_KEY` etc. Without them
     // checkout refuses to start (payments_not_configured) instead of
@@ -99,6 +115,21 @@
     // resend.com/domains. Contact email is Caelmontholdings@gmail.com;
     // veyra.caelmont.in is verified at Resend, so the real sender is live.
     "VEYRA_EMAIL_FROM": "Veyra <no-reply@veyra.caelmont.in>",
-    "VEYRA_LICENCE_PUBLIC_KEY_JWK": "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"f4HKyrMbMIxqXVwYwKnpEt39hbLVIS2sMvP7g8WIdzg\",\"y\":\"IWqaev8f4P_3z_f1qduNDlCIeS-In0en3RNvgdFAgk0\"}"
+    "VEYRA_LICENCE_PUBLIC_KEY_JWK": "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"f4HKyrMbMIxqXVwYwKnpEt39hbLVIS2sMvP7g8WIdzg\",\"y\":\"IWqaev8f4P_3z_f1qduNDlCIeS-In0en3RNvgdFAgk0\"}",
+    
+    // ── EDGE RATE LIMITING CONFIGURATION (non-secret runtime settings) ───
+    // 
+    // Cloudflare Dashboard Rate Limits (PRIMARY protection):
+    // Configure at: Workers > veyra > Settings > Rate Limiting
+    // Recommended rules: CLOUDFLARE_RATE_LIMITING.md
+    // 
+    // Middleware Soft Throttle (optional backup layer):
+    // ENABLED = "true" → activate soft throttle (100 req/min per IP)
+    // DISABLED = "false" → skip middleware checks (recommended if using Cloudflare rules)
+    "RATE_LIMIT_ENABLED": "false",
+    "RATE_LIMIT_MAX_REQUESTS": "100",        // requests per window
+    "RATE_LIMIT_WINDOW_MS": "60000",         // window duration (ms)
+    // Optional token to bypass rate limiting (for admin IPs/testing)
+    "RATE_LIMIT_BYPASS_TOKEN": ""            // set via wrangler secret put
   }
 }

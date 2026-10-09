@@ -78,10 +78,15 @@ export async function POST(request: Request) {
       ? device_label.trim().slice(0, 40) || undefined
       : undefined;
 
-  const limited =
-    !(await takeRateLimit(`licence:activate:${licence_reference}:${email}:${device_id}`, 10, 60))
-      .allowed ||
-    !(await takeRateLimit(`licence:activate:ip:${clientIp(request)}`, 60, 60)).allowed;
+  const [byKey, byIp] = await Promise.all([
+    takeRateLimit(
+      `licence:activate:${licence_reference}:${email}:${device_id}`,
+      10,
+      60
+    ),
+    takeRateLimit(`licence:activate:ip:${clientIp(request)}`, 60, 60),
+  ]);
+  const limited = !byKey.allowed || !byIp.allowed;
   if (limited) {
     return jsonCORS(
       {

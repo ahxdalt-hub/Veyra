@@ -27,7 +27,12 @@ export type OrderRow = {
   subtotal: number | null;
   discount: number | null;
   total: number | null;
+  /** Coupon code applied, lowercase, if any. */
   coupon_code: string | null;
+  /** Marketplace code redeemed to create this order (0029). Null for every
+   *  ordinary checkout — its presence is what keeps a marketplace sale out
+   *  of the founding-price allocation. */
+  redemption_code: string | null;
   paid_at: string | null;
   provider: string | null;
   created_at: string;
@@ -67,6 +72,23 @@ export type LicenceRow = {
   version: string | null;
   status: "active" | "revoked";
   issued_at: string;
+};
+
+/** public.redeem_codes — a marketplace licence key (0029). Claiming one
+ *  writes a real paid order at value_cents; nothing is discounted. */
+export type RedeemCodeRow = {
+  code: string;
+  product_slug: string;
+  value_cents: number;
+  currency: string;
+  channel: string;
+  batch: string;
+  status: "available" | "redeemed" | "deactivated";
+  redeemed_email: string | null;
+  redeemed_order_id: string | null;
+  redeemed_at: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type SeatAssignmentRow = {
@@ -246,6 +268,7 @@ type Tables = {
   product_versions: ProductVersionRow;
   email_events: EmailEventRow;
   coupons: CouponRow;
+  redeem_codes: RedeemCodeRow;
   download_events: DownloadEventRow;
   admin_notifications: AdminNotificationRow;
   admin_audit_log: AdminAuditLogRow;
@@ -274,6 +297,14 @@ export type Database = {
           p_subtotal_dollars: number;
         };
         Returns: Record<string, unknown>;
+      };
+      redeem_code_claim: {
+        Args: { p_code: string; p_email: string };
+        Returns: Record<string, unknown>;
+      };
+      redeem_code_release: {
+        Args: { p_order_id: string };
+        Returns: void;
       };
       admin_metrics: {
         Args: { p_from: string; p_to: string };

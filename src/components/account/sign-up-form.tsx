@@ -46,6 +46,23 @@ export function SignUpForm() {
   const [busy, setBusy] = useState(false);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
 
+  // Resend affordance on the "check your inbox" screen — a lost/rate-limited
+  // email must never strand a signup. Cooldown mirrors GoTrue's 60s window
+  // for repeat confirmation requests.
+  const [resendState, setResendState] = useState<
+    "idle" | "sending" | "sent" | "error"
+  >("idle");
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setTimeout(
+      () => setResendCooldown((c) => c - 1),
+      1000
+    );
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
+
   // Live availability — debounced so typing feels instant and the RPC
   // fires only when the user pauses.
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>("idle");
@@ -122,11 +139,14 @@ export function SignUpForm() {
 
       if (error) {
         setError(
-          error.message.toLowerCase().includes("already")
-            ? "An account with this email already exists. Try signing in instead."
-            : error.message.toLowerCase().includes("password")
-              ? `Password must be at least ${MIN_PASSWORD} characters.`
-              : "We couldn't create your account. Please try again."
+          error.status === 429 ||
+            error.message.toLowerCase().includes("rate limit")
+            ? "Too many attempts — wait a minute, then try again."
+            : error.message.toLowerCase().includes("already")
+              ? "An account with this email already exists. Try signing in instead."
+              : error.message.toLowerCase().includes("password")
+                ? `Password must be at least ${MIN_PASSWORD} characters.`
+                : "We couldn't create your account. Please try again."
         );
         setBusy(false);
         return;
@@ -155,6 +175,30 @@ export function SignUpForm() {
     }
   }
 
+  /** Re-sends the signup confirmation — same email, same redirect target. */
+  async function onResend() {
+    if (resendState === "sending" || resendCooldown > 0) return;
+    setResendState("sending");
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: email.trim(),
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=%2Faccount`,
+        },
+      });
+      if (error) {
+        setResendState("error");
+        return;
+      }
+      setResendState("sent");
+      setResendCooldown(60);
+    } catch {
+      setResendState("error");
+    }
+  }
+
   if (awaitingConfirmation) {
     return (
       <div className="animate-rise rounded-md border border-line bg-surface p-6 text-center">
@@ -171,8 +215,41 @@ export function SignUpForm() {
           We sent a confirmation link to{" "}
           <span className="font-medium text-ink-2">{email.trim()}</span>.
           Open it to activate your account — your purchases will be waiting
-          when you return.
+          when you return. If it hasn&rsquo;t arrived in a few minutes, check the
+          Promotions and Spam folders.
         </p>
+        <div className="mt-5 flex flex-col items-center gap-2.5">
+          <Button
+            type="button"
+            variant="outline"
+            size="md"
+            disabled={resendState === "sending" || resendCooldown > 0}
+            onClick={onResend}
+          >
+            {resendState === "sending"
+              ? "Sending…"
+              : resendCooldown > 0
+                ? `Resend in ${resendCooldown}s`
+                : "Resend confirmation email"}
+          </Button>
+          <p role="status" className="min-h-4 text-xs text-ink-3">
+            {resendState === "sent"
+              ? "Sent again — give it a minute, and check spam."
+              : resendState === "error"
+                ? "We couldn't resend just now — wait a minute and try again."
+                : ""}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setResendState("idle");
+              setAwaitingConfirmation(false);
+            }}
+            className="text-xs text-ink-3 underline-offset-2 hover:text-ink hover:underline"
+          >
+            Wrong address? Use a different email
+          </button>
+        </div>
       </div>
     );
   }

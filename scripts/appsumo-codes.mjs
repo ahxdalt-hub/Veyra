@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * AppSumo redemption codes — batch generator for the storefront deal.
+ * Marketplace redemption codes — batch generator for the storefront deal.
  *
- * A code here is a 100% coupon: checkout's free-order branch
- * (src/app/api/checkout/route.ts) skips the payment gateway, walks the order
- * pending → paid, and runs the same grantPurchaseForOrder() the processor
- * webhook uses. So these codes ARE the product. Treat the output file as a
- * credential and never commit it.
+ * A code here is NOT a coupon. It is a key for a copy the buyer already paid
+ * for, on a platform that is the merchant of record. Claiming one
+ * (src/lib/redeem.ts → /api/redeem) mints a full-price paid order and runs the
+ * same grantPurchaseForOrder() the processor webhook uses, so these codes ARE
+ * the product. Treat the output file as a credential and never commit it.
  *
  *   node scripts/appsumo-codes.mjs --count 50                 # dry run, prints
  *   node scripts/appsumo-codes.mjs --count 50 --out codes.csv # writes the CSV
@@ -39,14 +39,28 @@ function arg(name) {
 const has = (name) => process.argv.includes(`--${name}`);
 
 const count = Number(arg("count") ?? 0);
-if (!Number.isInteger(count) || count < 1 || count > 2000) {
+/* 31^10 keyspace, so a 10k batch has a ~1-in-16,000 internal collision chance,
+ * which the seen-set below removes anyway. The ceiling here is about the
+ * database insert and the printed output, not the codes. */
+if (!Number.isInteger(count) || count < 1 || count > 50000) {
   console.error(
-    "Usage: node scripts/appsumo-codes.mjs --count <1-2000> [--out file.csv] [--commit] [--batch label]"
+    "Usage: node scripts/appsumo-codes.mjs --count <1-50000> [--out file.csv] [--commit] [--batch label] [--value-dollars 79] [--currency USD] [--channel appsumo] [--product slug]"
   );
   process.exit(1);
 }
-
 const batch = arg("batch") ?? new Date().toISOString().slice(0, 10);
+
+/* Deal terms. Defaults match the live AppSumo offer; pass --value-dollars if
+ * the listing changes so the redeemed orders report the real revenue. */
+const valueCents = Math.round(Number(arg("value-dollars") ?? 79) * 100);
+const currency = arg("currency") ?? "USD";
+const channel = arg("channel") ?? "appsumo";
+const product = arg("product") ?? "client-growth-system";
+if (!Number.isInteger(valueCents) || valueCents < 0) {
+  console.error("--value-dollars must be a non-negative number of dollars.");
+  process.exit(1);
+}
+
 
 function newCode() {
   const group = () =>
@@ -56,16 +70,17 @@ function newCode() {
   return `${PREFIX}-${group()}-${group()}`;
 }
 
-/* Single-use and single-customer are what make a leaked code worth one copy
- * rather than many. used_count is stamped by the database's own trigger when
- * the order flips to paid — it is initialised to 0 here and never written
- * again.
+/* One code, one copy, forever: there is no used_count column to increment
+ * because the claim itself is the ledger — a redeemed row flips to status
+ * 'redeemed' inside a single guarded UPDATE (redeem_code_claim, 0029), so two
+ * buyers submitting the same key at the same instant cannot both win.
  *
- * Lowercase in the database, uppercase on paper: validate_coupon() looks a
- * code up as `code = lower(trim(p_code))` (0013), so a code STORED uppercase
- * can never be found however the buyer types it. The CSV shows uppercase
- * because that is what a human reads off a receipt, and the lookup lowercases
- * whatever they type in. */
+ * value_cents is what the marketplace charged, and it becomes the order's
+ * amount with no discount. Keep it equal to the live deal price or the
+ * revenue reported from these orders will be wrong.
+ *
+ * Lowercase in the database, uppercase on paper: the claim lowercases whatever
+ * the buyer types, and a code STORED uppercase would never be found. */
 function buildRows() {
   const seen = new Set();
   const rows = [];
@@ -75,15 +90,12 @@ function buildRows() {
     seen.add(code);
     rows.push({
       code: code.toLowerCase(),
-      label: `AppSumo — ${batch}`,
-      kind: "percent",
-      value: 100,
-      active: true,
-      starts_at: new Date().toISOString().slice(0, 10),
-      ends_at: null,
-      max_uses: 1,
-      per_customer_limit: 1,
-      used_count: 0,
+      product_slug: product,
+      value_cents: valueCents,
+      currency,
+      channel,
+      batch: `AppSumo — ${batch}`,
+      status: "available",
     });
   }
   return rows;
@@ -105,8 +117,22 @@ if (out) {
 
 if (!has("commit")) {
   console.log("\nDry run. Re-run with --commit to insert these into the database.\n");
-  process.stdout.write(csv);
+  /* Dumping 10,001 codes onto a terminal buries everything else the run
+   * reported; the CSV on disk is the artifact at that size. */
+  if (count > 50) {
+    console.log(rows.slice(0, 5).map((r) => r.code.toUpperCase()).join("\n"));
+    console.log(`… and ${count - 5} more${out ? " in the CSV." : " (pass --out to write the CSV)."}`);
+  } else {
+    process.stdout.write(csv);
+  }
   process.exit(0);
+}
+
+if (!out) {
+  console.error(
+    "Refusing to commit without --out: codes that exist only in the database cannot be sold."
+  );
+  process.exit(1);
 }
 
 let env;
@@ -129,27 +155,65 @@ if (!url || !serviceKey) {
 }
 
 const host = new URL(url).host;
-console.log(`Inserting ${count} coupons into ${host}…`);
+console.log(`Inserting ${count} redeem codes (${currency} ${valueCents / 100}, ${channel}) into ${host}…`);
 
-const response = await fetch(`${url}/rest/v1/coupons`, {
-  method: "POST",
-  headers: {
-    "content-type": "application/json",
-    apikey: serviceKey,
-    authorization: `Bearer ${serviceKey}`,
-    prefer: "return=minimal",
-  },
-  body: JSON.stringify(rows),
-});
+/* One 10,001-row request is the wrong shape: a single collision on the code
+ * primary key rejects the entire body, and the buyer-facing CSV has already
+ * been written by then. Chunks keep the blast radius to one chunk, and the
+ * count-back at the end proves the CSV and the table agree. */
+const CHUNK = 500;
+const headers = {
+  "content-type": "application/json",
+  apikey: serviceKey,
+  authorization: `Bearer ${serviceKey}`,
+  prefer: "return=minimal",
+};
 
-if (!response.ok) {
-  const detail = await response.text();
+for (let i = 0; i < rows.length; i += CHUNK) {
+  const slice = rows.slice(i, i + CHUNK);
+  const response = await fetch(`${url}/rest/v1/redeem_codes`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(slice),
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    console.error(
+      `\nChunk ${i / CHUNK + 1} failed (${response.status}) after ${i} rows were inserted.\n${detail.slice(0, 400)}\n` +
+        `Codes up to row ${i} of ${rows.length} are live; the rest are not. Either finish the batch by hand or pull what landed:\n` +
+        `  update redeem_codes set status = 'deactivated' where batch = 'AppSumo — ${batch}' and status = 'available';`
+    );
+    process.exit(1);
+  }
+  process.stdout.write(`\r  ${Math.min(i + CHUNK, rows.length)} / ${rows.length}`);
+}
+console.log("");
+
+/* Read back rather than trusting the write path. A GET is capped at 1000
+ * rows by Supabase's default db-max-rows, so ask for the count the way the
+ * founding allocation does: HEAD + Prefer: count=exact. */
+const check = await fetch(
+  `${url}/rest/v1/redeem_codes?select=code&batch=eq.${encodeURIComponent(`AppSumo — ${batch}`)}&status=eq.available`,
+  {
+    method: "HEAD",
+    headers: {
+      apikey: serviceKey,
+      authorization: `Bearer ${serviceKey}`,
+      prefer: "count=exact",
+      range: "0-0",
+      "range-unit": "items",
+    },
+  }
+);
+const range = check.headers.get("content-range"); // e.g. "0-0/10001"
+const live = range ? Number(range.split("/")[1]) : NaN;
+if (!Number.isFinite(live) || live !== count) {
   console.error(
-    `Insert failed (${response.status}). Nothing was added if the database rejected the batch as a whole.\n${detail.slice(0, 400)}`
+    `Verification mismatch: expected ${count} unclaimed codes in batch "AppSumo — ${batch}", the database reports ${live}. Do not publish the CSV until this is resolved.`
   );
   process.exit(1);
 }
 
 console.log(
-  `Inserted. Deactivate this whole batch later with:  update coupons set active = false where label = 'AppSumo — ${batch}';`
+  `Verified: ${live} codes live in /admin/redeem-codes. Pull this whole batch later with:  update redeem_codes set status = 'deactivated' where batch = 'AppSumo — ${batch}' and status = 'available';`
 );

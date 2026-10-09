@@ -12,12 +12,8 @@
  */
 
 import "server-only";
-import { createClient } from "@supabase/supabase-js";
-import {
-  supabaseAdminConfigured,
-  supabaseServiceRoleKey,
-  supabaseUrl,
-} from "@/lib/supabase/config";
+import { supabaseAdminClient } from "@/lib/supabase/admin";
+import { supabaseAdminConfigured } from "@/lib/supabase/config";
 import { licenceSigningKey, licenceSigningConfigured } from "./keys";
 import { mintEntitlementToken, type EntitlementClaims } from "./token";
 
@@ -79,9 +75,9 @@ export function activationMessage(code: ActivationCode): string {
 }
 
 function admin() {
-  return createClient(supabaseUrl()!, supabaseServiceRoleKey()!, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  // Safe: every caller is behind `licensingConfigured()`, which requires the
+  // service-role URL and key to be present.
+  return supabaseAdminClient()!;
 }
 
 /** True when this deployment can activate (service role + signing key). */

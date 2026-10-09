@@ -46,6 +46,13 @@ export function Hero() {
               See the collection
             </Button>
           </div>
+          
+          {/* SEO: keyword-rich paragraph for "client growth system" & related terms */}
+          <p className="mt-8 text-lg text-muted-foreground max-w-2xl mx-auto">
+            A complete framework for acquiring clients, winning more work,
+            systemizing delivery, and growing revenue with recurring contracts.
+          </p>
+          
           <div className="mt-16 sm:mt-20">
             <SystemPreview />
           </div>

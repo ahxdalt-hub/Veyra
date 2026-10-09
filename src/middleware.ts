@@ -8,6 +8,83 @@ import {
 import { describeAuthError, isDefinitiveSignOut } from "@/lib/supabase/errors";
 
 /**
+ * CLOUDFLARE EDGE RATE LIMITING (BYPASS DATABASE)
+ * =================================================
+ * 
+ * This lightweight rate limiter uses Cloudflare's built-in Rate Limiting
+ * feature (configured in Workers dashboard) combined with simple IP-based
+ * throttling in middleware. NO database queries needed!
+ * 
+ * Strategy:
+ * 1. Cloudflare Dashboard → Workers → Rate Limits (built-in feature)
+ *    - Set global limits: 500 requests/min per IP (default protection)
+ *    - Configure custom rules for sensitive endpoints
+ * 
+ * 2. Middleware-level soft throttle (optional, for fine-grained control):
+ *    - Tracks request counts in-memory per isolate (resets on deploy)
+ *    - Good enough for most abuse patterns
+ *    - Fail-open: if tracking fails, allow the request
+ * 
+ * Why this approach?
+ * - Database rate limiting (Supabase) is too slow for high-traffic pages
+ * - Cloudflare handles billions of requests at edge level
+ * - No added latency to your user experience
+ * 
+ * To enable Cloudflare Rate Limiting:
+ * 1. Go to Cloudflare Dashboard > veyra.caelmont.in > Workers & Pages
+ * 2. Select your worker ("veyra")
+ * 3. Scroll to "Settings" > "Rate limiting"
+ * 4. Add new rule with desired thresholds
+ * 
+ * Example rules:
+ * - Rule 1: /api/* paths → 100 req/min per IP
+ * - Rule 2: Homepage + marketing pages → 200 req/min per IP  
+ * - Rule 3: Sign-up page → 10 req/min per IP (anti-bot)
+ * 
+ * All these happen at Cloudflare's edge, before hitting your Worker.
+ */
+
+const EDGE_RATE_LIMIT_ENABLED = process.env.RATE_LIMIT_ENABLED === "true";
+const SOFT_REQUEST_LIMIT = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || "100", 10);
+const REQUEST_WINDOW_MS = parseInt(process.env.RATE_LIMIT_WINDOW_MS || "60000", 10);
+
+// In-memory rate limit tracker per isolate (resets on deploy/cold start)
+// Uses Map to store {IP: {count, windowStart}}
+const ipRequestTracker = new Map<string, { count: number; windowStart: number }>();
+
+function getRateLimitStatus(ip: string): { allowed: boolean; remaining: number; retryAfterMs?: number } {
+  const now = Date.now();
+  const entry = ipRequestTracker.get(ip);
+
+  // Reset window if expired
+  if (!entry || now - entry.windowStart > REQUEST_WINDOW_MS) {
+    ipRequestTracker.set(ip, { count: 1, windowStart: now });
+    return { allowed: true, remaining: SOFT_REQUEST_LIMIT - 1 };
+  }
+
+  // Increment counter
+  const newCount = entry.count + 1;
+  ipRequestTracker.set(ip, { ...entry, count: newCount });
+
+  if (newCount > SOFT_REQUEST_LIMIT) {
+    const retryAfter = REQUEST_WINDOW_MS - (now - entry.windowStart);
+    return { allowed: false, remaining: 0, retryAfterMs: retryAfter };
+  }
+
+  return { allowed: true, remaining: SOFT_REQUEST_LIMIT - newCount };
+}
+
+function extractClientIP(request: NextRequest): string {
+  // Priority: Cloudflare-specific headers over standard ones
+  return (
+    request.headers.get("cf-connecting-ip") ??
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    request.headers.get("x-real-ip") ??
+    "unknown"
+  );
+}
+
+/**
  * Middleware — customer session guard:
  *
  * The @supabase/ssr refresh pattern plus route guarding for the account
@@ -18,6 +95,42 @@ export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   const { pathname, search } = request.nextUrl;
+
+  // --- EDGE RATE LIMITING CHECK (optional, non-blocking) ---
+  // Only apply soft rate limiting if enabled and GET request
+  if (EDGE_RATE_LIMIT_ENABLED && request.method === "GET") {
+    try {
+      const ip = extractClientIP(request);
+      
+      // Skip rate limiting for known-safe IPs (if you set up bypass token)
+      const bypassToken = request.headers.get("x-rate-limit-bypass");
+      if (bypassToken !== process.env.RATE_LIMIT_BYPASS_TOKEN) {
+        const status = getRateLimitStatus(ip);
+        
+        if (!status.allowed) {
+          // Return 429 Too Many Requests
+          console.warn(`[rate-limit] IP ${ip} exceeded request limit (${SOFT_REQUEST_LIMIT}/${REQUEST_WINDOW_MS/1000} reqs/min)`);
+          const headers: Record<string, string> = {
+            "Content-Type": "application/json",
+            "Retry-After": String(Math.ceil((status.retryAfterMs ?? REQUEST_WINDOW_MS) / 1000)),
+          };
+          const cfRay = request.headers.get("cf-ray");
+          if (cfRay) headers["CF-Ray"] = cfRay;
+          return new Response(
+            JSON.stringify({
+              error: "rate_limit_exceeded",
+              message: "Too many requests. Please try again later.",
+              retryAfter: status.retryAfterMs,
+            }),
+            { status: 429, headers }
+          );
+        }
+      }
+    } catch (error) {
+      // Fail-open: if rate limiting fails, allow the request
+      console.error("[rate-limit] Soft throttle error:", error);
+    }
+  }
 
   if (!supabaseAuthConfigured()) return response;
 

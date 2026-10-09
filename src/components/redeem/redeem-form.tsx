@@ -6,11 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { site } from "@/lib/site";
 
-/** The one purchasable product (src/lib/products.ts). Third-party codes
- *  redeem a single seat; extra seats are a manual adjustment, not a form
- *  field, so a buyer can never ask for more than they paid for. */
-const PRODUCT_SLUG = "client-growth-system";
-
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 type Phase = "form" | "working" | "redeemed" | "failed";
@@ -40,27 +35,25 @@ export function RedeemForm() {
 
     setPhase("working");
     try {
-      const response = await fetch("/api/checkout", {
+      const response = await fetch("/api/redeem", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          email: trimmedEmail,
-          items: [{ slug: PRODUCT_SLUG, qty: 1 }],
-          coupon: code.trim(),
-        }),
+        body: JSON.stringify({ email: trimmedEmail, code: code.trim() }),
       });
       const data = (await response.json()) as {
-        free?: boolean;
-        status?: string;
+        valid?: boolean;
+        message?: string;
         productName?: string;
         error?: string;
       };
 
-      // Only an order the server actually completed counts. A partial
-      // discount would come back with a gateway URL instead of `free`.
-      if (!response.ok || data.free !== true || data.status !== "paid") {
+      // Only a code the server actually claims counts. /api/redeem is the
+      // single place a code flips to redeemed, so there is no partial state
+      // this page can mistake for success.
+      if (!response.ok || data.valid !== true) {
         setError(
-          data.error ||
+          data.message ||
+            data.error ||
             "We couldn't redeem that code. Check it and try again — the exact characters matter."
         );
         setPhase("failed");
@@ -124,8 +117,9 @@ export function RedeemForm() {
           </li>
         </ol>
         <p className="mt-5 text-xs leading-relaxed text-ink-4">
-          Nothing was charged — this code already covered the purchase. If the
-          licence does not appear within a minute, write to{" "}
+          Nothing is charged here — you paid the store that sold you this
+          code, and that purchase is what redeemed the copy. If the licence
+          does not appear within a minute, write to{" "}
           <a
             href={`mailto:${site.contact.email}`}
             className="underline underline-offset-2"

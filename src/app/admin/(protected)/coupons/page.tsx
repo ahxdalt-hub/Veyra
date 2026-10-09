@@ -4,7 +4,14 @@ import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/admin/auth";
 import { listCoupons } from "@/lib/admin/data";
 import { dateShort, timeAgo } from "@/components/admin/format";
-import { ScrollFadeX } from "@/components/admin/smooth-scroll";import { Panel, PageHeading, EmptyState } from "@/components/admin/admin-ui";
+import { ScrollFadeX } from "@/components/admin/smooth-scroll";
+import {
+  Panel,
+  PageHeading,
+  EmptyState,
+  inputClass,
+  inputStyle,
+} from "@/components/admin/admin-ui";
 import { CouponToolbar } from "@/components/admin/coupon-toolbar";
 
 export const metadata: Metadata = { title: "Coupons" };
@@ -17,7 +24,7 @@ export const dynamic = "force-dynamic";
  * customer order immediately.
  */
 
-type Sp = { focus?: string };
+type Sp = { focus?: string; q?: string };
 
 export default async function CouponsPage({
   searchParams,
@@ -26,7 +33,13 @@ export default async function CouponsPage({
 }) {
   if (!(await requireAdmin())) redirect("/admin/sign-in");
   const sp = await searchParams;
-  const coupons = await listCoupons();
+  /* A ?focus=code link from elsewhere in the command center has to resolve
+   * its row through the same filtered query the table uses. */
+  const focused = sp.focus && sp.focus !== "new" ? sp.focus : null;
+  const result = await listCoupons({ q: sp.q ?? focused });
+  const coupons = result?.rows ?? null;
+  const total = result?.total ?? 0;
+  const query = (sp.q ?? "").trim();
 
   return (
     <div>
@@ -34,12 +47,40 @@ export default async function CouponsPage({
         title="Coupons"
         meta={
           coupons
-            ? `${coupons.filter((c) => c.active).length} active · enforced at checkout server-side`
+            ? `${query ? `${total} matching` : `${total} total`} · enforced at checkout server-side`
             : "Database not connected"
         }
       />
 
-      <CouponToolbar focus={sp.focus ?? null} coupons={coupons ?? []} />
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <CouponToolbar focus={sp.focus ?? null} coupons={coupons ?? []} />
+        <form action="/admin/coupons" method="get" className="flex items-center gap-2">
+          <input
+            type="search"
+            name="q"
+            defaultValue={query}
+            placeholder="Search code or label"
+            className={inputClass}
+            style={{ ...inputStyle, width: 240 }}
+          />
+          <button
+            type="submit"
+            className="text-xs hover:underline"
+            style={{ color: "var(--cc-accent-ink)" }}
+          >
+            Search
+          </button>
+        </form>
+      </div>
+
+      {coupons && coupons.length > 0 ? (
+        <p className="mt-3 text-xs" style={{ color: "var(--cc-text-4)" }}>
+          Showing the newest {coupons.length} of {total}.
+          {total > coupons.length
+            ? " A marketplace batch is thousands of rows — search for the code instead of scrolling."
+            : ""}
+        </p>
+      ) : null}
 
       <div className="mt-4">
         <Panel padded={false}>

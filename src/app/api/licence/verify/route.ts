@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import {
-  supabaseAdminConfigured,
-  supabaseServiceRoleKey,
-  supabaseUrl,
-} from "@/lib/supabase/config";
+import { supabaseAdminClient } from "@/lib/supabase/admin";
+import { supabaseAdminConfigured } from "@/lib/supabase/config";
 import { getProduct } from "@/lib/products";
 import { takeRateLimit, clientIp } from "@/lib/rate-limit";
 
@@ -68,10 +64,11 @@ export async function POST(request: Request) {
 
   // Shared throttle (Postgres-backed; enforced across every isolate —
   // see src/lib/rate-limit.ts): per reference+email, plus a per-IP cap.
-  const limited =
-    !(await takeRateLimit(`licence:verify:${reference}:${normalizedEmail}`, 10, 60))
-      .allowed ||
-    !(await takeRateLimit(`licence:verify:ip:${clientIp(request)}`, 60, 60)).allowed;
+  const [byKey, byIp] = await Promise.all([
+    takeRateLimit(`licence:verify:${reference}:${normalizedEmail}`, 10, 60),
+    takeRateLimit(`licence:verify:ip:${clientIp(request)}`, 60, 60),
+  ]);
+  const limited = !byKey.allowed || !byIp.allowed;
   if (limited) {
     return NextResponse.json(
       { error: "Too many verification attempts — try again in a moment." },
@@ -79,9 +76,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const admin = createClient(supabaseUrl()!, supabaseServiceRoleKey()!, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  // Safe: guarded above by supabaseAdminConfigured().
+  const admin = supabaseAdminClient()!;
 
   const { data: licence } = await admin
     .from("licences")

@@ -279,6 +279,35 @@ export async function updateCouponAction(
   return { ok: true, message: "Coupon updated." };
 }
 
+/** Pull a marketplace code out of circulation, or put it back.
+ *  A redeemed code is never restored — its claim already minted a licence,
+ *  and 'available' would hand a second copy to whoever retries the key. */
+export async function setRedeemCodeStatusAction(
+  code: string,
+  status: "available" | "deactivated"
+): Promise<ActionResult> {
+  const actor = await requireAdmin();
+  if (!actor) return { ok: false, error: "Your session expired. Sign in again." };
+  const db = admin();
+  const { error } = await db
+    .from("redeem_codes")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("code", code.toLowerCase())
+    .neq("status", "redeemed");
+  if (error) {
+    console.error("[admin] setRedeemCodeStatus failed:", error.message);
+    return { ok: false, error: "Couldn't update the code." };
+  }
+  await audit(
+    actor,
+    "redeem_code.update",
+    "redeem_codes",
+    code,
+    `Redeem code ${code.toUpperCase()} set to ${status}`
+  );
+  return { ok: true, message: `Code ${code.toUpperCase()} is now ${status}.` };
+}
+
 export async function setCouponActiveAction(
   code: string,
   active: boolean

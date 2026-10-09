@@ -20,6 +20,7 @@ import type {
   LicenceRow,
   OrderRow,
   ProfileRow,
+  RedeemCodeRow,
   RedeliveryRequestRow,
   SeatAssignmentRow,
 } from "@/lib/supabase/types";
@@ -773,14 +774,128 @@ export async function getDownloadSummary(): Promise<DownloadSummary[] | null> {
 /* Coupons                                                             */
 /* ------------------------------------------------------------------ */
 
-export async function listCoupons(): Promise<CouponRow[] | null> {
+/** A marketplace batch is 10,000+ single codes, so the table is never a
+ *  full table dump — that render would exceed the Worker's CPU budget and
+ *  the page would be unreadable anyway. `total` is exact so the UI can say
+ *  how much it is hiding instead of pretending the list is complete. */
+const COUPON_PAGE_LIMIT = 200;
+
+export async function listCoupons(options?: {
+  q?: string | null;
+}): Promise<{ rows: CouponRow[]; total: number } | null> {
   if (!commandCenterConfigured()) return null;
-  const { data, error } = await db().from("coupons").select("*").order("created_at", { ascending: false });
+  const q = (options?.q ?? "").trim();
+  let query = db().from("coupons").select("*", { count: "exact" });
+  if (q) {
+    /* PostgREST separates `or` terms with commas, so those characters (and
+     * the like-wildcards) are stripped rather than quoted. */
+    const like = `%${q.replace(/[,%()]/g, "")}%`;
+    query = query.or(`code.ilike.${like},label.ilike.${like}`);
+  }
+  const { data, error, count } = await query
+    .order("created_at", { ascending: false })
+    .limit(COUPON_PAGE_LIMIT);
   if (error) {
     console.error("[cc] listCoupons failed:", error.message);
     return null;
   }
-  return (data ?? []) as CouponRow[];
+  const rows = (data ?? []) as CouponRow[];
+  return { rows, total: count ?? rows.length };
+}
+
+/* ------------------------------------------------------------------ */
+/* Redeem codes (marketplace licences — 0029)                          */
+/* ------------------------------------------------------------------ */
+
+export type RedeemFilters = {
+  search?: string;
+  status?: "available" | "redeemed" | "deactivated";
+  batch?: string;
+  limit?: number;
+  offset?: number;
+};
+
+/** One page of redemption codes plus the exact filtered total. A batch is
+ *  tens of thousands of rows, so this must never become a full dump — the
+ *  count comes from Postgres (`count: "exact"`), not from the page. */
+export async function listRedeemCodes(
+  filters: RedeemFilters
+): Promise<{ rows: RedeemCodeRow[]; total: number } | null> {
+  if (!commandCenterConfigured()) return null;
+  const limit = Math.min(filters.limit ?? 25, PAGE_MAX);
+  const offset = filters.offset ?? 0;
+  let query = db()
+    .from("redeem_codes")
+    .select("*", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .order("code", { ascending: true })
+    .range(offset, offset + limit - 1);
+  if (filters.status) query = query.eq("status", filters.status);
+  if (filters.batch) query = query.eq("batch", filters.batch);
+  if (filters.search) {
+    // Lowercase because codes are stored lowercase; a pasted uppercase code
+    // still matches once ilike folds it.
+    const s = filters.search.trim().toLowerCase().replace(/[,%()]/g, "");
+    if (s)
+      query = query.or(
+        `code.ilike.*${s}*,redeemed_email.ilike.*${s}*,batch.ilike.*${s}*`
+      );
+  }
+  const { data, error, count } = await query;
+  if (error) {
+    console.error("[cc] listRedeemCodes failed:", error.message);
+    return null;
+  }
+  return { rows: (data ?? []) as RedeemCodeRow[], total: count ?? 0 };
+}
+
+/** Headline counts for the whole table, cheaply: three HEAD requests with
+ *  `count: "exact"` rather than a scan of every row. */
+export async function redeemCodeStats(): Promise<{
+  total: number;
+  available: number;
+  redeemed: number;
+  deactivated: number;
+} | null> {
+  if (!commandCenterConfigured()) return null;
+  const head = async (filter?: RedeemCodeRow["status"]) => {
+    let query = db().from("redeem_codes").select("code", { count: "exact", head: true });
+    if (filter) query = query.eq("status", filter);
+    const { count, error } = await query;
+    if (error) {
+      console.error("[cc] redeemCodeStats failed:", error.message);
+      return null;
+    }
+    return count ?? 0;
+  };
+  const [total, available, redeemed, deactivated] = await Promise.all([
+    head(),
+    head("available"),
+    head("redeemed"),
+    head("deactivated"),
+  ]);
+  if (total === null) return null;
+  return {
+    total,
+    available: available ?? 0,
+    redeemed: redeemed ?? 0,
+    deactivated: deactivated ?? 0,
+  };
+}
+
+/** Distinct batches, newest first, so the filter menu lists only what exists. */
+export async function redeemCodeBatches(): Promise<string[]> {
+  if (!commandCenterConfigured()) return [];
+  const { data, error } = await db()
+    .from("redeem_codes")
+    .select("batch")
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (error) {
+    console.error("[cc] redeemCodeBatches failed:", error.message);
+    return [];
+  }
+  return [...new Set((data ?? []).map((r) => r.batch))].slice(0, 20);
 }
 
 /* ------------------------------------------------------------------ */

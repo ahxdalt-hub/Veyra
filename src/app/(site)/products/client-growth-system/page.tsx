@@ -209,8 +209,10 @@ export default async function ClientGrowthSystemPage() {
 
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "Product",
+    "@type": "SoftwareApplication",
     name: product.name,
+    applicationCategory: "BusinessApplication",
+    operativeSystem: ["Windows", "macOS"],
     description: product.shortDescription,
     brand: { "@type": "Brand", name: site.name },
     offers: {
@@ -219,6 +221,18 @@ export default async function ClientGrowthSystemPage() {
       priceCurrency: CURRENCY,
       availability: "https://schema.org/InStock",
       url: `${site.url}/products/${product.slug}`,
+    },
+    // SEO boost: FAQPage nested in SoftwareApplication
+    hasPart: {
+      "@type": "FAQPage",
+      mainEntity: faqItems.map((item) => ({
+        "@type": "Question",
+        name: item.q,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: item.a,
+        },
+      })),
     },
   };
 
@@ -628,10 +642,6 @@ export default async function ClientGrowthSystemPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
     </>
   );

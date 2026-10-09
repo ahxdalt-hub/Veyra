@@ -94,6 +94,13 @@ export const CouponsIcon = (p: IconProps) => (
   </Svg>
 );
 
+export const RedeemCodesIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 4h7l9 9-7 7-9-9V4Z" />
+    <circle cx="8.2" cy="8.2" r="1.2" />
+  </Svg>
+);
+
 export const ActivityIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M3.5 12.5h4L10 6l4 12 2.5-7.5h4" />

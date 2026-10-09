@@ -18,6 +18,7 @@ import {
   DownloadsIcon,
   AnalyticsIcon,
   CouponsIcon,
+  RedeemCodesIcon,
   ActivityIcon,
   TerminalIcon,
   SettingsIcon,
@@ -58,6 +59,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
       { href: "/admin/customers", label: "Customers", icon: CustomersIcon },
       { href: "/admin/payments", label: "Payments", icon: PaymentsIcon },
       { href: "/admin/coupons", label: "Coupons", icon: CouponsIcon },
+      { href: "/admin/redeem-codes", label: "Redeem codes", icon: RedeemCodesIcon },
     ],
   },
   {
@@ -432,6 +434,7 @@ const TITLES: Record<string, string> = {
   customers: "Customers",
   payments: "Payments",
   coupons: "Coupons",
+  "redeem-codes": "Redeem codes",
   products: "Products",
   licences: "Licences",
   downloads: "Downloads",

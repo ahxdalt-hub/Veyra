@@ -17,12 +17,7 @@
  */
 
 import "server-only";
-import { createClient } from "@supabase/supabase-js";
-import {
-  supabaseAdminConfigured,
-  supabaseServiceRoleKey,
-  supabaseUrl,
-} from "@/lib/supabase/config";
+import { supabaseAdminClient } from "@/lib/supabase/admin";
 
 export type RateLimitResult = {
   allowed: boolean;
@@ -37,16 +32,13 @@ export async function takeRateLimit(
   limit: number,
   windowSeconds: number
 ): Promise<RateLimitResult> {
-  if (!supabaseAdminConfigured()) {
+  const admin = supabaseAdminClient();
+  if (!admin) {
     // Nothing to enforce with — behave like the old per-isolate throttle
     // being absent: allow, and let the endpoint's own checks decide.
     console.warn("[rate-limit] Supabase not configured; allowing request");
     return { allowed: true, enforced: false };
   }
-
-  const admin = createClient(supabaseUrl()!, supabaseServiceRoleKey()!, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
 
   const { data, error } = await admin.rpc("rate_limit_take", {
     p_bucket: bucket,
