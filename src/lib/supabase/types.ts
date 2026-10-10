@@ -102,6 +102,26 @@ export type SeatAssignmentRow = {
   updated_at: string;
 };
 
+export type TeamWorkspaceRow = {
+  id: string;
+  entitlement_id: string;
+  /** Shared workspace document — v1 shape, same as the local document. */
+  data: Record<string, unknown>;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TeamMessageRow = {
+  id: string;
+  entitlement_id: string;
+  user_id: string | null;
+  author_email: string;
+  body: string;
+  created_at: string;
+};
+
 export type RedeliveryRequestRow = {
   id: string;
   user_id: string;
@@ -262,6 +282,8 @@ type Tables = {
   entitlements: EntitlementRow;
   licences: LicenceRow;
   seat_assignments: SeatAssignmentRow;
+  team_workspaces: TeamWorkspaceRow;
+  team_messages: TeamMessageRow;
   redelivery_requests: RedeliveryRequestRow;
   licence_activations: LicenceActivationRow;
   products: ProductRow;

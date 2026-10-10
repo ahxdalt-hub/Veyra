@@ -7,6 +7,9 @@ import { relPath } from "@/cgs-demo/lib/demo-paths";
 import { MODULES, STAGES, ModuleId, isModuleId } from "@/cgs-demo/lib/stages";
 import Sidebar from "@/cgs-demo/components/sidebar";
 import { CommandPalette } from "@/cgs-demo/components/command-palette";
+import { TeamOverlay } from "@/cgs-demo/components/team-overlay";
+import { WorkspaceSwitcher, WorkspaceBanner } from "@/cgs-demo/components/workspace-switcher";
+import { WorkspaceProvider } from "@/cgs-demo/lib/use-workspace";
 import { DemoBlockPop } from "@/cgs-demo/components/demo-block-pop";
 import { Spinner, formatWhen } from "@/cgs-demo/components/ui";
 
@@ -48,6 +51,8 @@ function TopBar() {
       </h1>
       <div className="flex items-center gap-3">
         <CommandPalette />
+        <WorkspaceSwitcher />
+        <TeamOverlay />
         <span className="hidden items-center gap-1.5 text-[11.5px] text-cgs-faint sm:flex" aria-live="polite">
           <svg width="11" height="11" viewBox="0 0 16 16" aria-hidden>
             <path
@@ -77,16 +82,19 @@ function BootGate({ children }: { children: React.ReactNode }) {
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <StoreProvider>
-      <div className="flex h-full">
-        <Sidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <TopBar />
-          <main className="flex-1 overflow-y-auto" id="main">
-            <BootGate>{children}</BootGate>
-          </main>
+      <WorkspaceProvider>
+        <div className="flex h-full">
+          <Sidebar />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <TopBar />
+            <WorkspaceBanner />
+            <main className="flex-1 overflow-y-auto" id="main">
+              <BootGate>{children}</BootGate>
+            </main>
+          </div>
         </div>
-      </div>
-      <DemoBlockPop />
+        <DemoBlockPop />
+      </WorkspaceProvider>
     </StoreProvider>
   );
 }

@@ -3,6 +3,7 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { SystemPreview } from "@/components/product/system-preview";
+import { DriveIcon, EyeOffIcon, InfinityIcon, WifiOffIcon } from "@/components/ui/icons";
 
 /**
  * Hero — Section A.
@@ -31,27 +32,43 @@ export function Hero() {
         <div className="container-page py-16 text-center sm:py-24">
           <p className="text-eyebrow mb-5">For freelancers, consultants & small agencies</p>
           <h1 className="text-display-hero mx-auto max-w-4xl">
-            Practical business systems you can actually run.
+            A local-first business operating system<br />
+            you actually own.
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-lead">
-            Veyra turns the processes that win and keep clients — positioning,
-            acquisition, sales, delivery, retention — into structured systems.
-            Our flagship, Client Growth System, is available now.
+            No monthly fees. No cloud dependencies. Your data lives on your computer, not in someone else&apos;s CRM database. One-time purchase for Windows &amp; macOS.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button href="/products/client-growth-system" variant="accent" size="lg" arrow>
-              Explore Client Growth System
+              Get Lifetime Access
             </Button>
             <Button href="#collection" variant="outline" size="lg">
               See the collection
             </Button>
           </div>
           
-          {/* SEO: keyword-rich paragraph for "client growth system" & related terms */}
-          <p className="mt-8 text-lg text-muted-foreground max-w-2xl mx-auto">
-            A complete framework for acquiring clients, winning more work,
-            systemizing delivery, and growing revenue with recurring contracts.
-          </p>
+          {/* SEO: keyword-rich paragraph */}
+          <div className="mt-8 text-left max-w-2xl bg-accent-soft/30 rounded-lg p-6 border border-accent/20">
+            <p className="font-semibold text-accent-ink mb-3">Why choose Veyra over cloud CRMs?</p>
+            <ul className="space-y-2 text-sm text-ink-3">
+              <li className="flex items-center gap-2.5">
+                <DriveIcon className="h-4 w-4 shrink-0 text-accent" />
+                <span><strong className="font-medium text-ink">Local-first</strong> = your data, your computer, always accessible</span>
+              </li>
+              <li className="flex items-center gap-2.5">
+                <WifiOffIcon className="h-4 w-4 shrink-0 text-accent" />
+                <span><strong className="font-medium text-ink">Works offline</strong> = no internet dependency for daily use</span>
+              </li>
+              <li className="flex items-center gap-2.5">
+                <InfinityIcon className="h-4 w-4 shrink-0 text-accent" />
+                <span><strong className="font-medium text-ink">Lifetime deal</strong> = one payment, forever access</span>
+              </li>
+              <li className="flex items-center gap-2.5">
+                <EyeOffIcon className="h-4 w-4 shrink-0 text-accent" />
+                <span><strong className="font-medium text-ink">Privacy-focused</strong> = no data mining, no selling your client info</span>
+              </li>
+            </ul>
+          </div>
           
           <div className="mt-16 sm:mt-20">
             <SystemPreview />
@@ -83,7 +100,8 @@ export function Hero() {
           animate="visible"
           className="text-display-hero mx-auto max-w-4xl"
         >
-          Practical business systems you can actually run.
+          A local-first business operating system<br />
+          you actually own.
         </motion.h1>
         <motion.p
           custom={2}
@@ -92,9 +110,8 @@ export function Hero() {
           animate="visible"
           className="mx-auto mt-6 max-w-xl text-lead"
         >
-          Veyra turns the processes that win and keep clients — positioning,
-          acquisition, sales, delivery, retention — into structured systems.
-          Our flagship, Client Growth System, is available now.
+          No monthly fees. No cloud dependencies. Your data lives on your computer,
+          not in someone else&apos;s CRM database. One-time purchase for Windows &amp; macOS.
         </motion.p>
         <motion.div
           custom={3}
@@ -104,11 +121,39 @@ export function Hero() {
           className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row"
         >
           <Button href="/products/client-growth-system" variant="accent" size="lg" arrow>
-            Explore Client Growth System
+            Get Lifetime Access
           </Button>
           <Button href="#collection" variant="outline" size="lg">
             See the collection
           </Button>
+        </motion.div>
+
+        {/* SEO: keyword-rich paragraph */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45, duration: 0.6, ease: EASE }}
+          className="mt-8 text-left max-w-2xl mx-auto bg-accent-soft/30 rounded-lg p-6 border border-accent/20 shadow-sm"
+        >
+          <p className="font-semibold text-accent-ink mb-3">Why choose Veyra over cloud CRMs?</p>
+          <ul className="space-y-2 text-sm text-ink-3">
+            <li className="flex items-center gap-2.5">
+              <DriveIcon className="h-4 w-4 shrink-0 text-accent" />
+              <span><strong className="font-medium text-ink">Local-first</strong> = your data, your computer, always accessible</span>
+            </li>
+            <li className="flex items-center gap-2.5">
+              <WifiOffIcon className="h-4 w-4 shrink-0 text-accent" />
+              <span><strong className="font-medium text-ink">Works offline</strong> = no internet dependency for daily use</span>
+            </li>
+            <li className="flex items-center gap-2.5">
+              <InfinityIcon className="h-4 w-4 shrink-0 text-accent" />
+              <span><strong className="font-medium text-ink">Lifetime deal</strong> = one payment, forever access</span>
+            </li>
+            <li className="flex items-center gap-2.5">
+              <EyeOffIcon className="h-4 w-4 shrink-0 text-accent" />
+              <span><strong className="font-medium text-ink">Privacy-focused</strong> = no data mining, no selling your client info</span>
+            </li>
+          </ul>
         </motion.div>
 
         <motion.div

@@ -223,6 +223,49 @@ export function ShieldIcon(props: IconProps) {
   );
 }
 
+/** Local-first — data lives on your own machine (a drive with a home pin). */
+export function DriveIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="1.5" y="4" width="13" height="8" rx="1" />
+      <circle cx="11.5" cy="8" r="1" fill="currentColor" stroke="none" />
+      <path d="M4 8h3.5" />
+    </Icon>
+  );
+}
+
+/** Works offline — connectivity crossed out. */
+export function WifiOffIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M2.5 6.5a8 8 0 0 1 3-1.6M13.5 6.5A8 8 0 0 0 8 4.2M5 9.4a4.5 4.5 0 0 1 2-1M14 5 2 14" />
+      <path d="M6.2 11.8a3.5 3.5 0 0 1 3.4-1.1" />
+      <circle cx="8" cy="13.5" r="1.1" fill="currentColor" stroke="none" />
+    </Icon>
+  );
+}
+
+/** Lifetime — own it forever (infinity). */
+export function InfinityIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M5.2 5.2c-2.3 0-3.7 1.3-3.7 2.8s1.4 2.8 3.7 2.8c1.9 0 2.9-1.1 3.8-2.8-.9-1.7-1.9-2.8-3.8-2.8Zm5.6 0c-1.9 0-2.9 1.1-3.8 2.8.9 1.7 1.9 2.8 3.8 2.8 2.3 0 3.7-1.3 3.7-2.8s-1.4-2.8-3.7-2.8Z" />
+    </Icon>
+  );
+}
+
+/** Privacy — nothing leaves, an eye with a slash. */
+export function EyeOffIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M6.6 3.4A7.7 7.7 0 0 1 8 3.2c3 0 5.4 2.1 6.5 4.8a9.6 9.6 0 0 1-1.7 2.6M4 5.2A9.7 9.7 0 0 0 1.5 8c1.1 2.7 3.5 4.8 6.5 4.8a7.8 7.8 0 0 0 3.2-.7" />
+      <path d="M2 2l12 12" />
+      <path d="M6.3 6.4a2.3 2.3 0 0 0 3.2 3.2" />
+    </Icon>
+  );
+}
+
+
 export function SettingsIcon(props: IconProps) {
   return (
     <Icon {...props}>

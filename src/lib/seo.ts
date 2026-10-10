@@ -52,3 +52,26 @@ export function breadcrumbListJsonLd(items: BreadcrumbItem[]) {
     })),
   };
 }
+
+export type FaqEntry = { q: string; a: string };
+
+/**
+ * FAQPage JSON-LD. Google only awards FAQ rich results to
+ * well-known, authoritative sites — but the markup is still worth
+ * emitting: it disambiguates the page's intent for search engines and
+ * feeds answer engines (AI Overviews, ChatGPT search, Perplexity) that
+ * cite structured Q&A directly. Every entry MUST also be visible on the
+ * page (it is — the same data renders the accordion); hidden-only FAQs
+ * violate the policy and are ignored.
+ */
+export function faqPageJsonLd(entries: FaqEntry[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: entries.map((e) => ({
+      "@type": "Question",
+      name: e.q,
+      acceptedAnswer: { "@type": "Answer", text: e.a },
+    })),
+  };
+}

@@ -18,7 +18,8 @@ export type SfxName =
   | "back"
   | "reveal"
   | "unlock"
-  | "lock";
+  | "lock"
+  | "teammate";
 
 let ctx: AudioContext | null = null;
 
@@ -166,6 +167,13 @@ export function playSfx(name: SfxName): void {
       // Soft muted tap — a gentle "not here", never an error sound.
       tone(ac, { freq: 320, at: t, dur: 0.07, gain: 0.028, type: "sine" });
       tone(ac, { freq: 240, at: t + 0.055, dur: 0.1, gain: 0.02, type: "sine" });
+      break;
+    case "teammate":
+      // A quiet, warm two-note "someone joined / said something" cue —
+      // deliberately softer than "reveal" so live team activity never
+      // startles or dominates the room.
+      tone(ac, { freq: 659.25, at: t, dur: 0.13, gain: 0.026, type: "sine" });
+      tone(ac, { freq: 987.77, at: t + 0.085, dur: 0.22, gain: 0.022, type: "sine" });
       break;
   }
 }

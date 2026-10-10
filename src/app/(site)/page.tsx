@@ -10,6 +10,7 @@ import { LeadMagnet } from "@/components/home/lead-magnet";
 import { Faq } from "@/components/home/faq";
 import { FinalCta } from "@/components/home/final-cta";
 import { PartnerCta } from "@/components/home/partner-cta";
+import { CompetitorComparison } from "@/components/seo/competitor-comparison";
 import { site } from "@/lib/site";
 import { ORGANIZATION_ID, WEBSITE_ID } from "@/lib/seo";
 
@@ -22,11 +23,48 @@ import { ORGANIZATION_ID, WEBSITE_ID } from "@/lib/seo";
 export const metadata: Metadata = {
   title: {
     absolute:
-      "Veyra | Client Growth System for Freelancers & Service Businesses",
+      "Local-First Business OS | Lifetime Deal - No Monthly Fees | Veyra",
   },
   description:
-    "Veyra is a practical client growth system for freelancers, consultants, and service businesses to organize client acquisition, sales, delivery, retention, and growth.",
+    "Stop paying monthly fees for CRM software. Veyra is a local-first business operating system for freelancers, consultants & agencies. Your data on your computer, one-time purchase, forever access. Works offline. Privacy-focused.",
+  keywords: [
+    "local first software",
+    "business operating system",
+    "lifetime deal software",
+    "one time purchase CRM",
+    "offline business app",
+    "freelancer software Windows Mac",
+    "consultant tools no subscription",
+    "agency management desktop",
+    "privacy focused business software",
+    "local first database",
+    "no cloud software",
+    "data ownership software",
+    "independent consultant tools",
+    "solo entrepreneur software",
+    "small business OS no monthly fee",
+    "desktop CRM alternative",
+    "local storage business app",
+    "client management offline",
+    "project management personal computer",
+    "buy once use forever software",
+  ].join(", "),
   alternates: { canonical: "/" },
+  openGraph: {
+    title: "Veyra | Local-First Business OS — One Payment, Forever Access",
+    description:
+      "The smarter choice for freelancers, consultants & agencies: your data lives locally on your computer, not in someone else's cloud. One-time payment = lifetime access. Works offline. No data mining.",
+    url: site.url,
+    siteName: "Veyra",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Veyra | Your Data, Your Computer, Your Software",
+    description:
+      "Tired of SaaS subscriptions? Our local-first business OS works offline, stores your data locally, and costs one payment — forever. Built for privacy-focused professionals.",
+  },
 };
 
 export default function Home() {
@@ -54,6 +92,7 @@ export default function Home() {
       <HowItWorks />
       <Why />
       <Collection />
+      <CompetitorComparison />
       <LeadMagnet />
       <Faq />
       <FinalCta />

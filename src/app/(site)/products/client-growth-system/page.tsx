@@ -15,6 +15,8 @@ import { CgsDemo } from "@/components/cgs/cgs-demo";
 import { CgsPricing } from "@/components/cgs/cgs-pricing";
 import { PurchaseCta } from "@/components/cgs/purchase-cta";
 import { BreadcrumbJsonLd } from "@/components/seo/breadcrumb-json-ld";
+import { CompetitorComparison } from "@/components/seo/competitor-comparison";
+import { WhyOverCloud } from "@/components/seo/why-over-cloud";
 
 /**
  * Client Growth System — the product sales page.
@@ -116,17 +118,74 @@ export async function generateMetadata(): Promise<Metadata> {
   if (!product) return {};
   const foundingActive = (await getFoundingStatus()) === "active";
   const price = foundingActive ? FOUNDING_PRICE : REGULAR_PRICE;
+  
+  // Extended keywords for better search visibility
+  const seoKeywords = [
+    "client growth system",
+    "business operating system",
+    "client management software",
+    "freelancer tools",
+    "consulting software",
+    "agency management",
+    "project management Windows Mac",
+    "offline business software",
+    "CRM alternative no subscription",
+    "HubSpot alternative one-time purchase",
+    "Salesforce alternative small business",
+    "Pipedrive alternative desktop app",
+    "freshsales alternative affordable",
+    "client acquisition tool",
+    "sales pipeline software",
+    "service business management",
+    "local-first software",
+    "Windows Mac desktop app",
+    "no monthly fee CRM",
+    "buy once use forever software",
+  ].join(", ");
+
   return {
-    title: product.name,
+    title: {
+      default: `${product.name} — ${formatPrice(price)} One-Time Purchase | Veyra`,
+      absolute: `${product.name} | No Monthly Fees · Desktop App for Windows & macOS`,
+    },
     description:
-      "Build a more systematic service business with Veyra Client Growth System. Manage client acquisition, sales, onboarding, retention, and growth in one practical desktop application for Windows and macOS.",
+      `Build systematic client growth with Veyra's desktop application. Manage prospects, leads, sales, delivery & retention in one connected workflow. ` +
+      `Windows & macOS support. Works offline after activation. ${foundingActive ? `Founding price: ${formatPrice(FOUNDING_PRICE)} (regular ${formatPrice(REGULAR_PRICE)})` : `Price: ${formatPrice(REGULAR_PRICE)}`}. ` +
+      `The smarter alternative to monthly subscriptions like HubSpot, Salesforce, or Pipedrive.`,
+    keywords: seoKeywords,
     alternates: { canonical: `/products/${product.slug}` },
     openGraph: {
-      title: `${product.name} — ${formatPrice(price)} one-time purchase`,
+      title: `${product.name} — ${formatPrice(price)} Lifetime Access, No Subscriptions`,
       description:
-        "Turn scattered client work into a system for consistent growth. Client acquisition, sales, delivery, retention, and growth — one desktop application for Windows and macOS.",
+        `Transform how you acquire & keep clients. Six connected stages: foundation, acquisition, sales, delivery, retention, growth. ` +
+        `One desktop app for Windows/Mac. Your data, your computer, forever owned. Save $10,000+ vs. monthly CRM subscriptions.`,
       url: `/products/${product.slug}`,
       type: "website",
+      images: [
+        {
+          url: `${site.url}/og/client-growth-system.jpg`,
+          width: 1200,
+          height: 630,
+          alt: `${product.name} - Client Management Software`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${product.name} — Own It Forever, Not Rent It Monthly`,
+      description:
+        `Stop paying $50-200/month for client management software. One payment. Lifetime access. Built for freelancers & service businesses on Windows & Mac.`,
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-video-preview': -1,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+      },
     },
   };
 }
@@ -204,6 +263,50 @@ export default async function ClientGrowthSystemPage() {
     {
       q: "What platforms are supported?",
       a: "Windows and macOS. Client Growth System ships as a native desktop application for both — either build can be downloaded from your Veyra account, and one licence activates on any machine you install it on, within your purchased seats. Linux and mobile versions are not available and are not being promised.",
+    },
+  ];
+
+  // Detailed FAQ for AI-powered search queries and comparison keywords
+  const faqDetailed = [
+    {
+      q: "What is Veyra and how does it help my business?",
+      a: "Veyra's Client Growth System is a desktop application that helps freelancers, consultants, and agencies systematically manage their entire client lifecycle — from first prospect to retained client. It replaces scattered spreadsheets, sticky notes, and multiple subscriptions with one connected workspace that guides you through six essential stages: setting up your business foundation, finding prospects, making sales conversions, delivering projects, keeping clients happy, and growing revenue. Think of it as an operating system for your service business that actually gets used every day.",
+    },
+    {
+      q: "Why choose Veyra over monthly subscription software like HubSpot or Salesforce?",
+      a: "Three reasons matter most: cost, ownership, and control. A typical subscription costs $30-200/month — that's $360-2,400/year and $10,000+ over three years. Veyra is one payment ($79 founding / $149 regular) and you own it forever. Your data lives on your computer, not someone else's servers. You control how it works without being locked into their feature roadmap. Plus, it works offline once activated — no internet anxiety when traveling or in areas with poor connectivity.",
+    },
+    {
+      q: "Can I really use this without paying monthly fees forever?",
+      a: "Yes. When you purchase Client Growth System, you buy a perpetual license — there are no hidden subscriptions, no 'premium tiers,' and no forced upgrades. You own that version forever. If Veyra releases major new versions in the future, they'll have separate pricing options, but your existing installation continues working indefinitely. This isn't rented access; it's a tool you own like your laptop or phone.",
+    },
+    {
+      q: "Is my client data safe if it's stored locally?",
+      a: "Local storage means you control security completely — your contacts, deals, project details, and communication history live in encrypted files on your device, not exposed on the internet. Of course, you're responsible for backing up your own data (we provide export tools), but that trade-off buys privacy and keeps your information from becoming someone else's data broker asset. For sensitive client work, this matters more than ever.",
+    },
+    {
+      q: "Will this replace my current tools like Trello, Asana, or Monday.com?",
+      a: "Client Growth System handles the commercial side — managing prospects, sales pipelines, and client relationships — while integrating with how you already work. You might keep dedicated project management tools for team collaboration, or use Slack for internal chat. But if you're juggling spreadsheets + Gmail labels + random documents, CGS unifies that workflow into one logical system that reduces context-switching and cognitive overhead.",
+    },
+    {
+      q: "How is this different from Notion templates or Airtable bases?",
+      a: "Notion and Airtable are fantastic tools, but they require significant setup time, technical comfort, and ongoing maintenance. They're also online-first — slow offline, and your data sits in their ecosystem. Veyra is purpose-built for client growth workflows: pre-configured, immediate use, local-first architecture, and designed specifically around the acquisition → sales → delivery → retention cycle. No YouTube tutorials required.",
+    },
+    {
+      q: "Does Veyra offer any integrations with other tools?",
+      a: "Our focus is deep functionality for client growth rather than shallow connections everywhere. We support CSV import/export for portability, and plan strategic integrations where they save real time. Email sync, calendar tools, and payment processors are evaluation candidates. But we prioritize stability and performance over integration lists — if a connection doesn't meaningfully streamline your workflow, we won't add it just for the sake of having one.",
+    },
+    {
+      q: "What kind of support do I get after purchasing?",
+      a: "Personal support directly from the builders via email — no ticket queues or knowledge base walls. Setup questions? Workflow advice? Feature requests? You'll get direct responses that acknowledge your specific situation. We also provide comprehensive documentation, video walkthroughs, and sample databases you can study or import. Plus, our user community shares tips and customizations openly.",
+    },
+    {
+      q: "Can I try before I buy?",
+      a: "Absolutely. Every product page includes a free interactive demo you can explore immediately — no credit card required. It's a fully functional sandbox with realistic example data so you can test workflows, examine interfaces, and understand whether the approach fits your needs. Download the trial installer to experience the actual desktop application before committing.",
+    },
+    {
+      q: "What if I'm not satisfied — is there a refund policy?",
+      a: "Yes. We offer a {REFUND_WINDOW_LABEL}. Try the system, set up a real project or two, evaluate whether it genuinely improves your workflow. If not, email us within the window for a straightforward refund. We'd prefer you keep using it, but would never trap you in something that doesn't earn its place in your toolbox.",
     },
   ];
 
@@ -595,7 +698,49 @@ export default async function ClientGrowthSystemPage() {
       </section>
 
       {/* ------------------------------------------------------------ */}
-      {/* 10 · Final CTA                                                */}
+      {/* 10 · Competitor Comparison & Why Choose Veyra                 */}
+      {/* ------------------------------------------------------------ */}
+      <section className="border-b border-line bg-paper">
+        <CompetitorComparison />
+      </section>
+
+      {/* Own it vs. rent it — local-first / offline / lifetime / privacy */}
+      <WhyOverCloud />
+
+      {/* ------------------------------------------------------------ */}
+      {/* 11 · Detailed AI-Powered FAQ                                  */}
+      {/* ------------------------------------------------------------ */}
+      <section id="detailed-faq" className="bg-surface">
+        <div className="container-page py-20 sm:py-24 lg:py-28">
+          <Reveal>
+            <SectionHead
+              eyebrow="Common Questions"
+              title="Everything you need to know about Veyra vs. subscriptions."
+              lead="We've answered the questions real buyers ask when choosing between one-time purchases and monthly software."
+            />
+          </Reveal>
+
+          <Reveal delay={0.08}>
+            <div className="mt-12 space-y-6">
+              {faqDetailed.map((item, i) => (
+                <Reveal
+                  key={item.q}
+                  delay={0.1 + i * 0.05}
+                  className="rounded-lg border border-line bg-paper p-6 shadow-sm"
+                >
+                  <h3 className="font-display text-xl font-medium text-ink mb-3">
+                    {i + 1}. {item.q}
+                  </h3>
+                  <p className="text-ink-2 leading-relaxed">{item.a}</p>
+                </Reveal>
+              ))}
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ------------------------------------------------------------ */}
+      {/* 12 · Final CTA                                                */}
       {/* ------------------------------------------------------------ */}
       <section
         aria-labelledby="final-cta-heading"

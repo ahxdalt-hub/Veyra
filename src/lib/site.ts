@@ -12,11 +12,11 @@ export const site = {
   /** Parent company origin (Caelmont) — override with NEXT_PUBLIC_PARENT_SITE_URL. */
   parentUrl:
     process.env.NEXT_PUBLIC_PARENT_SITE_URL?.replace(/\/$/, "") ?? "https://caelmont.in",
-  tagline: "Practical business systems you can actually run.",
+  tagline: "Local-first business OS · One-time purchase · No subscriptions.",
   description:
-    "Veyra turns important business processes into structured systems for freelancers, consultants, service businesses, and small agencies — packaged so you can put them to work, not just read them.",
+    "Stop paying monthly fees. Veyra is a local-first business operating system for freelancers, consultants & agencies. Your data on your computer, one-time purchase forever access.",
   positioning:
-    "Veyra, a Caelmont brand, builds practical business systems for freelancers, consultants, service businesses, and small agencies — structured so the work actually gets run, not just documented.",
+    "Veyra, a Caelmont brand, builds local-first business operating systems for freelancers, consultants, service businesses, and small agencies — structured so you own your data, control your software, and never pay again.",
   contact: {
     email: "Caelmontholdings@gmail.com",
   },
@@ -37,9 +37,9 @@ export const partnersUrl = `${site.parentUrl}/partners?product=veyra`;
 export const primaryNav: NavItem[] = [
   { label: "Products", href: "/shop", description: "The Veyra collection" },
   {
-    label: "Client Growth System",
+    label: "Local-First OS",
     href: "/products/client-growth-system",
-    description: "Our flagship system — available now",
+    description: "One-time purchase · Your data forever",
   },
   { label: "About", href: "/about", description: "Why we build systems" },
 ];
@@ -47,7 +47,7 @@ export const primaryNav: NavItem[] = [
 /** Footer link groups — kept intentionally small. */
 export const footerNav = {
   products: [
-    { label: "Client Growth System", href: "/products/client-growth-system" },
+    { label: "Local-First OS", href: "/products/client-growth-system" },
     { label: "All products", href: "/shop" },
   ] as NavItem[],
   company: [
