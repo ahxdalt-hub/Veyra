@@ -19,6 +19,13 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// This page reads the signed-in session (getSessionUser) and renders an
+// interactive, client-side tool whose JS chunk references change on every
+// deploy. It must never be served from a stale prerender/edge cache — force
+// it dynamic so each request renders fresh and Cloudflare won't cache the
+// HTML shell (which would keep pointing at old chunks after a deploy).
+export const dynamic = "force-dynamic";
+
 /** The claim entry — every non-owner path lands here so the free product
  * is only ever acquired through the account claim flow, never tried
  * anonymously. */
