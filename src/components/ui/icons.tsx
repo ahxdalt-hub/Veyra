@@ -336,3 +336,12 @@ export function SparkIcon(props: IconProps) {
     </Icon>
   );
 }
+
+/** Play — a filled triangle for "watch demo" / "try live" CTAs. */
+export function PlayIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M6 4.2v7.6a.6.6 0 0 0 .92.5l6-3.8a.6.6 0 0 0 0-1l-6-3.8a.6.6 0 0 0-.92.5Z" />
+    </Icon>
+  );
+}

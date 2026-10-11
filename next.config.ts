@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Dev-server HMR from the LAN/loopback origin used in testing.
   allowedDevOrigins: ["127.0.0.1"],
+  // Local product screenshots are already optimized (cropped, web-res).
+  // Serving them unoptimized avoids Worker image-optimization edge cases.
+  images: { unoptimized: true },
 };
 
 export default nextConfig;
