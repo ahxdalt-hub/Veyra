@@ -19,14 +19,16 @@ import { ArrowRightIcon, PlayIcon } from "@/components/ui/icons";
  * Reduced-motion users get a single static frame with the demo CTA.
  */
 
-const SCENE_MS = 4200;
+const SCENE_MS = 3800;
 const EASE = [0.16, 1, 0.3, 1] as const;
 
 const SCENES = [
-  { id: "journey", label: "Dashboard", caption: "One dashboard — what to work on right now", src: "/product/demo-journey.png" },
-  { id: "pipeline", label: "Pipeline", caption: "Drag deals across stages — value per stage, live", src: "/product/demo-sell.png" },
-  { id: "outreach", label: "Outreach", caption: "Your outreach log — who to contact, when to follow up", src: "/product/demo-acquire.png" },
-  { id: "delivery", label: "Delivery", caption: "Repeatable onboarding checklist for every client", src: "/product/demo-deliver.png" },
+  { id: "dashboard", label: "Dashboard", caption: "One dashboard — what to work on right now", src: "/product/01-dashboard.png" },
+  { id: "pipeline", label: "Pipeline", caption: "Drag deals across stages — value per stage, live", src: "/product/02-pipeline.png" },
+  { id: "deal", label: "Deal record", caption: "Every deal: next action, proposals, notes, history", src: "/product/03-deal.png" },
+  { id: "outreach", label: "Outreach", caption: "Your outreach log — who to contact, when to follow up", src: "/product/04-outreach.png" },
+  { id: "contact", label: "Contact detail", caption: "Relationship history and a next step for every contact", src: "/product/05-contact.png" },
+  { id: "reviews", label: "Growth", caption: "Growth reviews to grow revenue from clients you already have", src: "/product/06-reviews.png" },
 ];
 
 export function ProductShowcase({ className = "" }: { className?: string }) {
@@ -55,7 +57,7 @@ export function ProductShowcase({ className = "" }: { className?: string }) {
         </div>
 
         {/* image stage */}
-        <div className="relative aspect-[1280/712] w-full bg-paper">
+        <div className="relative aspect-[3000/1577] w-full bg-paper">
           {reduced ? (
             <Image src={SCENES[0].src} alt="Client Growth System dashboard" fill sizes="(max-width:1024px) 100vw, 1000px" className="object-cover object-left-top" priority />
           ) : (
