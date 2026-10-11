@@ -18,16 +18,13 @@ import {
   type AuditBandKey,
   type AuditResult,
 } from "@/lib/audit";
-import { FOUNDING_PRICE, REGULAR_PRICE } from "@/lib/pricing";
-import { useFoundingActive } from "@/components/layout/founding-context";
-import { formatPrice } from "@/lib/site";
 import { useUiSounds } from "@/components/audit/use-sounds";
+import { AuditPitch } from "@/components/audit/audit-pitch";
 import { Button } from "@/components/ui/button";
 import {
   CheckIcon,
   SoundOffIcon,
   SoundOnIcon,
-  SparkIcon,
 } from "@/components/ui/icons";
 
 /**
@@ -534,7 +531,6 @@ function Results({
   retake: () => void;
 }) {
   const weakest = result.gaps[0];
-  const foundingActive = useFoundingActive();
   return (
     <div className="max-w-2xl">
       <p className="text-eyebrow text-center">Your growth audit</p>
@@ -629,54 +625,8 @@ function Results({
         </p>
       </section>
 
-      {/* Product CTA */}
-      <section aria-label="The Client Growth System" className="mt-10">
-        <div className="rounded-md bg-ink p-7 text-paper sm:p-8">
-          <p className="spec text-paper/60">The complete system</p>
-          <h3 className="text-display-2 mt-3 text-paper">
-            Fix all six phases with the Client Growth System
-          </h3>
-          <p className="mt-3 text-sm leading-relaxed text-paper/75">
-            Every module named in your report lives in one connected system —
-            twelve modules across the same six phases you just scored.
-            One-time purchase, instant digital delivery, every future
-            revision included.
-          </p>
-          <div className="mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-1.5">
-            <span className="text-3xl font-medium tnum text-paper">
-              {formatPrice(foundingActive ? FOUNDING_PRICE : REGULAR_PRICE)}
-            </span>
-            {foundingActive ? (
-              <>
-                <span className="text-sm line-through tnum text-paper/40">
-                  {formatPrice(REGULAR_PRICE)}
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-paper/25 px-3 py-1 text-xs">
-                  <SparkIcon className="h-3 w-3" />
-                  Founding price
-                </span>
-              </>
-            ) : null}
-          </div>
-          <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
-            <Button
-              href="/products/client-growth-system"
-              size="lg"
-              arrow
-              onMouseEnter={hover}
-              className="bg-paper text-ink hover:bg-accent-soft active:bg-accent-soft"
-            >
-              See the Client Growth System
-            </Button>
-            <Link
-              href="/account/library/growth-audit"
-              className="text-xs text-paper/70 underline-offset-4 hover:text-paper hover:underline"
-            >
-              View it in your library →
-            </Link>
-          </div>
-        </div>
-      </section>
+      {/* Product pitch — score → solution, obvious and on-brand. */}
+      <AuditPitch result={result} hover={hover} />
 
       <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
         <Button variant="outline" size="sm" onClick={retake} onMouseEnter={hover}>
