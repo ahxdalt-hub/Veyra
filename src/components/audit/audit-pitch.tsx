@@ -87,49 +87,47 @@ export function AuditPitch({
   const saved = Math.max(0, crm3yr - youPay);
 
   return (
-    <aside
-      aria-label="Own the Client Growth System"
-      className="animate-rise overflow-hidden rounded-md border border-line bg-paper shadow-sm"
-    >
+    <section aria-label="Own the Client Growth System" className="animate-rise">
       {/* 1 · The bridge — their weakest phase, named, and the fix. */}
-      <div className="p-6">
+      <div className="mx-auto max-w-2xl text-center">
         <p className="text-eyebrow text-clay">Your fix</p>
-        <h3 className="text-display-2 mt-2 text-[1.375rem]">
+        <h3 className="text-display-2 mt-3 text-[1.75rem] sm:text-[2rem]">
           {weakest.label} is your weakest phase.
         </h3>
-        <p className="mt-2 text-sm leading-relaxed text-ink-2">{fix.fix}</p>
-        <p className="spec mt-3 text-ink-4">
+        <p className="mt-4 text-lead">{fix.fix}</p>
+        <p className="spec mt-5 text-ink-4">
           Covered by: {fix.modules.join(" · ")}
         </p>
       </div>
 
-      {/* 2 · The four pillars — why Veyra isn't another cloud tool. */}
+      {/* 2 · The four differentiators — a full-width row of cards. */}
       <ul
         role="list"
-        className="grid grid-cols-2 gap-px border-y border-line bg-line"
+        className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
       >
-        {PILLARS.map(({ Icon, title, body }) => (
+        {PILLARS.map(({ Icon, title, body }, i) => (
           <li
             key={title}
-            className="bg-paper p-4 transition-colors duration-200 hover:bg-accent-soft/50"
+            className="group animate-rise rounded-md border border-line bg-paper p-5 transition-colors hover:border-accent/40 hover:bg-accent-soft/50"
+            style={{ animationDelay: `${80 + i * 60}ms` }}
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-sm bg-accent-soft text-accent-ink">
+            <span className="flex h-9 w-9 items-center justify-center rounded-sm border border-line bg-surface text-accent transition-colors group-hover:border-accent/40 group-hover:bg-accent-soft">
               <Icon className="h-4 w-4" />
             </span>
-            <p className="mt-2.5 text-[0.8125rem] font-medium text-ink">
-              {title}
-            </p>
-            <p className="mt-1 text-[0.75rem] leading-snug text-ink-2">
+            <p className="mt-3 text-sm font-medium text-ink">{title}</p>
+            <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-ink-2">
               {body}
             </p>
           </li>
         ))}
       </ul>
 
+      {/* 3 + 4 · Stop renting (left) beside the price + CTAs (right). */}
+      <div className="mt-8 grid items-stretch gap-6 lg:grid-cols-2">
       {/* 3 · Stop renting — the three-year savings argument. */}
-      <div className="p-6">
+      <div className="flex flex-col justify-center rounded-md border border-line bg-paper p-6 sm:p-8">
         <p className="text-eyebrow">Stop renting your tools</p>
-        <div className="mt-3 space-y-1.5 text-sm">
+        <div className="mt-4 space-y-2 text-base">
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-ink-3">
               A cloud CRM (~${CRM_MONTHLY}/mo), over {CRM_MONTHS / 12} years
@@ -151,58 +149,59 @@ export function AuditPitch({
         </p>
       </div>
 
-      {/* 4 · Price + CTAs. */}
-      <div className="bg-ink p-6 text-paper">
-        <p className="spec flex items-center gap-1.5 text-paper/60">
-          <SparkIcon className="h-3.5 w-3.5" />
-          The complete system · 12 modules · 6 phases
-        </p>
-        <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <span className="text-3xl font-medium tnum text-paper">
-            {formatPrice(youPay)}
-          </span>
-          {foundingActive ? (
-            <span className="text-sm line-through tnum text-paper/40">
-              {formatPrice(REGULAR_PRICE)}
+        {/* 4 · Price + CTAs. */}
+        <div className="flex flex-col justify-center rounded-md bg-ink p-6 text-paper sm:p-8">
+          <p className="spec flex items-center gap-1.5 text-paper/60">
+            <SparkIcon className="h-3.5 w-3.5" />
+            The complete system · 12 modules · 6 phases
+          </p>
+          <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className="text-4xl font-medium tnum text-paper">
+              {formatPrice(youPay)}
             </span>
-          ) : null}
-          {foundingActive ? (
-            <span className="inline-flex items-center gap-1 rounded-full border border-paper/25 px-2.5 py-0.5 text-[0.6875rem]">
-              <SparkIcon className="h-3 w-3" />
-              Founding
-            </span>
-          ) : (
-            <span className="text-xs text-paper/50">
-              One-time · yours forever
-            </span>
-          )}
-        </div>
-        <p className="mt-3 flex items-center gap-1.5 text-xs text-paper/55">
-          <ShieldIcon className="h-3.5 w-3.5" />
-          {REFUND_WINDOW_LABEL}
-        </p>
+            {foundingActive ? (
+              <span className="text-base line-through tnum text-paper/40">
+                {formatPrice(REGULAR_PRICE)}
+              </span>
+            ) : null}
+            {foundingActive ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-paper/25 px-2.5 py-0.5 text-[0.6875rem]">
+                <SparkIcon className="h-3 w-3" />
+                Founding
+              </span>
+            ) : (
+              <span className="text-xs text-paper/50">
+                One-time · yours forever
+              </span>
+            )}
+          </div>
+          <p className="mt-4 flex items-center gap-1.5 text-xs text-paper/55">
+            <ShieldIcon className="h-3.5 w-3.5" />
+            {REFUND_WINDOW_LABEL}
+          </p>
 
-        <div className="mt-5 flex flex-col gap-2.5">
-          <Button
-            href="/products/client-growth-system"
-            size="lg"
-            arrow
-            onMouseEnter={hover}
-            className="justify-center bg-paper text-ink hover:bg-accent-soft active:bg-accent-soft"
-          >
-            Get the Client Growth System
-          </Button>
-          <Link
-            href="/demo/client-growth-system"
-            onMouseEnter={hover}
-            className="group inline-flex items-center justify-center gap-2 rounded-sm border border-paper/25 px-4 py-2 text-sm text-paper/85 transition-colors hover:border-paper/50 hover:text-paper"
-          >
-            <PlayIcon className="h-3.5 w-3.5" />
-            Try the live demo
-            <ArrowRightIcon className="h-3.5 w-3.5 opacity-60 transition-transform group-hover:translate-x-0.5" />
-          </Link>
+          <div className="mt-6 flex flex-col gap-2.5 sm:flex-row">
+            <Button
+              href="/products/client-growth-system"
+              size="lg"
+              arrow
+              onMouseEnter={hover}
+              className="justify-center bg-paper text-ink hover:bg-accent-soft active:bg-accent-soft"
+            >
+              Get the Client Growth System
+            </Button>
+            <Link
+              href="/demo/client-growth-system"
+              onMouseEnter={hover}
+              className="group inline-flex items-center justify-center gap-2 rounded-sm border border-paper/25 px-5 py-2.5 text-sm text-paper/85 transition-colors hover:border-paper/50 hover:text-paper"
+            >
+              <PlayIcon className="h-3.5 w-3.5" />
+              Try the live demo
+              <ArrowRightIcon className="h-3.5 w-3.5 opacity-60 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          </div>
         </div>
       </div>
-    </aside>
+    </section>
   );
 }

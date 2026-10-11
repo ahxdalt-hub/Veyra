@@ -22,6 +22,7 @@ import { useUiSounds } from "@/components/audit/use-sounds";
 import { AuditPitch } from "@/components/audit/audit-pitch";
 import { Button } from "@/components/ui/button";
 import {
+  ArrowLeftIcon,
   ArrowRightIcon,
   CheckIcon,
   SoundOffIcon,
@@ -112,6 +113,8 @@ export function GrowthAudit({
   );
   const [result, setResult] = useState<AuditResult | null>(null);
   const [barsShown, setBarsShown] = useState(false);
+  // Two result "windows": the diagnosis (default) and the offer (on request).
+  const [showSolution, setShowSolution] = useState(false);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const advancing = useRef(false);
@@ -131,17 +134,18 @@ export function GrowthAudit({
     typeof window !== "undefined" &&
     window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-  // The card keeps itself in view as stages change.
+  // The card keeps itself in view as stages (or result views) change.
   useEffect(() => {
     cardRef.current?.scrollIntoView({
       behavior: reduced ? "auto" : "smooth",
       block: "nearest",
     });
-  }, [stage, index, reduced]);
+  }, [stage, index, showSolution, reduced]);
 
   const finish = useCallback(
     (nums: number[]) => {
       setResult(scoreAudit(nums));
+      setShowSolution(false);
       play("reveal");
       setStage("scoring");
       const t = window.setTimeout(
@@ -222,6 +226,7 @@ export function GrowthAudit({
   function retake() {
     setAnswers(Array<number | null>(AUDIT_TOTAL).fill(null));
     setResult(null);
+    setShowSolution(false);
     setIndex(0);
     setDir("fwd");
     setBarsShown(false);
@@ -464,6 +469,9 @@ export function GrowthAudit({
           reduced={!!reduced}
           hover={hover}
           retake={retake}
+          showSolution={showSolution}
+          onFindSolution={() => setShowSolution(true)}
+          onBackToResults={() => setShowSolution(false)}
         />
       ) : null}
     </div>
@@ -524,14 +532,42 @@ function Results({
   reduced,
   hover,
   retake,
+  showSolution,
+  onFindSolution,
+  onBackToResults,
 }: {
   result: AuditResult;
   barsShown: boolean;
   reduced: boolean;
   hover: () => void;
   retake: () => void;
+  showSolution: boolean;
+  onFindSolution: () => void;
+  onBackToResults: () => void;
 }) {
   const weakest = result.gaps[0];
+
+  // SOLUTION VIEW — a separate, wide, detailed pitch. The score/analytics and
+  // the offer are distinct "windows"; the visitor opts into seeing the fix.
+  if (showSolution) {
+    return (
+      <div className="max-w-6xl">
+        <button
+          type="button"
+          onClick={onBackToResults}
+          onMouseEnter={hover}
+          className="animate-rise group inline-flex items-center gap-1.5 text-sm font-medium text-ink-3 transition-colors hover:text-ink"
+        >
+          <ArrowLeftIcon className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
+          Back to your results
+        </button>
+        <div className="mt-8">
+          <AuditPitch result={result} hover={hover} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-6xl">
       {/* Orientation — who/where/what, so no one has to scroll back. */}
@@ -557,10 +593,8 @@ function Results({
         </p>
       </div>
 
-      {/* Two columns — the diagnosis (left) and the offer (right, sticky). */}
-      <div className="mt-10 grid items-start gap-8 lg:grid-cols-12 lg:gap-10">
-        {/* LEFT — the issue, by score. */}
-        <div className="space-y-8 lg:col-span-7">
+      {/* Diagnosis — the issue, by score. The offer is a separate view below. */}
+      <div className="mx-auto mt-10 max-w-3xl space-y-8">
           {/* Phase by phase */}
           <section
             aria-label="Phase scores"
@@ -683,25 +717,43 @@ function Results({
       </section>
         </div>
 
-        {/* RIGHT — the offer, sticky so the CTA never leaves the screen. */}
-        <div className="lg:col-span-5">
-          <div className="lg:sticky lg:top-24">
-            <AuditPitch result={result} hover={hover} />
+        {/* The offer is a separate view — the diagnosis ends with the invitation. */}
+        <div
+          className="animate-rise mt-12 text-center"
+          style={{ animationDelay: "240ms" }}
+        >
+          <Button
+            variant="accent"
+            size="lg"
+            arrow
+            onClick={onFindSolution}
+            onMouseEnter={hover}
+          >
+            Find your solution
+          </Button>
+          <p className="mx-auto mt-4 max-w-md text-sm text-ink-3">
+            The one system that turns{" "}
+            {weakest.label.toLowerCase()} — and the other five phases — into a
+            process you keep.
+          </p>
+
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={retake}
+              onMouseEnter={hover}
+            >
+              Retake the audit
+            </Button>
+            <Link
+              href="/resources"
+              className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
+            >
+              Back to resources
+            </Link>
           </div>
         </div>
       </div>
-
-      <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3">
-        <Button variant="outline" size="sm" onClick={retake} onMouseEnter={hover}>
-          Retake the audit
-        </Button>
-        <Link
-          href="/resources"
-          className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
-        >
-          Back to resources
-        </Link>
-      </div>
-    </div>
   );
 }
