@@ -22,6 +22,13 @@ import { ArrowRightIcon, PlayIcon } from "@/components/ui/icons";
 const SCENE_MS = 3800;
 const EASE = [0.16, 1, 0.3, 1] as const;
 
+/** Presentation-style slide/fade/scale, driven by travel direction. */
+const STAGE_VARIANTS = {
+  enter: (d: number) => ({ opacity: 0, scale: 1.06, x: d * 52 }),
+  center: { opacity: 1, scale: 1, x: 0 },
+  exit: (d: number) => ({ opacity: 0, scale: 0.97, x: d * -52 }),
+};
+
 const SCENES = [
   { id: "dashboard", label: "Dashboard", caption: "One dashboard — what to work on right now", src: "/product/01-dashboard.png" },
   { id: "pipeline", label: "Pipeline", caption: "Drag deals across stages — value per stage, live", src: "/product/02-pipeline.png" },
@@ -34,10 +41,20 @@ const SCENES = [
 export function ProductShowcase({ className = "" }: { className?: string }) {
   const reduced = useReducedMotion();
   const [index, setIndex] = useState(0);
+  const [dir, setDir] = useState(1);
+
+  // Move to a scene, setting slide direction by travel direction.
+  const goTo = (next: number) => {
+    setDir(next > index ? 1 : next < index ? -1 : dir);
+    setIndex(next);
+  };
 
   useEffect(() => {
     if (reduced) return;
-    const t = window.setInterval(() => setIndex((i) => (i + 1) % SCENES.length), SCENE_MS);
+    const t = window.setInterval(() => {
+      setDir(1);
+      setIndex((i) => (i + 1) % SCENES.length);
+    }, SCENE_MS);
     return () => window.clearInterval(t);
   }, [reduced]);
 
@@ -57,18 +74,20 @@ export function ProductShowcase({ className = "" }: { className?: string }) {
         </div>
 
         {/* image stage */}
-        <div className="relative aspect-[3000/1577] w-full bg-paper">
+        <div className="relative aspect-[3000/1577] w-full overflow-hidden bg-paper">
           {reduced ? (
             <Image src={SCENES[0].src} alt="Client Growth System dashboard" fill sizes="(max-width:1024px) 100vw, 1000px" className="object-cover object-left-top" priority />
           ) : (
-            <AnimatePresence initial={false}>
+            <AnimatePresence initial={false} custom={dir}>
               <motion.div
                 key={active.id}
                 className="absolute inset-0"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.6, ease: EASE }}
+                custom={dir}
+                variants={STAGE_VARIANTS}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.72, ease: EASE }}
               >
                 <Image src={active.src} alt={active.caption} fill sizes="(max-width:1024px) 100vw, 1000px" className="object-cover object-left-top" priority={index === 0} />
               </motion.div>
@@ -78,7 +97,24 @@ export function ProductShowcase({ className = "" }: { className?: string }) {
 
         {/* caption + tabs + progress */}
         <div className="relative border-t border-line bg-paper px-4 py-2.5">
-          <p className="mb-2 truncate text-center text-xs text-ink-3">{active.caption}</p>
+          <div className="mb-2 min-h-[1.25rem]">
+            {reduced ? (
+              <p className="truncate text-center text-xs text-ink-3">{active.caption}</p>
+            ) : (
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={active.id}
+                  className="truncate text-center text-xs text-ink-3"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.34, ease: EASE }}
+                >
+                  {active.caption}
+                </motion.p>
+              </AnimatePresence>
+            )}
+          </div>
           <div className="flex items-center gap-1">
             {SCENES.map((s, i) => (
               <button
@@ -86,10 +122,10 @@ export function ProductShowcase({ className = "" }: { className?: string }) {
                 type="button"
                 aria-label={`Show ${s.label}`}
                 aria-current={i === index}
-                onClick={() => setIndex(i)}
+                onClick={() => goTo(i)}
                 className="relative flex-1 overflow-hidden rounded-xs py-1.5 text-[0.625rem] text-ink-3 transition-colors hover:text-ink"
               >
-                {i === index ? <span className="absolute inset-0 -z-10 bg-accent-soft" /> : null}
+                {i === index ? <motion.span layoutId="showcase-tab" transition={{ duration: 0.4, ease: EASE }} className="absolute inset-0 -z-10 rounded-xs bg-accent-soft" /> : null}
                 <span className={i === index ? "font-medium text-accent-ink" : ""}>{s.label}</span>
               </button>
             ))}
