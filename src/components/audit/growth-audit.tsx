@@ -22,6 +22,7 @@ import { useUiSounds } from "@/components/audit/use-sounds";
 import { AuditPitch } from "@/components/audit/audit-pitch";
 import { Button } from "@/components/ui/button";
 import {
+  ArrowRightIcon,
   CheckIcon,
   SoundOffIcon,
   SoundOnIcon,
@@ -532,17 +533,44 @@ function Results({
 }) {
   const weakest = result.gaps[0];
   return (
-    <div className="max-w-2xl">
-      <p className="text-eyebrow text-center">Your growth audit</p>
-      <div className="mt-4">
-        <ScoreHeadline result={result} reduced={reduced} active />
+    <div className="max-w-6xl">
+      {/* Orientation — who/where/what, so no one has to scroll back. */}
+      <div className="animate-rise mx-auto max-w-2xl text-center">
+        <p className="text-eyebrow">
+          Your growth audit · Client Growth System
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-ink-3">
+          You scored the six phases that decide whether a consultancy
+          compounds or grinds. Here&rsquo;s the honest read — and the one
+          system that turns your weakest phase into a process you keep.
+        </p>
       </div>
-      <p className="mt-4 text-center text-lead">{result.band.verdict}</p>
 
-      {/* Phase bars */}
-      <section aria-label="Phase scores" className="mt-10">
-        <h3 className="text-display-2 text-[1.25rem]">Phase by phase</h3>
-        <ul role="list" className="stagger-rise mt-5 space-y-4">
+      {/* Score header */}
+      <div
+        className="animate-rise mt-6 text-center"
+        style={{ animationDelay: "60ms" }}
+      >
+        <ScoreHeadline result={result} reduced={reduced} active />
+        <p className="mx-auto mt-3 max-w-2xl text-lead">
+          {result.band.verdict}
+        </p>
+      </div>
+
+      {/* Two columns — the diagnosis (left) and the offer (right, sticky). */}
+      <div className="mt-10 grid items-start gap-8 lg:grid-cols-12 lg:gap-10">
+        {/* LEFT — the issue, by score. */}
+        <div className="space-y-8 lg:col-span-7">
+          {/* Phase by phase */}
+          <section
+            aria-label="Phase scores"
+            className="animate-rise rounded-md border border-line bg-paper p-5 sm:p-6"
+          >
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className="text-display-2 text-[1.25rem]">Phase by phase</h3>
+              <span className="spec text-ink-4">out of 100</span>
+            </div>
+            <ul role="list" className="mt-5 space-y-4">
           {result.phases.map((p, i) => (
             <li key={p.phase}>
               <div className="flex items-baseline justify-between gap-3">
@@ -567,8 +595,12 @@ function Results({
         </ul>
       </section>
 
-      {/* Strengths */}
-      <section aria-label="Strengths" className="mt-10">
+      {/* What holds up */}
+      <section
+        aria-label="Strengths"
+        className="animate-rise rounded-md border border-line bg-paper p-5 sm:p-6"
+        style={{ animationDelay: "60ms" }}
+      >
         <h3 className="text-display-2 text-[1.25rem]">What holds up</h3>
         <ul role="list" className="mt-4 space-y-2.5">
           {result.strengths.map((s) => (
@@ -583,38 +615,63 @@ function Results({
         </ul>
       </section>
 
-      {/* Fix-first list */}
-      <section aria-label="Fix first" className="mt-10">
+      {/* Fix first — each gap gets a way to act. */}
+      <section
+        aria-label="Fix first"
+        className="animate-rise"
+        style={{ animationDelay: "120ms" }}
+      >
         <h3 className="text-display-2 text-[1.25rem]">Fix first</h3>
-        <ul role="list" className="stagger-rise mt-5 space-y-4">
+        <ul role="list" className="mt-4 space-y-4">
           {result.gaps.map((g) => {
             const fix = PHASE_FIX[g.phase];
             return (
-              <li key={g.phase} className="rounded-sm border border-line bg-paper p-5">
-                <p className="spec text-ink-4">
-                  {g.label} · {g.percent}%
-                </p>
+              <li
+                key={g.phase}
+                className="rounded-md border border-line bg-paper p-5 sm:p-6"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="spec text-ink-4">
+                    {g.label} · {g.percent}%
+                  </p>
+                  <span className="rounded-full border border-clay/40 px-2.5 py-0.5 text-[0.6875rem] font-medium text-clay">
+                    Fix this
+                  </span>
+                </div>
                 <h4 className="text-display-2 mt-2 text-[1.125rem]">
                   {fix.headline}
                 </h4>
                 <p className="mt-2 text-sm leading-relaxed text-ink-2">
                   {fix.fix}
                 </p>
-                <p className="spec mt-3 text-ink-4">
-                  Covered by: {fix.modules.join(" · ")}
-                </p>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                  <p className="spec text-ink-4">
+                    Covered by: {fix.modules.join(" · ")}
+                  </p>
+                  <Link
+                    href="/products/client-growth-system"
+                    onMouseEnter={hover}
+                    className="group inline-flex items-center gap-1.5 text-sm font-medium text-accent-ink underline-offset-4 hover:underline"
+                  >
+                    Fix {g.label}
+                    <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+                </div>
               </li>
             );
           })}
         </ul>
       </section>
 
-      {/* The one change */}
+      {/* The one change this week */}
       <section
         aria-label="The one change this week"
-        className="mt-10 rounded-md border border-accent/30 bg-accent-soft/60 p-6"
+        className="animate-rise rounded-md border border-accent/30 bg-accent-soft/60 p-6"
+        style={{ animationDelay: "180ms" }}
       >
-        <p className="text-eyebrow text-accent-ink">The one change this week</p>
+        <p className="text-eyebrow text-accent-ink">
+          The one change this week
+        </p>
         <p className="mt-3 text-[1.0625rem] leading-relaxed text-ink">
           Before anything else: write down{" "}
           {PHASE_FIRST_ACTION[weakest.phase]}
@@ -624,11 +681,17 @@ function Results({
           another post about growth.
         </p>
       </section>
+        </div>
 
-      {/* Product pitch — score → solution, obvious and on-brand. */}
-      <AuditPitch result={result} hover={hover} />
+        {/* RIGHT — the offer, sticky so the CTA never leaves the screen. */}
+        <div className="lg:col-span-5">
+          <div className="lg:sticky lg:top-24">
+            <AuditPitch result={result} hover={hover} />
+          </div>
+        </div>
+      </div>
 
-      <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
+      <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3">
         <Button variant="outline" size="sm" onClick={retake} onMouseEnter={hover}>
           Retake the audit
         </Button>
