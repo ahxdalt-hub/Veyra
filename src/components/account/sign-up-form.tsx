@@ -9,10 +9,11 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { claimPurchasesAction } from "@/app/(site)/account/actions";
+import { signInWithGoogle, useGoogleProviderEnabled } from "@/lib/auth-google";
 import { USERNAME_RE } from "@/lib/username";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CheckIcon, CloseIcon, MailIcon } from "@/components/ui/icons";
+import { CheckIcon, CloseIcon, GoogleIcon, MailIcon } from "@/components/ui/icons";
 
 /**
  * Sign-up form. Creates the account through Supabase Auth; the display
@@ -45,6 +46,22 @@ export function SignUpForm() {
   const [error, setError] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+
+  // Google OAuth — same gated behavior as sign-in.
+  const googleEnabled = useGoogleProviderEnabled();
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const [googleError, setGoogleError] = useState<string | undefined>();
+
+  async function onGoogle() {
+    if (googleBusy || busy) return;
+    setGoogleError(undefined);
+    setGoogleBusy(true);
+    const result = await signInWithGoogle(next);
+    if (result.error) {
+      setGoogleError(result.error);
+      setGoogleBusy(false);
+    }
+  }
 
   // Resend affordance on the "check your inbox" screen — a lost/rate-limited
   // email must never strand a signup. Cooldown mirrors GoTrue's 60s window
@@ -348,6 +365,34 @@ export function SignUpForm() {
       >
         {busy ? "Creating your account…" : "Create account"}
       </Button>
+
+      {googleEnabled ? (
+        <>
+          <div className="relative py-1">
+            <div className="absolute inset-0 flex items-center" aria-hidden="true">
+              <div className="w-full border-t border-line" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-bg px-3 text-xs text-ink-3">or</span>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="md"
+            className="w-full"
+            onClick={onGoogle}
+            disabled={googleBusy || busy}
+          >
+            <GoogleIcon className="h-4 w-4" />
+            {googleBusy ? "Opening Google…" : "Continue with Google"}
+          </Button>
+          {googleError ? (
+            <p className="text-center text-xs text-clay">{googleError}</p>
+          ) : null}
+        </>
+      ) : null}
+
       <p className="text-center text-sm text-ink-3">
         Already have an account?{" "}
         <Link

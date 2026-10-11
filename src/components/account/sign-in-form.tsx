@@ -7,6 +7,8 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   signInWithPasswordAction,
 } from "@/app/(site)/account/actions";
+import { signInWithGoogle, useGoogleProviderEnabled } from "@/lib/auth-google";
+import { GoogleIcon } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -40,6 +42,23 @@ export function SignInForm() {
   const [linkBusy, setLinkBusy] = useState(false);
   const [linkError, setLinkError] = useState<string | undefined>();
   const [linkSent, setLinkSent] = useState(false);
+
+  // Google OAuth — only rendered once the provider is enabled in Supabase.
+  const googleEnabled = useGoogleProviderEnabled();
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const [googleError, setGoogleError] = useState<string | undefined>();
+
+  async function onGoogle() {
+    if (googleBusy || busy) return;
+    setGoogleError(undefined);
+    setGoogleBusy(true);
+    const result = await signInWithGoogle(next);
+    // Only re-enable on failure; success navigates away to Google.
+    if (result.error) {
+      setGoogleError(result.error);
+      setGoogleBusy(false);
+    }
+  }
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -129,6 +148,33 @@ export function SignInForm() {
         {busy ? "Signing in…" : "Sign in"}
       </Button>
       </form>
+
+      {googleEnabled ? (
+        <>
+          <div className="relative py-1">
+            <div className="absolute inset-0 flex items-center" aria-hidden="true">
+              <div className="w-full border-t border-line" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-bg px-3 text-xs text-ink-3">or</span>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="md"
+            className="w-full"
+            onClick={onGoogle}
+            disabled={googleBusy || busy}
+          >
+            <GoogleIcon className="h-4 w-4" />
+            {googleBusy ? "Opening Google…" : "Continue with Google"}
+          </Button>
+          {googleError ? (
+            <p className="text-center text-xs text-clay">{googleError}</p>
+          ) : null}
+        </>
+      ) : null}
 
       {/* Divider */}
       <div className="relative py-1">
