@@ -339,16 +339,6 @@ export default async function ClientGrowthSystemPage() {
     },
   };
 
-  const faqJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: faqItems.map((item) => ({
-      "@type": "Question",
-      name: item.q,
-      acceptedAnswer: { "@type": "Answer", text: item.a },
-    })),
-  };
-
   return (
     <>
       {/* ------------------------------------------------------------ */}
@@ -705,7 +695,7 @@ export default async function ClientGrowthSystemPage() {
       </section>
 
       {/* Own it vs. rent it — local-first / offline / lifetime / privacy */}
-      <WhyOverCloud />
+      <WhyOverCloud slug={product.slug} name={product.name} />
 
       {/* ------------------------------------------------------------ */}
       {/* 11 · Detailed AI-Powered FAQ                                  */}

@@ -9,17 +9,25 @@ import {
   WifiOffIcon,
 } from "@/components/ui/icons";
 import { faqPageJsonLd, type FaqEntry } from "@/lib/seo";
+import { PurchaseCta } from "@/components/cgs/purchase-cta";
+import { REFUND_WINDOW_LABEL } from "@/lib/site";
 
 /**
- * WhyOverCloud — the "own it vs. rent it" positioning block.
+ * WhyOverCloud — the "own it vs. rent it" positioning block, rebuilt to
+ * convert a visitor who arrives mid-page (from the audit, an ad, or a
+ * competitor comparison) and has no idea what Veyra is yet.
  *
- * Four real differentiators against subscription CRMs, each with a
- * purpose-built glyph (no keyboard emoji — consistent with the 16px
- * icon set) and SEO copy that targets the exact phrasing buyers search:
- * "local-first CRM", "offline CRM", "one-time CRM", "private CRM".
+ * Three moves, top to bottom:
+ *   1. Orient — one line stating exactly what & where they are, so nobody
+ *      has to scroll back to the hero to understand the product.
+ *   2. Prove — a "Cloud CRM vs Veyra" comparison that makes the local /
+ *      offline / one-time / private value obvious at a glance.
+ *   3. Act — an inline add-to-cart button, so a convinced buyer can buy
+ *      right here instead of scrolling back up to pricing.
  *
- * The same data renders as FAQPage JSON-LD so answer engines can cite it
- * directly; every Q&A is also visible on the page (policy-compliant).
+ * Four differentiator cards + the comparison rows also render as FAQPage
+ * JSON-LD so answer engines can cite them; every Q&A is visible on the
+ * page (policy-compliant). All copy is honest — no fabricated proof.
  */
 
 type Reason = {
@@ -65,12 +73,81 @@ const reasons: Reason[] = [
   },
 ];
 
-export function WhyOverCloud() {
-  const faqEntries: FaqEntry[] = reasons.map((r) => ({ q: r.q, a: r.a }));
+/**
+ * The comparison — the clearest way to make "own vs. rent" obvious.
+ * Each row contrasts a typical subscription cloud CRM with Veyra.
+ * `true` marks the Veyra column as the advantage (renders a check),
+ * `false` marks the cloud-CRM downside (renders a muted cross).
+ */
+type CompareRow = {
+  dimension: string;
+  cloud: string;
+  veyra: string;
+  veyraWins: boolean;
+};
+
+const compareRows: CompareRow[] = [
+  {
+    dimension: "Cost",
+    cloud: "A monthly fee, per seat, forever",
+    veyra: "One-time payment — you own it",
+    veyraWins: true,
+  },
+  {
+    dimension: "Where your data lives",
+    cloud: "On their servers — you rent access",
+    veyra: "On your computer — a file you own",
+    veyraWins: true,
+  },
+  {
+    dimension: "Works offline",
+    cloud: "No — it needs the internet",
+    veyra: "Yes — fully offline day to day",
+    veyraWins: true,
+  },
+  {
+    dimension: "Your privacy",
+    cloud: "Data mined, resold, or used to train models",
+    veyra: "Never sold, mined, or shared",
+    veyraWins: true,
+  },
+  {
+    dimension: "If you stop paying",
+    cloud: "Access to your own data can end",
+    veyra: "Nothing changes — it's yours for life",
+    veyraWins: true,
+  },
+];
+
+export function WhyOverCloud({
+  slug,
+  name,
+}: {
+  slug: string;
+  name: string;
+}) {
+  const faqEntries: FaqEntry[] = [
+    ...reasons.map((r) => ({ q: r.q, a: r.a })),
+    {
+      q: "How is a local-first desktop CRM different from a cloud CRM?",
+      a: "A cloud CRM stores your data on the provider's servers and charges a recurring subscription for access, and it usually needs an internet connection. A local-first desktop CRM like the Client Growth System keeps all your data in a file on your own computer, works offline, is sold as a one-time purchase you own, and never mines, resells, or shares your client information.",
+    },
+  ];
 
   return (
     <section className="border-b border-line bg-surface" aria-labelledby="why-over-cloud-title">
       <div className="container-page py-20 sm:py-24 lg:py-28">
+        {/* Orient — state plainly what & where they are, so no one has to
+            scroll back to the hero to understand the product. */}
+        <Reveal>
+          <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-paper px-3 py-1.5 text-xs text-ink-2">
+            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-accent" />
+            You&rsquo;re viewing the{" "}
+            <strong className="font-medium text-ink">Client Growth System</strong> — Veyra&rsquo;s
+            local-first business OS for freelancers, consultants &amp; small agencies.
+          </p>
+        </Reveal>
+
         <Reveal>
           <SectionHead
             eyebrow="Own it vs. rent it"
@@ -81,6 +158,51 @@ export function WhyOverCloud() {
             }
             lead="Subscription CRMs charge you every month to keep access to data you created. Veyra inverts that: a local-first desktop system you buy once and truly own."
           />
+        </Reveal>
+
+        {/* Prove — the comparison that makes the value obvious at a glance. */}
+        <Reveal delay={0.08}>
+          <div className="mt-12 overflow-hidden rounded-lg border border-line">
+            <table className="w-full border-collapse text-left text-sm">
+              <caption className="sr-only">
+                A typical cloud CRM compared with the Veyra Client Growth System.
+              </caption>
+              <thead>
+                <tr className="bg-paper">
+                  <th scope="col" className="w-[28%] px-5 py-3.5 align-bottom">
+                    <span className="sr-only">Dimension</span>
+                  </th>
+                  <th scope="col" className="px-5 py-3.5 text-xs font-medium uppercase tracking-wide text-ink-4">
+                    Typical cloud CRM
+                  </th>
+                  <th scope="col" className="px-5 py-3.5 text-xs font-medium uppercase tracking-wide text-accent">
+                    Veyra · Client Growth System
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {compareRows.map((row) => (
+                  <tr key={row.dimension} className="border-t border-line">
+                    <th scope="row" className="px-5 py-4 align-top font-medium text-ink">
+                      {row.dimension}
+                    </th>
+                    <td className="px-5 py-4 align-top text-ink-3">
+                      <span className="flex items-start gap-2">
+                        <svg aria-hidden="true" viewBox="0 0 24 24" className="mt-0.5 h-4 w-4 shrink-0 text-ink-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                        {row.cloud}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 align-top text-ink">
+                      <span className="flex items-start gap-2">
+                        <svg aria-hidden="true" viewBox="0 0 24 24" className="mt-0.5 h-4 w-4 shrink-0 text-accent" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                        {row.veyra}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Reveal>
 
         <Stagger className="mt-14 grid gap-x-12 gap-y-10 sm:grid-cols-2">
@@ -99,6 +221,24 @@ export function WhyOverCloud() {
             </StaggerItem>
           ))}
         </Stagger>
+
+        {/* Act — buy right here, no scrolling back to pricing. */}
+        <Reveal delay={0.1}>
+          <div className="mt-14 rounded-lg border border-accent/25 bg-accent-soft/60 p-6 sm:p-8">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="font-display text-xl font-medium text-ink">
+                  Own the system, not a subscription.
+                </h3>
+                <p className="mt-2 max-w-md text-sm leading-relaxed text-ink-2">
+                  One-time payment · {REFUND_WINDOW_LABEL} · updates included · works offline. Add it
+                  to your cart right here — no need to scroll.
+                </p>
+              </div>
+              <PurchaseCta slug={slug} name={name} />
+            </div>
+          </div>
+        </Reveal>
       </div>
 
       {/* FAQ structured data — same Q&A, machine-readable for search and
