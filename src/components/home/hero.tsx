@@ -3,7 +3,15 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { SystemPreview } from "@/components/product/system-preview";
-import { DriveIcon, EyeOffIcon, InfinityIcon, WifiOffIcon } from "@/components/ui/icons";
+import {
+  DriveIcon,
+  EyeOffIcon,
+  InfinityIcon,
+  ShieldIcon,
+  SparkIcon,
+  WifiOffIcon,
+} from "@/components/ui/icons";
+import { REFUND_WINDOW_LABEL } from "@/lib/site";
 
 /**
  * Hero — Section A.
@@ -22,6 +30,33 @@ const rise = {
     transition: { delay: 0.1 + i * 0.12, duration: 0.7, ease: EASE },
   }),
 };
+
+/** Compact trust micro-line placed directly under the primary CTA — it
+ *  removes "what if I don't like it" hesitation at the exact moment of
+ *  decision. Every item is honest and resolved from site config, so no
+ *  claim here can drift from the product pages, cart, or refund policy. */
+function TrustRow() {
+  return (
+    <p className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-ink-3">
+      <span className="inline-flex items-center gap-1.5">
+        <InfinityIcon className="h-3.5 w-3.5 text-accent" />
+        One-time payment
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <ShieldIcon className="h-3.5 w-3.5 text-accent" />
+        {REFUND_WINDOW_LABEL}
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <SparkIcon className="h-3.5 w-3.5 text-accent" />
+        Updates included
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <WifiOffIcon className="h-3.5 w-3.5 text-accent" />
+        Works offline
+      </span>
+    </p>
+  );
+}
 
 export function Hero() {
   const reduced = useReducedMotion();
@@ -46,6 +81,8 @@ export function Hero() {
               See the collection
             </Button>
           </div>
+          <TrustRow />
+
           
           {/* SEO: keyword-rich paragraph */}
           <div className="mt-8 text-left max-w-2xl bg-accent-soft/30 rounded-lg p-6 border border-accent/20">
@@ -126,6 +163,13 @@ export function Hero() {
           <Button href="#collection" variant="outline" size="lg">
             See the collection
           </Button>
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.5, ease: EASE }}
+        >
+          <TrustRow />
         </motion.div>
 
         {/* SEO: keyword-rich paragraph */}

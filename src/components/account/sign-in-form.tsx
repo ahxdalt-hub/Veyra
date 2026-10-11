@@ -3,6 +3,7 @@
 import { useState, useTransition, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   signInWithPasswordAction,
 } from "@/app/(site)/account/actions";
@@ -32,6 +33,14 @@ export function SignInForm() {
   const [error, setError] = useState<string | undefined>();
   const [busy, startTransition] = useTransition();
 
+  // Passwordless (magic link) — lower-friction path for people who sign
+  // in rarely (audit redeem, licence lookup). Reuses /auth/callback, which
+  // exchanges the code for a session and claims guest purchases.
+  const [linkEmail, setLinkEmail] = useState("");
+  const [linkBusy, setLinkBusy] = useState(false);
+  const [linkError, setLinkError] = useState<string | undefined>();
+  const [linkSent, setLinkSent] = useState(false);
+
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy) return;
@@ -47,13 +56,38 @@ export function SignInForm() {
     });
   }
 
+  async function onMagicLink(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (linkBusy) return;
+    setLinkError(undefined);
+    const email = linkEmail.trim().toLowerCase();
+    if (!email || !email.includes("@")) {
+      setLinkError("Enter a valid email address.");
+      return;
+    }
+    setLinkBusy(true);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: redirectTo },
+      });
+      if (otpError) {
+        setLinkError("Couldn't send that link right now. Please try again.");
+        return;
+      }
+      setLinkSent(true);
+    } catch {
+      setLinkError("Couldn't send that link right now. Please try again.");
+    } finally {
+      setLinkBusy(false);
+    }
+  }
+
   return (
-    <form
-      onSubmit={onSubmit}
-      method="post"
-      className="stagger-rise space-y-5"
-      noValidate
-    >
+    <div className="stagger-rise space-y-5">
+      <form onSubmit={onSubmit} method="post" className="space-y-5" noValidate>
       <Input
         type="text"
         name="identifier"
@@ -94,6 +128,59 @@ export function SignInForm() {
       >
         {busy ? "Signing in…" : "Sign in"}
       </Button>
+      </form>
+
+      {/* Divider */}
+      <div className="relative py-1">
+        <div className="absolute inset-0 flex items-center" aria-hidden="true">
+          <div className="w-full border-t border-line" />
+        </div>
+        <div className="relative flex justify-center">
+          <span className="bg-bg px-3 text-xs text-ink-3">or</span>
+        </div>
+      </div>
+
+      {linkSent ? (
+        <div className="rounded-lg border border-accent/30 bg-accent-soft/30 p-4 text-center">
+          <p className="text-sm font-medium text-ink">Check your email</p>
+          <p className="mt-1 text-xs text-ink-3">
+            We sent a sign-in link to{" "}
+            <strong className="text-ink">{linkEmail.trim().toLowerCase()}</strong>. It
+            expires in a few minutes.
+          </p>
+          <button
+            type="button"
+            onClick={() => setLinkSent(false)}
+            className="mt-3 text-xs font-medium text-accent underline-offset-2 hover:underline"
+          >
+            Use a different email
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={onMagicLink} className="space-y-3" noValidate>
+          <Input
+            type="email"
+            name="magic-email"
+            autoComplete="email"
+            label="Email me a sign-in link"
+            placeholder="you@yourbusiness.com"
+            value={linkEmail}
+            onChange={(e) => setLinkEmail(e.target.value)}
+            disabled={linkBusy || busy}
+            error={linkError}
+          />
+          <Button
+            type="submit"
+            variant="outline"
+            size="md"
+            className="w-full"
+            disabled={linkBusy || busy}
+          >
+            {linkBusy ? "Sending link…" : "Email me a sign-in link"}
+          </Button>
+        </form>
+      )}
+
       <p className="text-center text-sm text-ink-3">
         New to Veyra?{" "}
         <Link
@@ -105,6 +192,6 @@ export function SignInForm() {
           Create an account
         </Link>
       </p>
-    </form>
+    </div>
   );
 }
