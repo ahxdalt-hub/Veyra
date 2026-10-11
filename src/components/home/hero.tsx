@@ -2,7 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { SystemPreview } from "@/components/product/system-preview";
+import { ProductTour } from "@/components/product/product-tour";
 import {
   DriveIcon,
   EyeOffIcon,
@@ -108,7 +108,7 @@ export function Hero() {
           </div>
           
           <div className="mt-16 sm:mt-20">
-            <SystemPreview />
+            <ProductTour />
           </div>
         </div>
       </section>
@@ -206,7 +206,7 @@ export function Hero() {
           transition={{ delay: 0.45, duration: 0.9, ease: EASE }}
           className="mt-16 sm:mt-20"
         >
-          <SystemPreview />
+          <ProductTour />
         </motion.div>
       </div>
     </section>
