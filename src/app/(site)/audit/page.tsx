@@ -106,7 +106,10 @@ function AuditShell({
 
       <section className="bg-paper">
         <div className="container-page py-14 lg:py-20">
-          <div className="mx-auto max-w-2xl">
+          {/* The quiz stays editorially narrow; the results + solution views
+              break out wide (they set their own max-w-6xl), so this wrapper
+              must not cap them. GrowthAudit's quiz card re-pins its own width. */}
+          <div className="mx-auto max-w-6xl">
             <GrowthAudit unlocked={unlocked} licenceReference={licenceReference} />
           </div>
 

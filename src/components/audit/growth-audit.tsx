@@ -239,7 +239,7 @@ export function GrowthAudit({
   return (
     <div
       ref={cardRef}
-      className="relative rounded-md border border-line bg-surface p-6 shadow-sm scroll-mt-24 sm:p-10"
+      className="relative mx-auto max-w-2xl rounded-md border border-line bg-surface p-6 shadow-sm scroll-mt-24 sm:p-10"
     >
       <SoundToggle on={sfxOn} toggle={toggleSfx} />
 

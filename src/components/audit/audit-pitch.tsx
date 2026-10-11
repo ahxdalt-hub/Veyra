@@ -89,7 +89,7 @@ export function AuditPitch({
   return (
     <section aria-label="Own the Client Growth System" className="animate-rise">
       {/* 1 · The bridge — their weakest phase, named, and the fix. */}
-      <div className="mx-auto max-w-2xl text-center">
+      <div className="mx-auto max-w-3xl text-center">
         <p className="text-eyebrow text-clay">Your fix</p>
         <h3 className="text-display-2 mt-3 text-[1.75rem] sm:text-[2rem]">
           {weakest.label} is your weakest phase.
