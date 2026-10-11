@@ -85,6 +85,24 @@ function extractClientIP(request: NextRequest): string {
 }
 
 /**
+ * Defense-in-depth security headers, applied to every HTML page response the
+ * middleware returns. The CDN/WAF (Cloudflare) stays the primary control;
+ * these harden the origin response too. Deliberately scoped with NO blast
+ * radius: no CSP (would need per-route tuning for Dodo checkout + Supabase),
+ * and no HSTS preload / includeSubDomains (irreversible; shared parent
+ * domain). `response` is reassigned by the Supabase cookie refresh, so this
+ * is applied at each return site rather than once up front.
+ */
+function withSecurityHeaders(response: NextResponse): NextResponse {
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  response.headers.set("Strict-Transport-Security", "max-age=31536000");
+  return response;
+}
+
+/**
  * Middleware — customer session guard:
  *
  * The @supabase/ssr refresh pattern plus route guarding for the account
@@ -132,7 +150,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (!supabaseAuthConfigured()) return response;
+  if (!supabaseAuthConfigured()) return withSecurityHeaders(response);
 
   const supabase = createServerClient(supabaseUrl()!, supabaseAnonKey()!, {
     cookies: {
@@ -169,7 +187,7 @@ export async function middleware(request: NextRequest) {
       "[middleware] session verification unavailable; skipping route gating:",
       describeAuthError(error)
     );
-    return response;
+    return withSecurityHeaders(response);
   }
 
   /* Server actions POST back to the page that rendered them. Rerouting one
@@ -178,7 +196,7 @@ export async function middleware(request: NextRequest) {
    * browser had just created the session, so the claim action's own POST was
    * redirected away from /account/sign-up. Only GET navigations may be
    * rerouted here; the refreshed cookies still ride back on `response`. */
-  if (request.method !== "GET") return response;
+  if (request.method !== "GET") return withSecurityHeaders(response);
 
   const isAccountAuthPage =
     pathname === "/account/sign-in" ||
@@ -241,7 +259,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  return response;
+  return withSecurityHeaders(response);
 }
 
 export const config = {
