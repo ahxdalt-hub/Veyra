@@ -75,6 +75,62 @@ function run(command, args, env) {
   if (result.status !== 0) throw new Error(`${command} ${args.join(" ")} exited with ${result.status}`);
 }
 
+/** Short SHA of HEAD at deploy time. Baked into the build so the LIVE site can
+ *  later prove it is running this exact commit (see verifyLiveDeploy and
+ *  src/app/api/build-info). A green "Deployed veyra" log only means a Worker
+ *  version EXISTS — not that the site is serving it. */
+function currentCommit() {
+  try {
+    const r = spawnSync("git", ["rev-parse", "--short", "HEAD"], {
+      cwd: root,
+      encoding: "utf8",
+    });
+    if (r.status === 0 && r.stdout) return r.stdout.trim();
+  } catch {
+    /* git unavailable — fall through to "unknown" */
+  }
+  return "unknown";
+}
+
+const headCommit = currentCommit();
+
+/**
+ * After the Worker deploys, fetch the public build marker and FAIL the whole
+ * deploy if the live site is not running HEAD. This is the guard that was
+ * missing: a deploy once "succeeded" while the site kept serving a build from
+ * five minutes before the commit, which read as a phantom cache bug. Retries
+ * absorb normal Cloudflare propagation lag before giving up.
+ */
+async function verifyLiveDeploy(expectedCommit) {
+  const base = (localValue("NEXT_PUBLIC_SITE_URL") || "https://veyra.caelmont.in").replace(/\/$/, "");
+  const url = `${base}/api/build-info?probe=${Date.now()}`;
+  for (let attempt = 1; attempt <= 8; attempt++) {
+    try {
+      const res = await fetch(url, { headers: { "Cache-Control": "no-cache" } });
+      if (res.ok) {
+        const body = await res.json();
+        if (body.commit === expectedCommit) {
+          console.log(`[deploy] VERIFIED: live site is running commit ${body.commit} (== HEAD)`);
+          return;
+        }
+        console.log(
+          `[deploy] live site reports commit "${body.commit}", expected "${expectedCommit}" — retrying (${attempt}/8)`
+        );
+      } else {
+        console.log(`[deploy] /api/build-info returned ${res.status} — retrying (${attempt}/8)`);
+      }
+    } catch (err) {
+      console.log(`[deploy] verify fetch failed (${attempt}/8): ${err.message}`);
+    }
+    await new Promise((r) => setTimeout(r, 4000));
+  }
+  throw new Error(
+    `[deploy] ABORT: live site did not report commit ${expectedCommit} after 8 attempts. ` +
+      `The Worker deployed but the site is not serving HEAD (edge cache or propagation lag). ` +
+      `Purge the Cloudflare cache for ${base} and redeploy.`
+  );
+}
+
 /**
  * The build must see the same variable SHAPE as the Worker, or `next build`
  * misclassifies routes. Stripping server-only vars is what did the damage:
@@ -106,6 +162,10 @@ function buildEnv() {
   const env = { ...process.env };
   for (const name of FORBIDDEN) env[name] = BUILD_PLACEHOLDER;
   for (const name of BUILD_SHAPE) env[name] = localValue(name) ?? BUILD_PLACEHOLDER;
+  // Bake the commit SHA so the live site can later prove it is running this
+  // exact build (src/app/api/build-info reads it). NEXT_PUBLIC_* ships to the
+  // browser on purpose; a short git SHA is a version marker, not a secret.
+  env.NEXT_PUBLIC_BUILD_COMMIT = headCommit;
   return env;
 }
 
@@ -160,6 +220,17 @@ try {
   }
 
   run("npx", ["opennextjs-cloudflare", "deploy"]);
+
+  // Prove the live site is actually serving this commit before declaring
+  // success. Without this, a deploy that uploads a Worker but leaves the site
+  // on stale HTML looks identical to a clean one (the exact gap that produced
+  // the "changes don't show up" confusion). A mismatch throws -> non-zero
+  // exit -> CI/operator sees a real failure instead of a false green.
+  if (headCommit !== "unknown") {
+    await verifyLiveDeploy(headCommit);
+  } else {
+    console.log("[deploy] skipping live verification (git commit unavailable)");
+  }
 } finally {
   if (swapped) {
     rmSync(envLocal, { force: true });
