@@ -23,10 +23,10 @@ import { ORGANIZATION_ID, WEBSITE_ID } from "@/lib/seo";
 export const metadata: Metadata = {
   title: {
     absolute:
-      "Local-First Business OS | Lifetime Deal - No Monthly Fees | Veyra",
+      "Client Growth System for Freelancers & Agencies | Local-First Desktop OS | Veyra",
   },
   description:
-    "Stop paying monthly fees for CRM software. Veyra is a local-first business operating system for freelancers, consultants & agencies. Your data on your computer, one-time purchase, forever access. Works offline. Privacy-focused.",
+    "Turn scattered leads into clients you keep. Veyra is a local-first desktop operating system for freelancers, consultants & agencies — one-time purchase, your data on your computer, no monthly fees, works offline.",
   keywords: [
     "local first software",
     "business operating system",
@@ -51,9 +51,9 @@ export const metadata: Metadata = {
   ].join(", "),
   alternates: { canonical: "/" },
   openGraph: {
-    title: "Veyra | Local-First Business OS — One Payment, Forever Access",
+    title: "Veyra | Turn Scattered Leads Into Clients You Keep",
     description:
-      "The smarter choice for freelancers, consultants & agencies: your data lives locally on your computer, not in someone else's cloud. One-time payment = lifetime access. Works offline. No data mining.",
+      "A local-first desktop operating system for freelancers, consultants & agencies. One-time purchase, your data on your computer, no monthly fees, works offline.",
     url: site.url,
     siteName: "Veyra",
     locale: "en_US",
@@ -61,9 +61,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Veyra | Your Data, Your Computer, Your Software",
+    title: "Veyra | Turn Scattered Leads Into Clients You Keep",
     description:
-      "Tired of SaaS subscriptions? Our local-first business OS works offline, stores your data locally, and costs one payment — forever. Built for privacy-focused professionals.",
+      "A local-first desktop operating system for freelancers, consultants & agencies. One-time purchase, your data on your computer, no monthly fees, works offline.",
   },
 };
 

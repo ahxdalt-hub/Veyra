@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { site } from "@/lib/site";
+import { site, formatPrice, REFUND_WINDOW_LABEL } from "@/lib/site";
+import { FOUNDING_PRICE, REGULAR_PRICE } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
@@ -22,12 +23,16 @@ export default function FreelanceProjectManagement() {
             Clients stay happy when you communicate proactively. Deadlines get met without 
             all-nighters. You stop feeling like you're drowning in a hundred loose threads.
           </p>
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex flex-col items-center justify-center gap-3">
             <Link href="/products/client-growth-system">
               <Button variant="accent" size="lg">
                 Get the Client Growth System
               </Button>
             </Link>
+            <p className="text-sm text-muted-foreground">
+              <span className="font-semibold text-foreground tnum">{formatPrice(FOUNDING_PRICE)}</span> one-time{" "}
+              <span className="line-through tnum">{formatPrice(REGULAR_PRICE)}</span> · {REFUND_WINDOW_LABEL}
+            </p>
           </div>
         </div>
       </section>

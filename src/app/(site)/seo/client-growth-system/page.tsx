@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { site } from "@/lib/site";
+import { site, formatPrice, REFUND_WINDOW_LABEL } from "@/lib/site";
+import { FOUNDING_PRICE, REGULAR_PRICE } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
@@ -22,12 +23,16 @@ export default function WhatIsClientGrowthSystem() {
             It&apos;s not another spreadsheet or generic CRM. It&apos;s an operating system that connects 
             every part of your service business — from finding prospects to retaining them long-term — so you stop leaking revenue and start compounding results.
           </p>
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex flex-col items-center justify-center gap-3">
             <Link href="/products/client-growth-system">
               <Button variant="accent" size="lg">
                 See The Complete System
               </Button>
             </Link>
+            <p className="text-sm text-muted-foreground">
+              <span className="font-semibold text-foreground tnum">{formatPrice(FOUNDING_PRICE)}</span> one-time{" "}
+              <span className="line-through tnum">{formatPrice(REGULAR_PRICE)}</span> · {REFUND_WINDOW_LABEL}
+            </p>
           </div>
         </div>
       </section>
@@ -372,15 +377,15 @@ export default function WhatIsClientGrowthSystem() {
 
             <div>
               <h3 className="text-lg font-medium mb-2">Does it integrate with other tools?</h3>
-              <p className="text-muted">This is designed as your single source of truth for business operations. Email exports 
-              and CSV imports allow you to sync external tools if needed, but most users find it handles 
-              everything internally.</p>
+              <p className="text-muted">This is designed as your single source of truth for business operations. Email exports
+              and CSV imports allow you to sync external tools if needed, but it&apos;s built to handle
+              your client operations in one place.</p>
             </div>
 
             <div>
               <h3 className="text-lg font-medium mb-2">Can I use this if I&apos;m already busy?</h3>
-              <p className="text-muted">Yes. Set it up gradually — start with one stage at a time. Many users implement Foundation 
-              first, then Add Acquisition next month as they begin prospecting more systematically.</p>
+              <p className="text-muted">Yes. Set it up gradually — start with one stage at a time. Begin with Foundation,
+              then add Acquisition the next month as you begin prospecting more systematically.</p>
             </div>
 
             <div>

@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { site } from "@/lib/site";
+import { site, formatPrice, REFUND_WINDOW_LABEL } from "@/lib/site";
+import { FOUNDING_PRICE, REGULAR_PRICE } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: "Agency Client Retention System | Stop Churn & Grow Revenue",
-  description: "A proven framework for retaining clients longer, increasing lifetime value, and turning one-time projects into recurring revenue streams.",
+  title: "Agency Client Retention System | A Structured Framework for Keeping Clients",
+  description: "A structured framework for retaining clients longer, increasing lifetime value, and turning one-time projects into recurring revenue streams.",
   alternates: { canonical: `${site.url}/seo/agency-client-retention-system` },
 };
 
@@ -16,19 +17,23 @@ export default function AgencyClientRetention() {
       <section className="border-b border-line bg-paper">
         <div className="container-page py-16 sm:py-24 lg:py-32 text-center">
           <h1 className="text-display-hero mx-auto max-w-4xl">
-            Agency Client Retention System That Actually Works
+            An Agency Client Retention System You Can Put To Work
           </h1>
           <p className="mt-6 text-lg text-muted-foreground max-w-2xl mx-auto">
             Stop losing clients after delivery. Build systems that keep them engaged, 
             turn satisfaction into referrals, and transform project work into predictable 
             recurring contracts.
           </p>
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex flex-col items-center justify-center gap-3">
             <Link href="/products/client-growth-system">
               <Button variant="accent" size="lg">
                 Get the Client Growth System
               </Button>
             </Link>
+            <p className="text-sm text-muted-foreground">
+              <span className="font-semibold text-foreground tnum">{formatPrice(FOUNDING_PRICE)}</span> one-time{" "}
+              <span className="line-through tnum">{formatPrice(REGULAR_PRICE)}</span> · {REFUND_WINDOW_LABEL}
+            </p>
           </div>
         </div>
       </section>

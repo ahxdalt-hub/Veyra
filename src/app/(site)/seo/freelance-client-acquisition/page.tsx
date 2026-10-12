@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { site } from "@/lib/site";
+import { site, formatPrice, REFUND_WINDOW_LABEL } from "@/lib/site";
+import { FOUNDING_PRICE, REGULAR_PRICE } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: "Freelance Client Acquisition System | Proven Framework for Finding Clients",
-  description: "A step-by-step system for freelancers to acquire clients consistently: prospecting, outreach, follow-ups, proposals, and closing deals without cold-calling anxiety.",
+  title: "Freelance Client Acquisition System | A Structured Process for Finding Clients",
+  description: "A structured system for freelancers to acquire clients consistently: prospecting, outreach, follow-ups, proposals, and closing deals — without relying on guesswork or cold-calling anxiety.",
   alternates: { canonical: `${site.url}/seo/freelance-client-acquisition` },
 };
 
@@ -16,19 +17,23 @@ export default function FreelanceClientAcquisition() {
       <section className="border-b border-line bg-paper">
         <div className="container-page py-16 sm:py-24 lg:py-32 text-center">
           <h1 className="text-display-hero mx-auto max-w-4xl">
-            Freelance Client Acquisition System That Actually Works
+            A Freelance Client Acquisition System You Can Actually Run
           </h1>
           <p className="mt-6 text-lg text-muted-foreground max-w-2xl mx-auto">
-            Stop guessing how to find paying clients. Use a repeatable process to attract 
-            inbound inquiries, convert cold prospects into contracts, and build a pipeline 
-            that fills itself month after month.
+            Stop guessing how to find paying clients. Use a structured process to attract
+            inbound inquiries, convert cold prospects into contracts, and run a pipeline
+            you control — instead of relying on referrals and hope.
           </p>
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex flex-col items-center justify-center gap-3">
             <Link href="/products/client-growth-system">
               <Button variant="accent" size="lg">
                 Get the Client Growth System
               </Button>
             </Link>
+            <p className="text-sm text-muted-foreground">
+              <span className="font-semibold text-foreground tnum">{formatPrice(FOUNDING_PRICE)}</span> one-time{" "}
+              <span className="line-through tnum">{formatPrice(REGULAR_PRICE)}</span> · {REFUND_WINDOW_LABEL}
+            </p>
           </div>
         </div>
       </section>
@@ -225,8 +230,9 @@ export default function FreelanceClientAcquisition() {
 
             <div>
               <h3 className="text-lg font-medium mb-2">What if I&apos;m already using Excel or Notion?</h3>
-              <p className="text-muted">Those work until they break. This system automates the reminders and follow-ups 
-              you've been forgetting manually. Many users switch mid-project and save 5+ hours weekly.</p>
+              <p className="text-muted">Those work until they break. This system structures the reminders and follow-ups
+              you&apos;ve been tracking manually, so nothing depends on you remembering. Many freelancers
+              move their existing pipeline over mid-project.</p>
             </div>
 
             <div>
@@ -237,8 +243,9 @@ export default function FreelanceClientAcquisition() {
 
             <div>
               <h3 className="text-lg font-medium mb-2">How long until I see results?</h3>
-              <p className="text-muted">If you implement one new outreach sequence per week, expect your first converted 
-              deal within 2–3 weeks. Building a full pipeline takes 60–90 days of consistent use.</p>
+              <p className="text-muted">The system is designed to be used the week you get it. How fast replies and deals
+              come back depends on your offer, your outreach, and how consistently you run it — the
+              system removes the guesswork, not the work.</p>
             </div>
           </div>
         </div>

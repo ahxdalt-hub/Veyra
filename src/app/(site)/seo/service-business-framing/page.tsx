@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { site } from "@/lib/site";
+import { site, formatPrice, REFUND_WINDOW_LABEL } from "@/lib/site";
+import { FOUNDING_PRICE, REGULAR_PRICE } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
@@ -23,12 +24,16 @@ export default function ServiceBusinessFraming() {
             ignore, attracts clients who value quality over cost, and gives you a clear 
             reason why you're worth every dollar.
           </p>
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex flex-col items-center justify-center gap-3">
             <Link href="/products/client-growth-system">
               <Button variant="accent" size="lg">
                 Get the Client Growth System
               </Button>
             </Link>
+            <p className="text-sm text-muted-foreground">
+              <span className="font-semibold text-foreground tnum">{formatPrice(FOUNDING_PRICE)}</span> one-time{" "}
+              <span className="line-through tnum">{formatPrice(REGULAR_PRICE)}</span> · {REFUND_WINDOW_LABEL}
+            </p>
           </div>
         </div>
       </section>
@@ -220,8 +225,8 @@ export default function ServiceBusinessFraming() {
           <div className="space-y-8">
             <div>
               <h3 className="text-lg font-medium mb-2">Can I reposition an existing business?</h3>
-              <p className="text-muted">Absolutely. Many users use this to refine how they've been describing themselves 
-              informally, then apply it consistently everywhere for more consistent inquiries.</p>
+              <p className="text-muted">Absolutely. It&apos;s designed to refine how you describe yourself informally, then apply
+              it consistently everywhere for more consistent inquiries.</p>
             </div>
 
             <div>

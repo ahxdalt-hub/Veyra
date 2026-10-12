@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { site } from "@/lib/site";
+import { site, formatPrice, REFUND_WINDOW_LABEL } from "@/lib/site";
+import { FOUNDING_PRICE, REGULAR_PRICE } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
@@ -23,12 +24,16 @@ export default function AgencyScalingSystem() {
             while maintaining quality, hire people who don't need hand-holding, and forecast 
             revenue with actual confidence instead of hope.
           </p>
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex flex-col items-center justify-center gap-3">
             <Link href="/products/client-growth-system">
               <Button variant="accent" size="lg">
                 Get the Client Growth System
               </Button>
             </Link>
+            <p className="text-sm text-muted-foreground">
+              <span className="font-semibold text-foreground tnum">{formatPrice(FOUNDING_PRICE)}</span> one-time{" "}
+              <span className="line-through tnum">{formatPrice(REGULAR_PRICE)}</span> · {REFUND_WINDOW_LABEL}
+            </p>
           </div>
         </div>
       </section>
@@ -227,8 +232,9 @@ export default function AgencyScalingSystem() {
 
             <div>
               <h3 className="text-lg font-medium mb-2">What size agencies benefit most?</h3>
-              <p className="text-muted">5–50 person agencies typically see the biggest impact — large enough to need 
-              coordination, small enough that chaos is still possible without systems.</p>
+              <p className="text-muted">Agencies with more than one person benefit most — once there&apos;s anyone to
+              coordinate with, a shared system starts to pay off. Smaller teams use it to get
+              organized before they hire.</p>
             </div>
 
             <div>
