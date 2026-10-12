@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Hero } from "@/components/home/hero";
 import { Problem } from "@/components/home/problem";
 import { Featured } from "@/components/home/featured";
-import { WhatsInside } from "@/components/home/whats-inside";
 import { HowItWorks } from "@/components/home/how-it-works";
 import { Why } from "@/components/home/why";
 import { Collection } from "@/components/home/collection";
@@ -15,10 +14,10 @@ import { site } from "@/lib/site";
 import { ORGANIZATION_ID, WEBSITE_ID } from "@/lib/seo";
 
 /**
- * Homepage — a sales funnel in ten sections:
- * Hero → Problem → Product → What's inside → How → Why → Collection →
- * Lead magnet → FAQ → Final CTA.
- */
+ * Homepage — a sales funnel in eleven sections:
+ * Hero → Problem → Product → How → Why → Collection →
+ * Lead magnet → FAQ → Final CTA. (The twelve-module breakdown lives on
+ * the product page; the homepage no longer repeats it.) */
 
 export const metadata: Metadata = {
   title: {
@@ -88,7 +87,6 @@ export default function Home() {
       <Hero />
       <Problem />
       <Featured />
-      <WhatsInside />
       <HowItWorks />
       <Why />
       <Collection />
