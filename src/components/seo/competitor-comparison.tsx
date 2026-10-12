@@ -1,56 +1,56 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
-import { CheckIcon, CloseIcon } from "@/components/ui/icons";
+import { CheckIcon, CloseIcon, ShieldIcon, WifiOffIcon, InfinityIcon } from "@/components/ui/icons";
 import { EASE } from "@/lib/motion";
 
 const comparisonData = [
   {
-    feature: "Where Your Data Lives",
-    veyra: "Your computer — fully encrypted, fully yours",
-    competitor: "Their servers — potentially sold to data brokers",
+    feature: "Where your data lives",
+    veyra: "On your computer — encrypted, fully yours",
+    competitor: "On their servers — under their terms",
     veyraAdvantage: true,
   },
   {
-    feature: "Internet Access Required",
-    veyra: "Only for initial activation — works offline forever",
-    competitor: "Every single time you want to access your business",
+    feature: "Internet access required",
+    veyra: "Once, for activation — then fully offline",
+    competitor: "Every time you open your business",
     veyraAdvantage: true,
   },
   {
-    feature: "Pricing Model",
+    feature: "Pricing model",
     veyra: "One-time purchase ($79 founding / $149 regular)",
-    competitor: "$30-200/month forever (rented access)",
+    competitor: "Recurring subscription, priced per month",
     veyraAdvantage: true,
   },
   {
-    feature: "Cancellation Policy",
-    veyra: "You own it — no cancellations needed",
-    competitor: "Stop paying = lose ALL your data immediately",
+    feature: "Cancellation policy",
+    veyra: "Yours to keep — nothing to cancel",
+    competitor: "Stop paying and access ends",
     veyraAdvantage: true,
   },
   {
-    feature: "Price Over 3 Years",
-    veyra: "$79–$149 one-time",
-    competitor: "$10,800–$72,000+ monthly subscriptions",
+    feature: "Cost over three years",
+    veyra: "$79–$149, paid once",
+    competitor: "$1,080–$7,200 (36 months of subscription)",
     veyraAdvantage: true,
   },
   {
-    feature: "Data Ownership Rights",
-    veyra: "Full ownership — export anytime, move anywhere",
-    competitor: "Limited export rights, often in unusable formats",
+    feature: "Data portability",
+    veyra: "Full ownership — export anytime, in standard formats",
+    competitor: "Export is limited to what the platform allows",
     veyraAdvantage: true,
   },
   {
-    feature: "Offline Capability",
-    veyra: "Full functionality without internet",
-    competitor: "Completely broken offline",
+    feature: "Offline capability",
+    veyra: "Full functionality with no connection",
+    competitor: "Requires an active connection",
     veyraAdvantage: true,
   },
   {
-    feature: "Third-Party Access",
-    veyra: "No one else can scan or mine your data",
-    competitor: "They analyze your data to sell ads/improve models",
+    feature: "Third-party access",
+    veyra: "Your data stays on your machine",
+    competitor: "Governed by the provider's privacy policy",
     veyraAdvantage: true,
   },
 ];
@@ -73,7 +73,7 @@ export function CompetitorComparison() {
             Why your data should live on<span className="font-serif italic text-accent"> your computer</span>, not their servers.
           </h2>
           <p className="mt-5 text-lg text-ink-3 max-w-2xl mx-auto">
-            Cloud CRMs rent you access and own your data. Veyra gives you complete control. Here's how being local-first changes everything.
+            Cloud CRMs rent you access and hold your data on their terms. Veyra is installed once and owned outright. Here's what local-first changes.
           </p>
         </motion.div>
 
@@ -95,7 +95,7 @@ export function CompetitorComparison() {
             </div>
             <div className="bg-red-50 px-6 py-5 text-center">
               <p className="text-display font-semibold text-red-700">Cloud CRMs</p>
-              <p className="mt-1 text-xs text-ink-3">Hosted rentals · Monthly fees</p>
+              <p className="mt-1 text-xs text-ink-3">Subscription software · Monthly fees</p>
             </div>
 
             {/* Comparison Rows */}
@@ -142,10 +142,10 @@ export function CompetitorComparison() {
           className="mt-12 rounded-lg border border-moss/25 bg-gradient-to-br from-moss/20 to-accent-soft/40 p-8 text-center shadow-lg"
         >
           <p className="text-2xl font-display font-semibold text-moss-dark">
-            Save $10,000+ over 3 years · Complete privacy guaranteed
+            Own it in three years for the price of a few months of subscription
           </p>
           <p className="mt-3 text-sm text-ink-3 max-w-xl mx-auto">
-            While cloud subscriptions slowly drain your budget and own your customer data, you get full ownership with Veyra for a one-time payment that's less than ONE month of HubSpot's basic plan.
+            A typical CRM runs $30–$200 a month — $1,080 to $7,200 over three years. Veyra is a single one-time payment, and the system stays yours.
           </p>
         </motion.div>
 
@@ -158,18 +158,21 @@ export function CompetitorComparison() {
         >
           {[
             {
-              title: "🔒 Encrypted Local Storage",
-              desc: "Your data lives on your device in encrypted files. No third-party server scanning, no ad targeting, no data mining.",
+              icon: ShieldIcon,
+              title: "Encrypted local storage",
+              desc: "Your data lives on your device in encrypted files — never scanned by a third party, mined, or used for targeting.",
               highlight: true,
             },
             {
-              title: "🌐 Works Offline Forever",
-              desc: "Business happens everywhere — airports, coffee shops, travel. Access your full system without worrying about connectivity.",
+              icon: WifiOffIcon,
+              title: "Works offline, permanently",
+              desc: "Business happens everywhere — airports, cafés, travel. Run the full system with no connection required.",
               highlight: false,
             },
             {
-              title: "💰 True Ownership Rights",
-              desc: "Buy once, use forever. Export your data anytime in standard formats. Never locked into their ecosystem again.",
+              icon: InfinityIcon,
+              title: "Owned outright",
+              desc: "Buy once, use forever. Export anytime in standard formats. No subscription, no lock-in, no renewals.",
               highlight: false,
             },
           ].map((item, i) => (
@@ -185,6 +188,17 @@ export function CompetitorComparison() {
                   : "border-line bg-surface"
               }`}
             >
+              <span
+                className={`mb-4 flex h-11 w-11 items-center justify-center rounded-sm border ${
+                  item.highlight
+                    ? "border-moss/40 bg-surface"
+                    : "border-line bg-paper"
+                }`}
+              >
+                <item.icon
+                  className={`h-5 w-5 ${item.highlight ? "text-moss-dark" : "text-accent"}`}
+                />
+              </span>
               <h3 className="font-display font-semibold text-ink mb-2">{item.title}</h3>
               <p className="text-sm text-ink-3 leading-relaxed">{item.desc}</p>
             </motion.div>
