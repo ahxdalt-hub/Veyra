@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin/auth";
+import { getLivePresence } from "@/lib/presence";
 import {
   commandCenterConfigured,
   getMetrics,
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
     ? (sp.get("range") as RangeKey)
     : "30d";
 
-  const [metrics, totals, series, breakdown, orders, notifications, freeClaims] =
+  const [metrics, totals, series, breakdown, orders, notifications, freeClaims, presence] =
     await Promise.all([
       getMetrics(range),
       getTotals(),
@@ -47,6 +48,7 @@ export async function GET(request: Request) {
       listOrders({ limit: 14 }),
       listNotifications({ limit: 12 }),
       getFreeClaims(range),
+      getLivePresence(),
     ]);
 
   return NextResponse.json(
@@ -60,6 +62,7 @@ export async function GET(request: Request) {
       orders,
       notifications,
       freeClaims,
+      presence,
       updatedAt: new Date().toISOString(),
     },
     {

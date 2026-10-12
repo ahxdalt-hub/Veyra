@@ -8,6 +8,7 @@ import { getFoundingStatus } from "@/lib/founding";
 import { FoundingActiveProvider } from "@/components/layout/founding-context";
 import { CartProvider } from "@/components/cart/cart-context";
 import { HeaderSearchProvider } from "@/components/search/search-context";
+import { PresenceBeacon } from "@/components/layout/presence-beacon";
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
@@ -72,6 +73,10 @@ export default async function SiteLayout({
 
   return (
     <div className="flex min-h-dvh flex-col bg-paper text-ink">
+      {/* Anonymous, cookie-free live-visitor heartbeat (public pages only —
+          the admin command center is a separate segment and never mounts it).
+          Powers the "Viewing the site now" figure in the dashboard. */}
+      <PresenceBeacon />
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-xs focus:bg-accent focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white"

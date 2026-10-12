@@ -33,7 +33,9 @@ const PUBLIC_TABLES = [
   "product_versions",
   "products",
   "profiles",
+  "rate_limits",
   "redelivery_requests",
+  "redeem_codes",
   "seat_assignments",
 ];
 

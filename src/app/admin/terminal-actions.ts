@@ -69,6 +69,33 @@ function shortRef(id: string): string {
   return id.replace(/-/g, "").slice(0, 8).toUpperCase();
 }
 
+/**
+ * Resolve a Veyra account id for an email via the Auth admin API, so a
+ * manual grant can be linked to the account at creation. The admin API has
+ * no by-email getter, so we page the user directory (a launch-sized set)
+ * and match case-insensitively. Returns null when there is no account (a
+ * genuine guest) or the lookup is unavailable — it never throws, so the
+ * grant still proceeds as a guest and links itself at the next sign-in.
+ */
+async function findAuthUserIdByEmail(
+  db: ReturnType<typeof admin>,
+  email: string
+): Promise<string | null> {
+  const target = email.trim().toLowerCase();
+  const perPage = 200;
+  const maxPages = 10;
+  for (let page = 1; page <= maxPages; page += 1) {
+    const { data, error } = await db.auth.admin.listUsers({ page, perPage });
+    if (error || !data?.users) return null;
+    const hit = data.users.find(
+      (u) => (u.email ?? "").toLowerCase() === target
+    );
+    if (hit) return hit.id;
+    if (data.users.length < perPage) return null; // reached the last page
+  }
+  return null;
+}
+
 /** Not-connected guard every command shares. */
 function dbGuard(): TerminalResult | null {
   if (!supabaseAdminConfigured()) {
@@ -260,16 +287,24 @@ export async function terminalGrantAccessAction(params: {
     };
   }
 
-  // Link to the customer's account when we can see one on prior rows; guest
-  // grants link themselves at the next sign-in via claimPurchasesForUser.
-  const { data: priorRow } = await db
-    .from("entitlements")
-    .select("user_id")
-    .eq("email", email)
-    .not("user_id", "is", null)
-    .limit(1)
-    .maybeSingle();
-  const userId = priorRow?.user_id ?? null;
+  // Link the grant to the customer's account the moment we can resolve one,
+  // so the entitlement/licence/seat are created already-owned — otherwise a
+  // grant issued before the account linked carries user_id null: visible via
+  // the email read policy, but impossible to manage (seat RLS keys on
+  // entitlements.user_id). The auth lookup is authoritative; a prior linked
+  // entitlement is the fallback; a true guest (no account yet) still links
+  // itself at the next sign-in via claimPurchasesForUser.
+  let userId = await findAuthUserIdByEmail(db, email);
+  if (!userId) {
+    const { data: priorRow } = await db
+      .from("entitlements")
+      .select("user_id")
+      .eq("email", email)
+      .not("user_id", "is", null)
+      .limit(1)
+      .maybeSingle();
+    userId = priorRow?.user_id ?? null;
+  }
 
   const order = await insertOrder({
     id: crypto.randomUUID(),

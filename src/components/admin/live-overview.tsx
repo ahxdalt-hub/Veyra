@@ -6,6 +6,7 @@ import { MetricFigure } from "@/components/admin/metric";
 import { RevenueChart, BarRows, type SeriesPoint } from "@/components/admin/charts";
 import { Panel, PageHeading, EmptyState, StatusPill } from "@/components/admin/admin-ui";
 import { RangeSelector } from "@/components/admin/range-selector";
+import { LiveVisitors } from "@/components/admin/live-visitors";
 import { ScrollFadeX, ScrollFadeY } from "@/components/admin/smooth-scroll";
 import { money, timeAgo, dateShort, shortId } from "@/components/admin/format";
 import { getProduct } from "@/lib/products";
@@ -21,6 +22,7 @@ import type {
   ProductBreakdown,
   FreeClaimStats,
 } from "@/lib/admin/data";
+import type { LivePresence } from "@/lib/presence";
 
 /**
  * LiveOverview — the Overview page's data, kept fresh in place.
@@ -44,6 +46,7 @@ export type LiveOverviewData = {
   orders: { rows: OrderRow[]; total: number } | null;
   notifications: AdminNotificationRow[];
   freeClaims: FreeClaimStats | null;
+  presence: LivePresence | null;
 };
 
 const POLL_MS = 10_000;
@@ -94,7 +97,7 @@ export function LiveOverview({ initial }: { initial: LiveOverviewData }) {
     };
   }, [poll, range]);
 
-  const { metrics, totals, series, breakdown, orders, notifications, freeClaims, configured } = data;
+  const { metrics, totals, series, breakdown, orders, notifications, freeClaims, presence, configured } = data;
 
   const aov =
     metrics && metrics.paid_orders > 0
@@ -124,6 +127,11 @@ export function LiveOverview({ initial }: { initial: LiveOverviewData }) {
         }
         actions={<RangeSelector />}
       />
+
+      {/* — Live site visitors (top of the dashboard) — */}
+      <div className="mb-5">
+        <LiveVisitors presence={presence} live={live} />
+      </div>
 
       {/* — Core metrics — */}
       <Panel>

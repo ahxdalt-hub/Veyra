@@ -11,7 +11,8 @@ import {
   SparkIcon,
   WifiOffIcon,
 } from "@/components/ui/icons";
-import { REFUND_WINDOW_LABEL } from "@/lib/site";
+import { REFUND_WINDOW_LABEL, formatPrice } from "@/lib/site";
+import { FOUNDING_PRICE, REGULAR_PRICE } from "@/lib/pricing";
 
 /**
  * Hero — Section A.
@@ -58,6 +59,23 @@ function TrustRow() {
   );
 }
 
+/** Price anchor directly under the primary CTA — answers "what's the
+ *  damage?" before the visitor has to click through. Founding vs. regular
+ *  resolved from the pricing module (never hardcoded), mirroring the product
+ *  page grammar. NOTE: this shows the founding price; the product page flips
+ *  to regular automatically once the founding allocation closes. If you want
+ *  the hero to follow that toggle too, pass founding status down as a prop. */
+function PriceLine() {
+  return (
+    <p className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-ink-2">
+      <span className="font-semibold text-ink tnum">{formatPrice(FOUNDING_PRICE)}</span>
+      <span>one-time</span>
+      <span className="text-ink-4 line-through tnum">{formatPrice(REGULAR_PRICE)}</span>
+      <span className="text-ink-4">regular</span>
+    </p>
+  );
+}
+
 export function Hero() {
   const reduced = useReducedMotion();
 
@@ -67,25 +85,31 @@ export function Hero() {
         <div className="container-page py-16 text-center sm:py-24">
           <p className="text-eyebrow mb-5">For freelancers, consultants & small agencies</p>
           <h1 className="text-display-hero mx-auto max-w-4xl">
-            A local-first business operating system<br />
-            you actually own.
+            Turn scattered leads into clients you keep.<br />
+            A local-first business OS you actually own.
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-lead">
-            No monthly fees. No cloud dependencies. Your data lives on your computer, not in someone else&apos;s CRM database. One-time purchase for Windows &amp; macOS.
+            One desktop app to acquire, sell, deliver, and retain clients — your data on your own computer. One-time purchase for Windows &amp; macOS, no monthly fees.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button href="/products/client-growth-system" variant="accent" size="lg" arrow>
-              Get Lifetime Access
+              Get the system
             </Button>
             <Button href="#collection" variant="outline" size="lg">
               See the collection
             </Button>
           </div>
+          <PriceLine />
           <TrustRow />
 
           
-          {/* SEO: keyword-rich paragraph */}
-          <div className="mt-8 text-left max-w-2xl bg-accent-soft/30 rounded-lg p-6 border border-accent/20">
+          <div className="mt-16 sm:mt-20">
+            <ProductShowcase />
+          </div>
+
+          {/* SEO: keyword-rich paragraph — kept for search, moved below the
+              showcase so it no longer interrupts the scroll into the product. */}
+          <div className="mt-10 text-left max-w-2xl bg-accent-soft/30 rounded-lg p-6 border border-accent/20">
             <p className="font-semibold text-accent-ink mb-3">Why choose Veyra over cloud CRMs?</p>
             <ul className="space-y-2 text-sm text-ink-3">
               <li className="flex items-center gap-2.5">
@@ -107,9 +131,6 @@ export function Hero() {
             </ul>
           </div>
           
-          <div className="mt-16 sm:mt-20">
-            <ProductShowcase />
-          </div>
         </div>
       </section>
     );
@@ -137,8 +158,8 @@ export function Hero() {
           animate="visible"
           className="text-display-hero mx-auto max-w-4xl"
         >
-          A local-first business operating system<br />
-          you actually own.
+          Turn scattered leads into clients you keep.<br />
+          A local-first business OS you actually own.
         </motion.h1>
         <motion.p
           custom={2}
@@ -147,8 +168,7 @@ export function Hero() {
           animate="visible"
           className="mx-auto mt-6 max-w-xl text-lead"
         >
-          No monthly fees. No cloud dependencies. Your data lives on your computer,
-          not in someone else&apos;s CRM database. One-time purchase for Windows &amp; macOS.
+          One desktop app to acquire, sell, deliver, and retain clients — your data on your own computer. One-time purchase for Windows &amp; macOS, no monthly fees.
         </motion.p>
         <motion.div
           custom={3}
@@ -158,11 +178,18 @@ export function Hero() {
           className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row"
         >
           <Button href="/products/client-growth-system" variant="accent" size="lg" arrow>
-            Get Lifetime Access
+            Get the system
           </Button>
           <Button href="#collection" variant="outline" size="lg">
             See the collection
           </Button>
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.42, duration: 0.5, ease: EASE }}
+        >
+          <PriceLine />
         </motion.div>
         <motion.div
           initial={{ opacity: 0, y: 8 }}
@@ -172,12 +199,22 @@ export function Hero() {
           <TrustRow />
         </motion.div>
 
-        {/* SEO: keyword-rich paragraph */}
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45, duration: 0.9, ease: EASE }}
+          className="mt-16 sm:mt-20"
+        >
+          <ProductShowcase />
+        </motion.div>
+
+        {/* SEO: keyword-rich paragraph — kept for search, moved below the
+            showcase so it no longer interrupts the scroll into the product. */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45, duration: 0.6, ease: EASE }}
-          className="mt-8 text-left max-w-2xl mx-auto bg-accent-soft/30 rounded-lg p-6 border border-accent/20 shadow-sm"
+          transition={{ delay: 0.55, duration: 0.6, ease: EASE }}
+          className="mt-10 text-left max-w-2xl mx-auto bg-accent-soft/30 rounded-lg p-6 border border-accent/20 shadow-sm"
         >
           <p className="font-semibold text-accent-ink mb-3">Why choose Veyra over cloud CRMs?</p>
           <ul className="space-y-2 text-sm text-ink-3">
@@ -198,15 +235,6 @@ export function Hero() {
               <span><strong className="font-medium text-ink">Privacy-focused</strong> = no data mining, no selling your client info</span>
             </li>
           </ul>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45, duration: 0.9, ease: EASE }}
-          className="mt-16 sm:mt-20"
-        >
-          <ProductShowcase />
         </motion.div>
       </div>
     </section>

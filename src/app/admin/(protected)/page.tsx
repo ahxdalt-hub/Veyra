@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/admin/auth";
+import { getLivePresence } from "@/lib/presence";
 import {
   getMetrics,
   getRevenueSeries,
@@ -41,7 +42,7 @@ export default async function OverviewPage({
     : "30d";
 
   const configured = commandCenterConfigured();
-  const [metrics, totals, series, breakdown, orders, notifications, freeClaims] =
+  const [metrics, totals, series, breakdown, orders, notifications, freeClaims, presence] =
     await Promise.all([
       getMetrics(range),
       getTotals(),
@@ -50,6 +51,7 @@ export default async function OverviewPage({
       listOrders({ limit: 14 }),
       listNotifications({ limit: 12 }),
       getFreeClaims(range),
+      getLivePresence(),
     ]);
 
   const initial: LiveOverviewData = {
@@ -62,6 +64,7 @@ export default async function OverviewPage({
     orders,
     notifications: notifications ?? [],
     freeClaims,
+    presence,
   };
 
   return <LiveOverview initial={initial} />;

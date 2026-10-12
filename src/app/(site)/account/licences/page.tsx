@@ -14,6 +14,7 @@ import type {
   SeatAssignmentRow,
 } from "@/lib/supabase/types";
 import { getProduct } from "@/lib/products";
+import { claimPurchasesForUser } from "@/lib/fulfillment";
 import { AccountShell, AccountCard } from "@/components/account/account-shell";
 import { TeamSeats, type SeatView } from "@/components/account/team-seats";
 import { LicenceDevices, type DeviceView } from "@/components/account/licence-devices";
@@ -37,8 +38,26 @@ export default async function LicencesPage() {
   if (!supabaseAuthConfigured()) {
     return <NotConfigured />;
   }
-  await requireAccountUser();
+  const user = await requireAccountUser();
   const supabase = await createSupabaseServerClient();
+
+  // Self-heal orphaned grants. A product granted from the admin terminal
+  // before this account existed (or before it linked) carries user_id null:
+  // it is still visible here through the email read policy, but seat
+  // control is gated on entitlements.user_id = auth.uid() — so without a
+  // link the owner can see the licence yet cannot manage its seats. Linking
+  // is idempotent and only fires when an active, unlinked entitlement is in
+  // view; once it has run, the next load finds nothing to do.
+  const { data: orphaned } = await supabase
+    .from("entitlements")
+    .select("id")
+    .eq("status", "active")
+    .is("user_id", null)
+    .limit(1)
+    .maybeSingle();
+  if (orphaned) {
+    await claimPurchasesForUser(user.id, user.email ?? "");
+  }
 
   // RLS (licences_select_own): only the caller's licences.
   const { data, error } = await supabase
