@@ -89,115 +89,142 @@ export function AuditPitch({
   return (
     <section aria-label="Own the Client Growth System" className="animate-rise">
       {/* 1 · The bridge — their weakest phase, named, and the fix. */}
-      <div className="mx-auto max-w-3xl text-center">
+      <div className="mx-auto max-w-4xl text-center space-y-3">
         <p className="text-eyebrow text-clay">Your fix</p>
-        <h3 className="text-display-2 mt-3 text-[1.75rem] sm:text-[2rem]">
+        <h3 className="text-display-2 mt-3 text-[2.25rem] sm:text-[2.5rem] leading-tight">
           {weakest.label} is your weakest phase.
         </h3>
-        <p className="mt-4 text-lead">{fix.fix}</p>
-        <p className="spec mt-5 text-ink-4">
+        <p className="mx-auto max-w-2xl text-xl leading-relaxed text-ink-2">{fix.fix}</p>
+        <p className="mt-3 spec text-ink-4 inline-flex items-center gap-1.5 rounded-full border border-line bg-paper px-4 py-1.5">
+          <SparkIcon className="h-3.5 w-3.5" />
           Covered by: {fix.modules.join(" · ")}
         </p>
       </div>
 
-      {/* 2 · The four differentiators — a full-width row of cards. */}
-      <ul
-        role="list"
-        className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-      >
-        {PILLARS.map(({ Icon, title, body }, i) => (
-          <li
-            key={title}
-            className="group animate-rise rounded-md border border-line bg-paper p-5 transition-colors hover:border-accent/40 hover:bg-accent-soft/50"
-            style={{ animationDelay: `${80 + i * 60}ms` }}
-          >
-            <span className="flex h-9 w-9 items-center justify-center rounded-sm border border-line bg-surface text-accent transition-colors group-hover:border-accent/40 group-hover:bg-accent-soft">
-              <Icon className="h-4 w-4" />
-            </span>
-            <p className="mt-3 text-sm font-medium text-ink">{title}</p>
-            <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-ink-2">
-              {body}
-            </p>
-          </li>
-        ))}
-      </ul>
-
-      {/* 3 + 4 · Stop renting (left) beside the price + CTAs (right). */}
-      <div className="mt-8 grid items-stretch gap-6 lg:grid-cols-2">
-      {/* 3 · Stop renting — the three-year savings argument. */}
-      <div className="flex flex-col justify-center rounded-md border border-line bg-paper p-6 sm:p-8">
-        <p className="text-eyebrow">Stop renting your tools</p>
-        <div className="mt-4 space-y-2 text-base">
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="text-ink-3">
-              A cloud CRM (~${CRM_MONTHLY}/mo), over {CRM_MONTHS / 12} years
-            </span>
-            <span className="tnum line-through text-ink-4">
-              {formatPrice(crm3yr)}
-            </span>
-          </div>
-          <div className="flex items-baseline justify-between gap-3 font-medium">
-            <span className="text-ink">Veyra — one payment</span>
-            <span className="tnum text-ink">{formatPrice(youPay)}</span>
-          </div>
-        </div>
-        <p className="mt-3 rounded-sm bg-accent-soft px-3 py-2 text-sm font-medium text-accent-ink">
-          You keep {formatPrice(saved)} over three years — and own it for life.
-        </p>
-        <p className="mt-2 text-[0.6875rem] leading-relaxed text-ink-4">
-          Based on a typical ${CRM_MONTHLY}/month CRM. No subscription, ever.
-        </p>
+      {/* 2 · The four differentiators — a full-width row of cards */}
+      <div className="mt-16">
+        <h4 className="mx-auto mb-8 max-w-3xl text-center text-lg font-medium text-ink-2">
+          Built differently — so you can actually use it every day without friction
+        </h4>
+        <ul
+          role="list"
+          className="mx-auto grid max-w-6xl gap-5 sm:grid-cols-2 lg:grid-cols-4"
+        >
+          {PILLARS.map(({ Icon, title, body }, i) => (
+            <li
+              key={title}
+              className="group animate-rise relative overflow-hidden rounded-xl border border-line bg-paper p-6 transition-all duration-300 hover:-translate-y-1 hover:border-accent/40 hover:bg-accent-soft/30 hover:shadow-sm"
+              style={{ animationDelay: `${80 + i * 80}ms` }}
+            >
+              <span className="flex h-12 w-12 items-center justify-center rounded-lg border border-line bg-surface text-accent transition-colors group-hover:border-accent/40 group-hover:bg-accent-soft">
+                <Icon className="h-5 w-5" />
+              </span>
+              <p className="mt-4 text-base font-semibold text-ink">{title}</p>
+              <p className="mt-2 text-sm leading-relaxed text-ink-2">
+                {body}
+              </p>
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-accent/20 to-transparent opacity-0 transition-opacity group-hover:opacity-100"></div>
+            </li>
+          ))}
+        </ul>
       </div>
 
-        {/* 4 · Price + CTAs. */}
-        <div className="flex flex-col justify-center rounded-md bg-ink p-6 text-paper sm:p-8">
-          <p className="spec flex items-center gap-1.5 text-paper/60">
-            <SparkIcon className="h-3.5 w-3.5" />
-            The complete system · 12 modules · 6 phases
-          </p>
-          <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span className="text-4xl font-medium tnum text-paper">
-              {formatPrice(youPay)}
+      {/* 3 + 4 · Stop renting (left) beside the price + CTAs (right) */}
+      <div className="mt-12 grid items-stretch gap-6 lg:grid-cols-2">
+        {/* 3 · Stop renting — the three-year savings argument */}
+        <div className="flex flex-col justify-center rounded-2xl border border-line bg-paper p-8 transition-all duration-300 hover:border-accent/30 hover:shadow-sm">
+          <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-soft text-emerald">
+            <SparkIcon className="h-6 w-6" />
+          </div>
+          <p className="text-eyebrow text-emerald font-semibold">Stop renting your tools</p>
+          
+          <div className="mt-6 space-y-4">
+            <div className="group relative overflow-hidden rounded-lg border border-red-100 bg-red-50/50 px-5 py-3.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-ink-3 line-through decoration-red-300">
+                  A cloud CRM (~${CRM_MONTHLY}/mo), over {CRM_MONTHS / 12} years
+                </span>
+                <span className="tnum line-through text-red-400 font-medium">
+                  ${crm3yr}
+                </span>
+              </div>
+            </div>
+            
+            <div className="group relative overflow-hidden rounded-lg border-2 border-emerald/20 bg-gradient-to-br from-emerald-50/50 to-green-50/30 px-5 py-4">
+              <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald/20"></div>
+              <div className="flex items-baseline justify-between gap-3 pl-3">
+                <span className="font-semibold text-ink">Veyra — one payment</span>
+                <span className="tnum text-emerald font-bold">${youPay}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-6 rounded-xl border border-emerald/20 bg-emerald-soft/40 px-5 py-4 text-center shadow-sm">
+            <p className="text-base font-bold text-emerald-ink">
+              You save ${saved} over three years — and own it for life
+            </p>
+            <p className="mt-1.5 text-xs text-emerald-ink/70">
+              No subscription fees ever • All future updates included
+            </p>
+          </div>
+        </div>
+
+        {/* 4 · Price + CTAs */}
+        <div className="group flex flex-col justify-center rounded-2xl bg-ink p-8 text-paper shadow-xl transition-all duration-300 hover:shadow-2xl">
+          <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-paper/15 bg-paper/10 px-3 py-1.5 text-xs font-medium text-paper/70">
+            <SparkIcon className="h-3 w-3 animate-pulse" />
+            Complete system · 12 modules · 6 phases
+          </div>
+          
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
+            <span className="text-5xl font-bold tnum tracking-tight text-paper sm:text-6xl">
+              ${youPay}
             </span>
             {foundingActive ? (
-              <span className="text-base line-through tnum text-paper/40">
-                {formatPrice(REGULAR_PRICE)}
+              <span className="text-lg line-through text-paper/40 tnum">
+                ${REGULAR_PRICE}
               </span>
             ) : null}
+          </div>
+          
+          <div className="mt-2 flex items-center gap-3">
             {foundingActive ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-paper/25 px-2.5 py-0.5 text-[0.6875rem]">
-                <SparkIcon className="h-3 w-3" />
-                Founding
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-gradient-to-r from-accent/20 to-yellow-500/20 px-3 py-1 text-[0.6875rem] font-semibold text-accent-ink shadow-sm">
+                <SparkIcon className="h-2.5 w-2.5" />
+                Founding Price
               </span>
             ) : (
-              <span className="text-xs text-paper/50">
-                One-time · yours forever
+              <span className="rounded-full border border-paper/20 bg-paper/10 px-3 py-1 text-xs text-paper/60">
+                One-time payment
               </span>
             )}
+            <span className="text-xs text-paper/50">• Lifetime access</span>
           </div>
-          <p className="mt-4 flex items-center gap-1.5 text-xs text-paper/55">
-            <ShieldIcon className="h-3.5 w-3.5" />
-            {REFUND_WINDOW_LABEL}
-          </p>
+          
+          <div className="my-6 h-px bg-gradient-to-r from-transparent via-paper/20 to-transparent"></div>
+          
+          <div className="mb-6 flex items-center gap-1.5 text-sm text-paper/70">
+            <ShieldIcon className="h-4 w-4" />
+            <span>{REFUND_WINDOW_LABEL} · No questions asked</span>
+          </div>
 
-          <div className="mt-6 flex flex-col gap-2.5 sm:flex-row">
+          <div className="mt-auto space-y-3">
             <Button
               href="/products/client-growth-system"
               size="lg"
               arrow
               onMouseEnter={hover}
-              className="justify-center bg-paper text-ink hover:bg-accent-soft active:bg-accent-soft"
+              className="w-full justify-center bg-gradient-to-r from-paper to-paper/90 text-ink hover:from-accent-soft hover:to-accent-soft hover:text-ink transition-all duration-300 shadow-lg hover:shadow-xl"
             >
               Get the Client Growth System
             </Button>
             <Link
               href="/demo/client-growth-system"
               onMouseEnter={hover}
-              className="group inline-flex items-center justify-center gap-2 rounded-sm border border-paper/25 px-5 py-2.5 text-sm text-paper/85 transition-colors hover:border-paper/50 hover:text-paper"
+              className="group inline-flex items-center justify-center gap-2 rounded-lg border border-paper/25 bg-paper/5 px-5 py-2.5 text-sm text-paper/85 transition-all duration-300 hover:border-paper/40 hover:bg-paper/10 hover:text-paper"
             >
-              <PlayIcon className="h-3.5 w-3.5" />
+              <PlayIcon className="h-3.5 w-3.5 opacity-70 transition-transform group-hover:translate-x-0.5" />
               Try the live demo
-              <ArrowRightIcon className="h-3.5 w-3.5 opacity-60 transition-transform group-hover:translate-x-0.5" />
             </Link>
           </div>
         </div>

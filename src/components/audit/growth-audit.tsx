@@ -25,6 +25,7 @@ import {
   ArrowLeftIcon,
   ArrowRightIcon,
   CheckIcon,
+  ClockIcon,
   SoundOffIcon,
   SoundOnIcon,
 } from "@/components/ui/icons";
@@ -239,7 +240,7 @@ export function GrowthAudit({
   return (
     <div
       ref={cardRef}
-      className="relative mx-auto max-w-2xl rounded-md border border-line bg-surface p-6 shadow-sm scroll-mt-24 sm:p-10"
+      className="relative mx-auto max-w-3xl rounded-md border border-line bg-surface p-6 shadow-sm scroll-mt-24 sm:p-10"
     >
       <SoundToggle on={sfxOn} toggle={toggleSfx} />
 
@@ -511,15 +512,26 @@ function ScoreHeadline({
   active: boolean;
 }) {
   const shown = useCountUp(result.overall, active, reduced);
+  
+  // Get color based on score
+  const getScoreColor = (percent: number) => {
+    if (percent >= 70) return "text-accent";
+    if (percent >= 50) return "text-amber";
+    return "text-clay";
+  };
+  
   return (
     <div className="flex flex-wrap items-baseline justify-center gap-x-4 gap-y-2">
-      <span className="text-display-hero tnum text-ink">
-        {shown}
-        <span className="text-3xl text-ink-4">/100</span>
-      </span>
+      <div className={`flex items-baseline ${getScoreColor(shown)} transition-colors duration-300`}>
+        <span className="text-display-hero tnum">
+          {shown}
+          <span className="text-3xl text-ink-4">/100</span>
+        </span>
+      </div>
       <span
-        className={`rounded-full border px-3 py-1 text-xs font-medium ${bandClasses[result.band.key]}`}
+        className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium shadow-sm transition-all duration-300 ${bandClasses[result.band.key]}`}
       >
+        <span className="mr-1.5 h-2 w-2 rounded-full bg-current opacity-60"></span>
         {result.band.label}
       </span>
     </div>
@@ -571,14 +583,17 @@ function Results({
   return (
     <div className="max-w-6xl">
       {/* Orientation — who/where/what, so no one has to scroll back. */}
-      <div className="animate-rise mx-auto max-w-2xl text-center">
+      <div className="animate-rise mx-auto max-w-3xl text-center space-y-2">
         <p className="text-eyebrow">
           Your growth audit · Client Growth System
         </p>
-        <p className="mt-2 text-sm leading-relaxed text-ink-3">
+        <h1 className="mt-4 text-3xl font-bold tracking-tight text-ink sm:text-4xl">
+          Here&apos;s what your score means
+        </h1>
+        <p className="mx-auto max-w-2xl text-lg leading-relaxed text-ink-3">
           You scored the six phases that decide whether a consultancy
-          compounds or grinds. Here&rsquo;s the honest read — and the one
-          system that turns your weakest phase into a process you keep.
+          compounds or grinds. Below is your detailed breakdown—
+          plus the exact system that turns your weakest phase into a process you keep.
         </p>
       </div>
 
@@ -594,102 +609,149 @@ function Results({
       </div>
 
       {/* Diagnosis — the issue, by score. The offer is a separate view below. */}
-      <div className="mx-auto mt-10 max-w-3xl space-y-8">
-          {/* Phase by phase */}
-          <section
-            aria-label="Phase scores"
-            className="animate-rise rounded-md border border-line bg-paper p-5 sm:p-6"
-          >
-            <div className="flex items-baseline justify-between gap-3">
-              <h3 className="text-display-2 text-[1.25rem]">Phase by phase</h3>
-              <span className="spec text-ink-4">out of 100</span>
-            </div>
-            <ul role="list" className="mt-5 space-y-4">
-          {result.phases.map((p, i) => (
-            <li key={p.phase}>
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="text-sm font-medium text-ink-2">
-                  {p.label}
-                </span>
-                <span className="spec tnum text-ink-3">
-                  {p.percent}%
-                </span>
-              </div>
-              <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-line">
-                <div
-                  className={`h-full rounded-full transition-[width] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${barColor(p.percent)}`}
-                  style={{
-                    width: barsShown ? `${p.percent}%` : "0%",
-                    transitionDelay: reduced ? "0ms" : `${i * 90}ms`,
-                  }}
-                />
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <div className="mx-auto mt-10 max-w-none space-y-6">
+        {/* Phase by phase */}
+        <section
+          aria-label="Phase scores"
+          className="animate-rise rounded-md border border-line bg-paper p-6 sm:p-8"
+        >
+          <div className="mb-6 flex items-baseline justify-between gap-3">
+            <h3 className="text-display-2 text-[1.5rem]">Phase by phase</h3>
+            <span className="spec text-ink-4">out of 100</span>
+          </div>
+          <ul role="list" className="space-y-5">
+            {result.phases.map((p, i) => (
+              <li key={p.phase}>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="min-w-[70px] text-sm font-medium text-ink-2">
+                    {p.label}
+                  </span>
+                  <div className="flex flex-1 items-center gap-3">
+                    <span className="w-10 text-right text-sm font-semibold tnum text-ink-3">
+                      {p.percent}%
+                    </span>
+                    <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-line">
+                      <div
+                        className={`h-full rounded-full transition-[width] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${barColor(p.percent)}`}
+                        style={{
+                          width: barsShown ? `${p.percent}%` : "0%",
+                          transitionDelay: reduced ? "0ms" : `${i * 90}ms`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+          
+          {/* Quick insights */}
+          <div className="mt-6 rounded-lg border border-accent/20 bg-accent-soft/30 p-4 animate-rise">
+            <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold text-ink">
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-accent/20 text-xs text-accent-ink">i</span>
+              Quick Insights
+            </h4>
+            <ul className="space-y-1.5 text-sm text-ink-2">
+              <li>🏆 Your strongest area: <strong className="text-ink">{result.strengths[0].label}</strong> ({result.strengths[0].percent}%)</li>
+              <li>⚠️ Priority fix: <strong className="text-ink">{result.gaps[0].label}</strong> ({result.gaps[0].percent}%)</li>
+              <li>📈 Gap to close: <strong className="text-ink">{Math.abs(result.strengths[0].percent - result.gaps[0].percent)} points</strong> to balance your system</li>
+            </ul>
+          </div>
+        </section>
 
-      {/* What holds up */}
+      {/* What holds up - Strengths */}
       <section
         aria-label="Strengths"
-        className="animate-rise rounded-md border border-line bg-paper p-5 sm:p-6"
+        className="animate-rise rounded-md border border-accent/20 bg-paper p-6 sm:p-8"
         style={{ animationDelay: "60ms" }}
       >
-        <h3 className="text-display-2 text-[1.25rem]">What holds up</h3>
-        <ul role="list" className="mt-4 space-y-2.5">
-          {result.strengths.map((s) => (
-            <li key={s.phase} className="flex items-start gap-3 text-sm text-ink-2">
-              <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-              <span>
-                <span className="font-medium text-ink">{s.label}</span>{" "}
-                ({s.percent}%) — holding up. Keep the cadence.
-              </span>
+        <h3 className="flex items-center gap-3 text-display-2 text-[1.5rem]">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-accent/20 text-accent">
+            <CheckIcon className="h-5 w-5" />
+          </span>
+          What holds up
+        </h3>
+        <p className="mt-3 text-sm text-ink-3">
+          These are your foundations — maintain and leverage them.
+        </p>
+        <ul role="list" className="mt-4 grid gap-3 sm:grid-cols-2">
+          {result.strengths.map((s, idx) => (
+            <li key={s.phase} className="flex flex-col gap-2 rounded-lg border border-line bg-surface p-4 transition-all duration-200 hover:shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-ink">{s.label}</span>
+                <span className="rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-semibold text-accent-ink">
+                  {s.percent}%
+                </span>
+              </div>
+              <p className="text-sm leading-relaxed text-ink-2">
+                Your system is working well here. Keep the momentum.
+              </p>
             </li>
           ))}
         </ul>
       </section>
 
-      {/* Fix first — each gap gets a way to act. */}
+      {/* Fix first — each gap gets a way to act */}
       <section
         aria-label="Fix first"
-        className="animate-rise"
+        className="animate-rise space-y-4"
         style={{ animationDelay: "120ms" }}
       >
-        <h3 className="text-display-2 text-[1.25rem]">Fix first</h3>
-        <ul role="list" className="mt-4 space-y-4">
-          {result.gaps.map((g) => {
+        <h3 className="text-display-2 text-[1.5rem]">Fix first</h3>
+        <ul role="list" className="space-y-4">
+          {result.gaps.map((g, idx) => {
             const fix = PHASE_FIX[g.phase];
             return (
               <li
                 key={g.phase}
-                className="rounded-md border border-line bg-paper p-5 sm:p-6"
+                className="overflow-hidden rounded-md border border-clay/30 bg-paper shadow-sm"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="spec text-ink-4">
-                    {g.label} · {g.percent}%
-                  </p>
-                  <span className="rounded-full border border-clay/40 px-2.5 py-0.5 text-[0.6875rem] font-medium text-clay">
-                    Fix this
-                  </span>
+                <div className="border-b border-line bg-clay/5 p-5 sm:p-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="rounded-full bg-clay/20 px-2.5 py-1 text-xs font-semibold text-clay">
+                        Priority {idx + 1}
+                      </span>
+                      <p className="text-sm font-medium text-ink-2">
+                        {g.label} · {g.percent}%
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-clay/40 px-2.5 py-0.5 text-[0.6875rem] font-medium text-clay">
+                      Needs work
+                    </span>
+                  </div>
+                  <h4 className="mt-3 text-xl font-semibold text-ink">
+                    {fix.headline}
+                  </h4>
                 </div>
-                <h4 className="text-display-2 mt-2 text-[1.125rem]">
-                  {fix.headline}
-                </h4>
-                <p className="mt-2 text-sm leading-relaxed text-ink-2">
-                  {fix.fix}
-                </p>
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                  <p className="spec text-ink-4">
-                    Covered by: {fix.modules.join(" · ")}
+                <div className="p-5 sm:p-6">
+                  <p className="text-sm leading-relaxed text-ink-2">
+                    {fix.fix}
                   </p>
-                  <Link
-                    href="/products/client-growth-system"
-                    onMouseEnter={hover}
-                    className="group inline-flex items-center gap-1.5 text-sm font-medium text-accent-ink underline-offset-4 hover:underline"
-                  >
-                    Fix {g.label}
-                    <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                  </Link>
+                  <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-medium text-ink-4 mb-1">Covered by:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {fix.modules.map((module, i) => (
+                          <span
+                            key={module}
+                            className="inline-flex items-center gap-1 rounded bg-accent-soft/50 px-2.5 py-1 text-xs font-medium text-accent-ink"
+                          >
+                            {i > 0 && <span className="text-accent-ink/40">·</span>}
+                            {module}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <Link
+                      href="/products/client-growth-system"
+                      onMouseEnter={hover}
+                      className="group inline-flex items-center gap-1.5 text-sm font-semibold text-accent-ink underline-offset-4 hover:underline"
+                    >
+                      Get the fix
+                      <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                    </Link>
+                  </div>
                 </div>
               </li>
             );
@@ -700,60 +762,84 @@ function Results({
       {/* The one change this week */}
       <section
         aria-label="The one change this week"
-        className="animate-rise rounded-md border border-accent/30 bg-accent-soft/60 p-6"
+        className="animate-rise overflow-hidden rounded-md border-2 border-dashed border-accent/30 bg-gradient-to-br from-accent-soft/60 to-yellow-50/50 p-6 sm:p-8"
         style={{ animationDelay: "180ms" }}
       >
-        <p className="text-eyebrow text-accent-ink">
-          The one change this week
-        </p>
-        <p className="mt-3 text-[1.0625rem] leading-relaxed text-ink">
-          Before anything else: write down{" "}
-          {PHASE_FIRST_ACTION[weakest.phase]}
-        </p>
-        <p className="mt-2 text-sm text-ink-2">
-          It takes twenty minutes and it&rsquo;s worth more than reading
-          another post about growth.
-        </p>
-      </section>
-        </div>
-
-        {/* The offer is a separate view — the diagnosis ends with the invitation. */}
-        <div
-          className="animate-rise mt-12 text-center"
-          style={{ animationDelay: "240ms" }}
-        >
-          <Button
-            variant="accent"
-            size="lg"
-            arrow
-            onClick={onFindSolution}
-            onMouseEnter={hover}
-          >
-            Find your solution
-          </Button>
-          <p className="mx-auto mt-4 max-w-md text-sm text-ink-3">
-            The one system that turns{" "}
-            {weakest.label.toLowerCase()} — and the other five phases — into a
-            process you keep.
-          </p>
-
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={retake}
-              onMouseEnter={hover}
-            >
-              Retake the audit
-            </Button>
-            <Link
-              href="/resources"
-              className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
-            >
-              Back to resources
-            </Link>
+        <div className="flex items-start gap-4">
+          <div className="hidden sm:block">
+            <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent text-white">
+              <ClockIcon className="h-6 w-6" />
+            </span>
+          </div>
+          <div className="flex-1">
+            <p className="text-eyebrow text-accent-ink">
+              🎯 Your one action this week
+            </p>
+            <p className="mt-2 text-lg leading-relaxed text-ink">
+              Before anything else: write down{" "}
+              <strong className="text-ink">{PHASE_FIRST_ACTION[weakest.phase]}</strong>
+            </p>
+            <p className="mt-2 text-sm text-ink-2">
+              It takes twenty minutes and it&apos;s worth more than reading another post about growth.
+            </p>
+            
+            {/* Additional tip based on score */}
+            {result.overall < 50 && (
+              <div className="mt-4 rounded-lg border border-amber/30 bg-amber-soft/30 p-3 text-sm text-ink-2">
+                💡 <strong>Pro tip:</strong> Start small. Pick one task from your weakest phase and implement it completely before moving to another area.
+              </div>
+            )}
+            
+            {result.overall >= 50 && result.overall < 70 && (
+              <div className="mt-4 rounded-lg border border-accent/30 bg-accent-soft/30 p-3 text-sm text-ink-2">
+                💡 <strong>Pro tip:</strong> You have good structure! Focus on consistency — run the systems you have in place for at least two weeks straight.
+              </div>
+            )}
+            
+            {result.overall >= 70 && (
+              <div className="mt-4 rounded-lg border border-accent/30 bg-accent-soft/30 p-3 text-sm text-ink-2">
+                💡 <strong>Excellent!</strong> Your systems are solid. Use this momentum to document and refine your processes even further.
+              </div>
+            )}
           </div>
         </div>
+      </section>
+    </div>
+
+    {/* The offer is a separate view — the diagnosis ends with the invitation. */}
+    <div className="animate-rise mt-12 text-center">
+      <Button
+        variant="accent"
+        size="lg"
+        arrow
+        onClick={onFindSolution}
+        onMouseEnter={hover}
+      >
+        Find your solution
+      </Button>
+      <p className="mx-auto mt-4 max-w-md text-sm text-ink-3">
+        The one system that turns{" "}
+        {weakest.label.toLowerCase()} — and the other five phases — into a
+        process you keep.
+      </p>
+
+      <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={retake}
+          onMouseEnter={hover}
+        >
+          Retake the audit
+        </Button>
+        <Link
+          href="/resources"
+          className="text-xs text-ink-3 underline-offset-4 hover:text-ink hover:underline"
+        >
+          Back to resources
+        </Link>
       </div>
+    </div>
+    </div>
   );
 }
