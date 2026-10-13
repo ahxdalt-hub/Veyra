@@ -98,13 +98,20 @@ const headCommit = currentCommit();
  * After the Worker deploys, fetch the public build marker and FAIL the whole
  * deploy if the live site is not running HEAD. This is the guard that was
  * missing: a deploy once "succeeded" while the site kept serving a build from
- * five minutes before the commit, which read as a phantom cache bug. Retries
- * absorb normal Cloudflare propagation lag before giving up.
+ * five minutes before the commit, which read as a phantom cache bug.
+ *
+ * Patience matters here: OpenNext's incremental cache can keep serving the
+ * previous prerendered page for a while after the new Worker version is live
+ * (the site flipped to fresh only after the original 8×4s window elapsed, so
+ * a short budget produced a FALSE abort on a deploy that had actually worked).
+ * ~20×8s ≈ 160s absorbs that real propagation lag while still failing a deploy
+ * that is genuinely stuck on stale content.
  */
 async function verifyLiveDeploy(expectedCommit) {
   const base = (localValue("NEXT_PUBLIC_SITE_URL") || "https://veyra.caelmont.in").replace(/\/$/, "");
   const url = `${base}/api/build-info?probe=${Date.now()}`;
-  for (let attempt = 1; attempt <= 8; attempt++) {
+  const MAX = 20;
+  for (let attempt = 1; attempt <= MAX; attempt++) {
     try {
       const res = await fetch(url, { headers: { "Cache-Control": "no-cache" } });
       if (res.ok) {
@@ -114,20 +121,20 @@ async function verifyLiveDeploy(expectedCommit) {
           return;
         }
         console.log(
-          `[deploy] live site reports commit "${body.commit}", expected "${expectedCommit}" — retrying (${attempt}/8)`
+          `[deploy] live site reports commit "${body.commit}", expected "${expectedCommit}" — retrying (${attempt}/${MAX})`
         );
       } else {
-        console.log(`[deploy] /api/build-info returned ${res.status} — retrying (${attempt}/8)`);
+        console.log(`[deploy] /api/build-info returned ${res.status} — retrying (${attempt}/${MAX})`);
       }
     } catch (err) {
-      console.log(`[deploy] verify fetch failed (${attempt}/8): ${err.message}`);
+      console.log(`[deploy] verify fetch failed (${attempt}/${MAX}): ${err.message}`);
     }
-    await new Promise((r) => setTimeout(r, 4000));
+    await new Promise((r) => setTimeout(r, 8000));
   }
   throw new Error(
-    `[deploy] ABORT: live site did not report commit ${expectedCommit} after 8 attempts. ` +
-      `The Worker deployed but the site is not serving HEAD (edge cache or propagation lag). ` +
-      `Purge the Cloudflare cache for ${base} and redeploy.`
+    `[deploy] ABORT: live site did not report commit ${expectedCommit} after ${MAX} attempts (~${MAX * 8}s). ` +
+      `The Worker deployed but the site is still serving stale content. Purge the Cloudflare cache for ` +
+      `${base} (Dashboard → Caching → Configuration → Purge Everything) and redeploy.`
   );
 }
 
